@@ -497,20 +497,19 @@ amazon() {
   const perTxt = P === '30d' ? 'últimos 30 días' : P === 'ytd' ? 'en 2026' : `en ${MESL[+P.slice(5, 7) - 1]}`;
   // countries for the period
   let paisesRows;
+  const agg = {}; D2.forEach((r) => { const k = r.pais; agg[k] = agg[k] || { pais: k, usd: 0, u: 0, loc: 0, mon: r.mon }; agg[k].usd += r.usd; agg[k].u += r.u; agg[k].loc += r.v; });
+  let qbExtra = false;
   if (A.paises_mes && P !== '30d') {
-    const agg = {}; A.paises_mes.filter((r) => P === 'ytd' || r.mes === P).forEach((r) => { agg[r.pais] = (agg[r.pais] || 0) + r.usd; });
-    paisesRows = Object.entries(agg).map(([pais, usd]) => ({ pais, usd, u: null })).filter((r) => Math.abs(r.usd) > 0.005);
-  } else {
-    const agg = {}; D2.forEach((r) => { const k = r.pais; agg[k] = agg[k] || { pais: k, usd: 0, u: 0, loc: 0, mon: r.mon }; agg[k].usd += r.usd; agg[k].u += r.u; agg[k].loc += r.v; });
-    paisesRows = Object.values(agg);
+    A.paises_mes.filter((r) => !(A.dias || {})[r.pais] && (P === 'ytd' || r.mes === P)).forEach((r) => { agg[r.pais] = agg[r.pais] || { pais: r.pais + ' *', usd: 0, u: null }; agg[r.pais].usd += r.usd; qbExtra = true; });
   }
+  paisesRows = Object.values(agg).filter((r) => Math.abs(r.usd) > 0.005);
   paisesRows.sort((x, y) => y.usd - x.usd);
   const pmax = Math.max(1, ...paisesRows.map((r) => Math.abs(r.usd)));
   const paises = paisesRows.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)}${p.u != null ? ` <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.u)} uds</span>` : ''}</span>
     <span class="v">${money(p.usd, 'USD', 0)}</span>
     <div class="bar"><i style="width:${Math.max(0, p.usd) / pmax * 100}%;background:${COL[state.amz]}"></i></div>
     ${p.mon && p.mon !== 'USD' ? `<span class="mut" style="font-size:12px;grid-column:1/-1">${money(p.loc, p.mon, 0)}</span>` : ''}</div>`).join('') || '<p class="mut">Sin ventas en este periodo.</p>';
-  const paisNote = A.paises_mes && P !== '30d' ? 'Fuente: QuickBooks, ingresos de Amazon por país (criterio de caja).' : (Object.keys(A.dias || {}).length > 1 ? 'Fuente: Seller Central. Importes locales convertidos a US$ (BCE, 8-oct).' : 'Últimos 30 días: solo EE. UU. Elige "Año" o un mes para ver todos los países.');
+  const paisNote = (Object.keys(A.dias || {}).length > 1 ? 'Seller Central (ventas pedidas). Monedas locales a US$ con BCE 8-oct.' : 'Seller Central (ventas pedidas).') + (qbExtra ? ' * Países sin lectura de Seller Central: ingresos cobrados según QuickBooks.' : (A.paises_mes && P === '30d' ? ' Elige "Año" o un mes para ver también el resto de países (QuickBooks).' : ''));
   // stock
   const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin dato de ventas': 'mut', 'Stock de EE. UU.': 'info', 'Sin ventas ni stock': 'mut' };
   const stockPaises = [...new Set(A.fba.map((f) => f.pais || 'Estados Unidos'))];
