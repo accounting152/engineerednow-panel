@@ -587,7 +587,7 @@ inventario() {
   const seg = [['', 'Ambas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER']].map(([v, l]) => `<button aria-pressed="${E === v}" data-ie="${v}">${l}</button>`).join('');
   const cards = ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => { const r = AM[e].fba.map((f) => ({ ...f, pais: f.pais || 'Estados Unidos' })); const o = own(r);
     return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgentes</span></div>
-      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${e === 'HUNTER' && TV ? `<dt>Almacén TVL</dt><dd>${nf(0).format(TV.rows.reduce((s, x) => s + (x.total_uds || 0), 0))} uds</dd>` : ''}</dl></button>`; }).join('');
+      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${e === 'HUNTER' && TV ? `<dt>Almacén TVL</dt><dd>${nf(0).format(TV.rows.filter((x) => x.modelo !== 'Ruedas').reduce((s, x) => s + (x.total_uds || 0), 0))} reposacabezas</dd>` : ''}</dl></button>`; }).join('');
   const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin dato de ventas': 'mut', 'Stock de EE. UU.': 'info', 'Sin ventas ni stock': 'mut' };
   const ord = { 'Reponer ya': 0, 'Agotado': 1, 'Vigilar': 2, 'Exceso': 3, 'Correcto': 4, 'Stock de EE. UU.': 5, 'Sin ventas': 6, 'Sin dato de ventas': 7, 'Sin ventas ni stock': 8 };
   const shown = rows.filter((f) => f.estado !== 'Sin ventas ni stock').sort((a, b) => (ord[a.estado] - ord[b.estado]) || ((+b.unidades_90d || 0) - (+a.unidades_90d || 0)));
@@ -603,10 +603,10 @@ inventario() {
   const tvList = tvRows.map((r) => `<div class="stockrow"><span class="nm">${esc(r.producto)} <span class="mut" style="font-weight:400;font-size:12px">· Hunter · Almacén TVL</span></span><span class="pill ${tvCls[r.estado] || 'mut'}">${esc(r.estado)}</span>
       <div class="gauge"><i style="width:${r.total_uds ? Math.max(2, r.total_uds / tvMax * 100) : 0}%;background:var(--${tvCls[r.estado] === 'mut' ? 'muted' : tvCls[r.estado]})"></i></div>
       <div class="meta">${r.total_uds != null ? `<span>Total <b>${nf(0).format(r.total_uds)} uds</b></span>` : ''}<span>Cartones <b>${r.cartones}</b>${r.uds_carton ? ` × ${r.uds_carton} = ${nf(0).format(r.uds_en_cartones)} uds` : ''}</span><span>Sueltas <b>${r.sueltas}</b></span>${r.nota ? `<span>${esc(r.nota)}</span>` : ''}</div></div>`).join('');
-  const tvTot = tvShow ? TV.rows.reduce((s, r) => s + (r.total_uds || 0), 0) : 0;
+  const isHR = (r) => r.modelo !== 'Accesorios' && r.modelo !== 'Ruedas'; const tvTot = tvShow ? TV.rows.filter(isHR).reduce((s, r) => s + (r.total_uds || 0), 0) : 0; const tvRu = tvShow ? TV.rows.filter((r) => r.modelo === 'Ruedas') : [];
   const tvSec = tvShow ? `<section class="card">
     <h3>Almacén TVL · Hunter</h3>
-    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas en ${nf(0).format(TV.rows.filter((r) => r.modelo !== 'Accesorios').reduce((s, r) => s + r.cartones, 0))} cartones y ${nf(0).format(TV.rows.filter((r) => r.modelo !== 'Accesorios').reduce((s, r) => s + r.sueltas, 0))} sueltas. ${esc(TV.nota)}</p>
+    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas en ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.cartones, 0))} cartones y ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.sueltas, 0))} sueltas${tvRu.length ? `, más ${nf(0).format(tvRu.reduce((s, r) => s + (r.total_uds || 0), 0))} ruedas (casters)` : ''}. ${esc(TV.nota)}</p>
     <section class="kpis" style="margin:6px 0 10px">${tvMods}</section>
     ${tvList || '<p class="mut">Ninguna referencia con esta búsqueda.</p>'}
     <p class="hint" style="margin-top:8px">Fuente: ${esc(TV.fuente)}.</p>
