@@ -325,7 +325,7 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER' };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '' };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -488,47 +488,79 @@ amazon() {
   const sel = `<div class="amzsel">${btn('JEER', 'EE. UU., Canadá, México, Brasil')}${btn('HUNTER', 'EE. UU. y 12 países más')}</div>`;
   const A = AM[state.amz];
   if (!A) return sel + `<div class="card mut">Todavía no hay datos de Amazon de ${state.amz}.</div>`;
-  const v30 = A.paises.reduce((s, p) => s + (+p.ventas_30d_usd || 0), 0), u30 = A.paises.reduce((s, p) => s + (+p.unidades_30d || 0), 0); const only30 = A.paises.filter((p) => p.ventas_30d_usd != null).length === 1;
-  const vy = A.paises.reduce((s, p) => s + (+p.ventas_ytd_usd || 0), 0), uy = A.paises.every((p) => p.unidades_ytd != null) ? A.paises.reduce((s, p) => s + p.unidades_ytd, 0) : null;
-  const urg = A.fba.filter((f) => f.estado === 'Reponer ya' || f.estado === 'Agotado');
-  const pmax = Math.max(...A.paises.map((p) => p.ventas_ytd_usd));
-  const paises = A.paises.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)}${p.unidades_ytd != null ? ` <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.unidades_ytd)} uds en el año · ${nf(0).format(p.unidades_30d)} en 30 días</span>` : ''}</span>
-    <span class="v">${money(p.ventas_ytd_usd, 'USD', 0)}</span>
-    <div class="bar"><i style="width:${p.ventas_ytd_usd / pmax * 100}%;background:${COL[state.amz]}"></i></div>
-    ${p.ventas_30d != null ? `<span class="mut" style="font-size:12px;grid-column:1/-1">${p.moneda !== 'USD' ? `${money(p.ventas_ytd, p.moneda, 0)} en el año · ${money(p.ventas_30d, p.moneda, 0)} en 30 días` : `${money(p.ventas_30d, 'USD', 0)} en 30 días`}</span>` : ''}</div>`).join('');
-  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin ventas ni stock': 'mut' };
-  const stock = A.fba.filter((f) => f.estado !== 'Sin ventas ni stock').map((f) => {
+  const P = state.amzPer || '30d';
+  const months = [...new Set(amzDays(A).map((r) => r.f.slice(0, 7)))].sort();
+  const perBtns = [['30d', '30 días'], ['ytd', 'Año']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v}" data-per="${v}">${l}</button>`).join('');
+  const D2 = amzDays(A).filter((r) => inPer(r.f, P, A));
+  const v = D2.reduce((s, r) => s + r.usd, 0), u = D2.reduce((s, r) => s + r.u, 0);
+  const scope = Object.keys(A.dias || {}).length > 1 ? Object.keys(A.dias).join(', ') : 'EE. UU.';
+  const perTxt = P === '30d' ? 'últimos 30 días' : P === 'ytd' ? 'en 2026' : `en ${MESL[+P.slice(5, 7) - 1]}`;
+  // countries for the period
+  let paisesRows;
+  if (A.paises_mes && P !== '30d') {
+    const agg = {}; A.paises_mes.filter((r) => P === 'ytd' || r.mes === P).forEach((r) => { agg[r.pais] = (agg[r.pais] || 0) + r.usd; });
+    paisesRows = Object.entries(agg).map(([pais, usd]) => ({ pais, usd, u: null })).filter((r) => Math.abs(r.usd) > 0.005);
+  } else {
+    const agg = {}; D2.forEach((r) => { const k = r.pais; agg[k] = agg[k] || { pais: k, usd: 0, u: 0, loc: 0, mon: r.mon }; agg[k].usd += r.usd; agg[k].u += r.u; agg[k].loc += r.v; });
+    paisesRows = Object.values(agg);
+  }
+  paisesRows.sort((x, y) => y.usd - x.usd);
+  const pmax = Math.max(1, ...paisesRows.map((r) => Math.abs(r.usd)));
+  const paises = paisesRows.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)}${p.u != null ? ` <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.u)} uds</span>` : ''}</span>
+    <span class="v">${money(p.usd, 'USD', 0)}</span>
+    <div class="bar"><i style="width:${Math.max(0, p.usd) / pmax * 100}%;background:${COL[state.amz]}"></i></div>
+    ${p.mon && p.mon !== 'USD' ? `<span class="mut" style="font-size:12px;grid-column:1/-1">${money(p.loc, p.mon, 0)}</span>` : ''}</div>`).join('') || '<p class="mut">Sin ventas en este periodo.</p>';
+  const paisNote = A.paises_mes && P !== '30d' ? 'Fuente: QuickBooks, ingresos de Amazon por país (criterio de caja).' : (Object.keys(A.dias || {}).length > 1 ? 'Fuente: Seller Central. Importes locales convertidos a US$ (BCE, 8-oct).' : 'Últimos 30 días: solo EE. UU. Elige "Año" o un mes para ver todos los países.');
+  // stock
+  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin dato de ventas': 'mut', 'Stock de EE. UU.': 'info', 'Sin ventas ni stock': 'mut' };
+  const stockPaises = [...new Set(A.fba.map((f) => f.pais || 'Estados Unidos'))];
+  const SP = stockPaises.includes(state.amzStockPais) ? state.amzStockPais : '';
+  const fbaSel = A.fba.filter((f) => !SP || (f.pais || 'Estados Unidos') === SP);
+  const urg = fbaSel.filter((f) => f.estado === 'Reponer ya' || f.estado === 'Agotado');
+  const stock = fbaSel.filter((f) => f.estado !== 'Sin ventas ni stock').map((f) => {
     const cob = f.cobertura_dias === '' ? null : +f.cobertura_dias; const w = cob == null ? 0 : Math.min(100, cob / 120 * 100);
-    return `<div class="stockrow"><span class="nm">${esc(f.producto)}</span><span class="pill ${cls[f.estado]}">${esc(f.estado)}</span>
+    return `<div class="stockrow"><span class="nm">${esc(f.producto)}${stockPaises.length > 1 && !SP ? ` <span class="mut" style="font-weight:400;font-size:12px">· ${esc(f.pais || 'Estados Unidos')}</span>` : ''}</span><span class="pill ${cls[f.estado]}">${esc(f.estado)}</span>
       <div class="gauge"><i style="width:${Math.max(w, cob === 0 ? 0 : 2)}%;background:var(--${cls[f.estado] === 'mut' ? 'muted' : cls[f.estado]})"></i></div>
-      <div class="meta"><span>Disponible <b>${f.disponible}</b></span><span>Vendidas 90 d <b>${f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`;
+      <div class="meta"><span>Disponible <b>${f.disponible}</b></span><span>Vendidas 90 d <b>${f.unidades_90d == null ? '—' : f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`;
   }).join('');
-  const sinMov = A.fba.filter((f) => f.estado === 'Sin ventas ni stock').length;
+  const sinMov = fbaSel.filter((f) => f.estado === 'Sin ventas ni stock').length;
   const BK = A.banco_liq || 'banco';
-  const liq = A.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio), b = fdate(l.periodo_fin); const c = l.fecha_pago ? fdate(l.fecha_pago) : null; const ok = !!l.banco_fecha; const bf = ok ? fdate(l.banco_fecha) : null; const proc = !l.fecha_pago;
+  const liqF = A.liquidaciones.filter((l) => P === '30d' || P === 'ytd' || (l.periodo_fin || '').slice(0, 7) === P || (l.fecha_pago || '').slice(0, 7) === P);
+  const liq = liqF.map((l) => { const a = fdate(l.periodo_inicio), b = fdate(l.periodo_fin); const c = l.fecha_pago ? fdate(l.fecha_pago) : null; const ok = !!l.banco_fecha; const bf = ok ? fdate(l.banco_fecha) : null; const proc = !l.fecha_pago;
     return `<div class="liq"><span>${a.d} ${a.m} – ${b.d} ${b.m}<div class="s">${proc ? 'En proceso de pago' : `Pagado ${c.d} ${c.m}`}${ok ? ` · en ${esc(BK)} el ${bf.d} ${bf.m}` : ''}${l.qb !== 'Registrado' ? ' · <span class="warn">pendiente en QuickBooks</span>' : ''}</div></span>
-      <span class="v">${money(l.importe, 'USD')}<div class="s ${ok ? 'ok' : proc ? 'warn' : 'bad'}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : proc ? 'En camino' : 'No llegó'}</div></span></div>`; }).join('');
+      <span class="v">${money(l.importe, 'USD')}<div class="s ${ok ? 'ok' : proc ? 'warn' : 'bad'}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : proc ? 'En camino' : 'No llegó'}</div></span></div>`; }).join('') || '<p class="mut">Ninguna liquidación en este mes (hay datos desde julio).</p>';
   const dep = (A.depositos || []).map((d) => `<div class="liq"><span>${esc(d.origen)}<div class="s">${nf(0).format(d.ingresos)} ingresos en ${esc(d.cuenta)}</div></span><span class="v">${money(d.importe_usd, 'USD', 0)}</span></div>`).join('');
   const np = fdate(A.proximo_pago);
+  const stockOpts = [['', 'Todos los países']].concat(stockPaises.map((x) => [x, x])).map(([val, l]) => `<option value="${esc(val)}" ${SP === val ? 'selected' : ''}>${esc(l)}</option>`).join('');
   return sel + `
+  <div class="seg" role="group" aria-label="Periodo">${perBtns}</div>
   <section class="card hero">
-    <div class="eyebrow">${state.amz} en Amazon · últimos 30 días${only30 ? ' · EE. UU.' : ''}</div>
-    <div class="big">${nf(0).format(v30)}<small>US$</small></div>
-    <div class="mut" style="font-size:13px">${nf(0).format(u30)} unidades${A.pedidos_90d != null ? ` · ${A.pedidos_90d} pedidos en 90 días, ${A.cancelados_90d} cancelados` : ''}${A.ytd_us ? ` · EE. UU. en el año: ${money(A.ytd_us.ventas, 'USD', 0)}` : ''}</div>
+    <div class="eyebrow">${state.amz} en Amazon · ${perTxt} · ${esc(scope)}</div>
+    <div class="big">${nf(0).format(v)}<small>US$</small></div>
+    <div class="mut" style="font-size:13px">${nf(0).format(u)} unidades · media ${money(D2.length ? v / new Set(D2.map((r) => r.f)).size : 0, 'USD', 0)} al día</div>
   </section>
   <section class="kpis">
-    <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${compact(vy)}</span><span class="l">US$${uy != null ? ` · ${nf(0).format(uy)} unidades` : ' · todos los países'}</span></div>
+    <div class="kpi"><span class="l">Ventas 2026 (todos los países)</span><span class="v">${compact(A.paises.reduce((s, p) => s + (+p.ventas_ytd_usd || 0), 0))}</span><span class="l">US$</span></div>
     <div class="kpi"><span class="l">Próximo pago</span><span class="v">${money(A.saldo_amazon, 'USD', 0)}</span><span class="l">el ${np.d} ${np.m}${A.pago_en_proceso ? ` · ${money(A.pago_en_proceso, 'USD', 0)} ya en camino` : ` · ${money(A.saldo_diferido, 'USD', 0)} retenidos`}</span></div>
     <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Stock urgente</span><span class="v">${urg.length}</span><span class="l">productos agotados o a punto</span></div>
-    <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Sana' : esc(A.estado_cuenta)}</span><span class="l">${A.valoracion != null ? `Valoración ${nf(1).format(A.valoracion)}/5 · ${esc(A.productos_activos)} activos` : esc(A.cuenta_amazon || '')}</span></div>
+    <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Sana' : esc(A.estado_cuenta)}</span><span class="l">${A.valoracion != null ? `Valoración ${nf(1).format(A.valoracion)}/5` : esc(A.cuenta_amazon || '')}</span></div>
   </section>
   <div class="cols">
-    <section class="card"><h3>Ventas diarias · Estados Unidos</h3><p class="hint">Últimos 30 días, US$. Toca una barra para ver el día.</p><div class="chart" id="chAmzDay"></div></section>
-    <section class="card"><h3>Ventas por mes · Estados Unidos</h3><p class="hint">2026, US$.${state.amz === 'JEER' ? ' Mayo cae por falta de stock.' : ' Septiembre y octubre bajan respecto al verano.'}</p><div class="chart" id="chAmzMon"></div></section>
-    <section class="card"><h3>Por país</h3><p class="hint">${A.paises_fuente ? esc(A.paises_fuente) : 'Ventas del año en US$ · ' + esc(A.nota_tc)}</p>${paises}</section>
-    <section class="card"><h3>Liquidaciones de Amazon frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}</p>${liq}</section>
+    <section class="card"><h3>${P === 'ytd' ? 'Ventas por mes' : 'Ventas por día'} · ${esc(scope)}</h3><p class="hint">US$ ${perTxt}. Toca una barra para ver el detalle.</p><div class="chart" id="chAmzDay"></div></section>
+    <section class="card"><h3>Ventas por mes · ${esc(scope)}</h3><p class="hint">2026, US$. ${/^\d{4}-\d\d$/.test(P) ? 'Resaltado el mes elegido.' : ''}</p><div class="chart" id="chAmzMon"></div></section>
+    <section class="card"><h3>Por país · ${perTxt}</h3><p class="hint">${esc(paisNote)}</p>${paises}</section>
+    <section class="card"><h3>Liquidaciones frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
     ${dep ? `<section class="card span2"><h3>Ingresos de Amazon en banco por origen</h3><p class="hint">Del 1 de julio al 29 de octubre de 2026, según QuickBooks</p>${dep}</section>` : ''}
-    <section class="card span2"><h3>Stock en almacenes de Amazon (FBA)</h3><p class="hint">Cobertura = unidades disponibles ÷ ventas diarias de los últimos 90 días. ${sinMov} referencias sin ventas ni stock no se muestran.</p>${stock}</section>
+    <section class="card span2" id="stock">
+      <h3>Stock en almacenes de Amazon (FBA)</h3>
+      <p class="hint">Foto a ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m}. Cobertura = disponible ÷ ventas diarias de los últimos 90 días. ${sinMov} referencias sin ventas ni stock no se muestran pero sí van en el Excel.${A.nota_stock ? ' ' + esc(A.nota_stock) : ''}</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <select id="stockPais" aria-label="País del inventario" style="height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px;flex:1 1 180px;min-width:0">${stockOpts}</select>
+        <button class="btn" id="xlsBtn" style="height:44px;padding:0 16px;flex:0 0 auto">Descargar Excel</button>
+      </div>
+      <div class="err" id="xlsMsg" style="color:var(--muted)"></div>
+      ${stock || '<p class="mut">Sin stock en este país.</p>'}
+    </section>
   </div>
   <p class="foot-note">Leído de Amazon Seller Central el ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m} a las ${A.leido.slice(11)} h</p>`;
 },
@@ -555,6 +587,50 @@ cobros() {
 },
 };
 
+const MESL = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function amzDays(A) {
+  const out = []; const fx = A.fx || { USD: 1 };
+  Object.entries(A.dias || {}).forEach(([pais, o]) => (o.rows || []).forEach(([f, v, u]) => out.push({ pais, mon: o.moneda, f, v, u, usd: v * (fx[o.moneda] || 1) })));
+  return out;
+}
+function inPer(f, P, A) {
+  if (P === 'ytd') return true;
+  if (P === '30d') { const last = amzDays(A).reduce((m, r) => (r.f > m ? r.f : m), ''); const d0 = new Date(last); d0.setDate(d0.getDate() - 29); return f >= d0.toISOString().slice(0, 10); }
+  return f.slice(0, 7) === P;
+}
+let xlsxLoading = null;
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  if (!xlsxLoading) xlsxLoading = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => { xlsxLoading = null; rej(new Error('lib')); }; document.head.appendChild(sc); });
+  return xlsxLoading;
+}
+async function downloadStock() {
+  const A = D.amazon[state.amz]; const SP = state.amzStockPais || '';
+  const msg = $('#xlsMsg'); msg.textContent = 'Preparando el Excel…';
+  try {
+    await loadXLSX();
+    const rows = A.fba.filter((f) => !SP || (f.pais || 'Estados Unidos') === SP).map((f) => ({
+      'Empresa': state.amz, 'País': f.pais || 'Estados Unidos', 'Producto': f.producto, 'SKU / FNSKU': f.sku,
+      'Disponible': f.disponible, 'En camino a Amazon': f.en_camino, 'Reservado': f.reservado,
+      'Vendidas 90 días': f.unidades_90d, 'Ventas 90 días (moneda local)': f.ventas_90d, 'Stock compartido': f.compartido || 'No',
+      'Cobertura (días)': f.cobertura_dias === '' ? null : +f.cobertura_dias, 'Estado': f.estado, 'Recomendación de Amazon': f.recomendacion_amazon,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [10, 16, 52, 16, 11, 12, 10, 12, 14, 20, 12, 18, 52].map((w) => ({ wch: w }));
+    ws['!autofilter'] = { ref: ws['!ref'] };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+    const info = XLSX.utils.aoa_to_sheet([['Empresa', state.amz], ['País', SP || 'Todos'], ['Foto del inventario', A.leido], ['Fuente', 'Amazon Seller Central · Inventario FBA'], ['Cobertura', 'Disponible ÷ ventas diarias de los últimos 90 días'], ['Nota', A.nota_stock || '']]);
+    info['!cols'] = [{ wch: 20 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, info, 'Información');
+    const name = `Inventario_${state.amz}_${(SP || 'Todos').replace(/\s+/g, '_')}_${A.leido.slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, name);
+    msg.textContent = `Descargado: ${name} (${rows.length} referencias)`;
+  } catch (e) {
+    msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.';
+  }
+}
+
 /* ---------- after-render hooks ---------- */
 function drawMoves() {
   const q = state.pendQ.toLowerCase();
@@ -571,10 +647,18 @@ function drawMoves() {
 }
 const AFTER = {
   amazon() {
-    document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; render(); } }));
+    document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; state.amzStockPais = ''; render(); } }));
+    document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { state.amzPer = b.dataset.per; const y = scrollY; render(); scrollTo({ top: y }); }));
+    const sp = $('#stockPais'); if (sp) sp.addEventListener('change', () => { state.amzStockPais = sp.value; const y = scrollY; render(); scrollTo({ top: y }); });
+    const xb = $('#xlsBtn'); if (xb) xb.addEventListener('click', downloadStock);
     const A = (D.amazon || {})[state.amz]; if (!A) return;
-    barChart($('#chAmzDay'), A.diario_us.map((r) => ({ k: r.fecha, v: +r.ventas, u: +r.unidades })), (k) => fdate(k).d, (d) => `${fdate(d.k).d} ${fdate(d.k).m}`, 7);
-    barChart($('#chAmzMon'), A.mensual_us.map((r) => ({ k: r.mes + '-01', v: +r.ventas_pedidas, u: +r.unidades_pedidas })), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MES[+d.k.slice(5, 7) - 1]} 2026`, 1);
+    const P = state.amzPer || '30d';
+    const days = amzDays(A);
+    const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
+    const sel = days.filter((r) => inPer(r.f, P, A));
+    if (P === 'ytd') barChart($('#chAmzDay'), byKey(sel, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1);
+    else barChart($('#chAmzDay'), byKey(sel, (r) => r.f), (k) => fdate(k).d, (d) => `${fdate(d.k).d} ${fdate(d.k).m}`, 5);
+    barChart($('#chAmzMon'), byKey(days, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1, /^\d{4}-\d\d$/.test(P) ? P : null);
   },
   resumen() { document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go))); },
   pendientes() {
@@ -641,7 +725,7 @@ function chartHist(box) {
       tip.show((ml + step * +el.dataset.i + step / 2) * k, y(d.t) * k, `Ene–sep ${d.y}`, emps.filter((e) => d[e]).map((e) => [COL[e], e, nf(1).format(d[e]) + 'K'])); };
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
-function barChart(box, rows, lab, title, every) {
+function barChart(box, rows, lab, title, every, hi) {
   const W = Math.max(300, box.clientWidth), H = 210, mt = 10, mb = 24, ml = 44, mr = 4;
   const ticks = niceTicks(0, Math.max(...rows.map((r) => r.v), 1), 4); const top = ticks[ticks.length - 1];
   const iw = W - ml - mr, ih = H - mt - mb; const y = (v) => mt + ih - v / top * ih;
@@ -649,7 +733,7 @@ function barChart(box, rows, lab, title, every) {
   const col = COL[state.amz];
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
   ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t ? 'stroke-dasharray="2 4"' : ''}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${compact(t)}</text>`; });
-  rows.forEach((r, i) => { const x = ml + step * i + (step - bw) / 2; s += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${Math.max(0, y(0) - y(r.v))}" rx="${Math.min(4, bw / 2)}" fill="${col}"/>`;
+  rows.forEach((r, i) => { const x = ml + step * i + (step - bw) / 2; s += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${Math.max(0, y(0) - y(r.v))}" rx="${Math.min(4, bw / 2)}" fill="${col}" opacity="${hi && r.k !== hi ? 0.3 : 1}"/>`;
     if (i % every === 0 || rows.length < 13) s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${lab(r.k)}</text>`;
     s += `<rect data-i="${i}" x="${ml + step * i}" y="0" width="${step}" height="${H}" fill="transparent"/>`; });
   box.innerHTML = s + '</svg>';
