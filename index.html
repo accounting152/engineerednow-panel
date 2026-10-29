@@ -624,6 +624,13 @@ async function downloadStock() {
     info['!cols'] = [{ wch: 20 }, { wch: 50 }];
     XLSX.utils.book_append_sheet(wb, info, 'Información');
     const name = `Inventario_${state.amz}_${(SP || 'Todos').replace(/\s+/g, '_')}_${A.leido.slice(0, 10)}.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) {
+      const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      try { await dl.save({ filename: name, data: buf }); msg.textContent = `Descargado: ${name} (${rows.length} referencias)`; }
+      catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; }
+      return;
+    }
     XLSX.writeFile(wb, name);
     msg.textContent = `Descargado: ${name} (${rows.length} referencias)`;
   } catch (e) {
