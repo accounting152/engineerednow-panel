@@ -575,8 +575,9 @@ inventario() {
   const E = state.invEmp || '';
   const emps = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e));
   const all = emps.flatMap((e) => AM[e].fba.map((f) => ({ ...f, empresa: e, pais: f.pais || 'Estados Unidos' })));
-  const TV = (D.almacenes && D.almacenes.HUNTER && D.almacenes.HUNTER.TVL) || null; const TVN = 'Almacén TVL (Hunter)';
-  const paises = [...new Set(all.map((f) => f.pais))].concat(TV && (!E || E === 'HUNTER') ? [TVN] : []);
+  const TVL = (e) => (D.almacenes && D.almacenes[e] && D.almacenes[e].TVL) || null; const TVN = 'Almacén TVL';
+  const tvEmps = ['HUNTER', 'JEER'].filter((e) => TVL(e) && (!E || E === e));
+  const paises = [...new Set(all.map((f) => f.pais))].concat(tvEmps.length ? [TVN] : []);
   const PA = paises.includes(state.invPais) ? state.invPais : '';
   const ES = state.invEstado || '';
   const q = (state.invQ || '').toLowerCase();
@@ -587,7 +588,7 @@ inventario() {
   const seg = [['', 'Ambas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER']].map(([v, l]) => `<button aria-pressed="${E === v}" data-ie="${v}">${l}</button>`).join('');
   const cards = ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => { const r = AM[e].fba.map((f) => ({ ...f, pais: f.pais || 'Estados Unidos' })); const o = own(r);
     return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgentes</span></div>
-      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${e === 'HUNTER' && TV ? `<dt>Almacén TVL</dt><dd>${nf(0).format(TV.rows.filter((x) => x.modelo !== 'Ruedas').reduce((s, x) => s + (x.total_uds || 0), 0))} reposacabezas</dd>` : ''}</dl></button>`; }).join('');
+      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${TVL(e) ? `<dt>Almacén TVL</dt><dd>${nf(0).format(TVL(e).rows.filter((x) => x.modelo !== 'Ruedas' && x.modelo !== 'Accesorios').reduce((s, x) => s + (x.total_uds || 0), 0))} reposacabezas</dd>` : ''}</dl></button>`; }).join('');
   const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin dato de ventas': 'mut', 'Stock de EE. UU.': 'info', 'Sin ventas ni stock': 'mut' };
   const ord = { 'Reponer ya': 0, 'Agotado': 1, 'Vigilar': 2, 'Exceso': 3, 'Correcto': 4, 'Stock de EE. UU.': 5, 'Sin ventas': 6, 'Sin dato de ventas': 7, 'Sin ventas ni stock': 8 };
   const shown = rows.filter((f) => f.estado !== 'Sin ventas ni stock').sort((a, b) => (ord[a.estado] - ord[b.estado]) || ((+b.unidades_90d || 0) - (+a.unidades_90d || 0)));
@@ -595,22 +596,24 @@ inventario() {
     return `<div class="stockrow"><span class="nm">${esc(f.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${esc(f.empresa)} · ${esc(f.pais)}</span></span><span class="pill ${cls[f.estado] || 'mut'}">${esc(f.estado)}</span>
       <div class="gauge"><i style="width:${Math.max(w, cob === 0 ? 0 : 2)}%;background:var(--${(cls[f.estado] || 'mut') === 'mut' ? 'muted' : cls[f.estado]})"></i></div>
       <div class="meta"><span>Disponible <b>${f.disponible}</b></span>${+f.en_camino ? `<span>En camino <b>${f.en_camino}</b></span>` : ''}<span>Vendidas 90 d <b>${f.unidades_90d == null ? '—' : f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span><span>${esc(f.sku)}</span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`; }).join('');
-  const tvShow = TV && (!E || E === 'HUNTER') && (!PA || PA === TVN);
-  const tvRows = tvShow ? TV.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)) : [];
-  const tvMax = Math.max(1, ...tvRows.map((r) => r.total_uds || 0));
+  const tvShow = tvEmps.length > 0 && (!PA || PA === TVN);
   const tvCls = { 'En almacén': 'ok', 'Poco stock': 'warn', 'Sin stock': 'bad', 'Accesorio': 'mut' };
-  const tvMods = tvShow ? [...new Set(TV.rows.map((r) => r.modelo))].filter((m) => m !== 'Accesorios').map((m) => { const rr = TV.rows.filter((r) => r.modelo === m); return `<div class="kpi"><span class="l">${esc(m)}</span><span class="v">${nf(0).format(rr.reduce((s, r) => s + (r.total_uds || 0), 0))}</span><span class="l">${nf(0).format(rr.reduce((s, r) => s + r.cartones, 0))} cartones${rr[0].uds_carton ? ' de ' + rr[0].uds_carton : ''}</span></div>`; }).join('') : '';
-  const tvList = tvRows.map((r) => `<div class="stockrow"><span class="nm">${esc(r.producto)} <span class="mut" style="font-weight:400;font-size:12px">· Hunter · Almacén TVL</span></span><span class="pill ${tvCls[r.estado] || 'mut'}">${esc(r.estado)}</span>
+  const isHR = (r) => r.modelo !== 'Accesorios' && r.modelo !== 'Ruedas';
+  const tvMatch = (r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q);
+  const tvRows = tvShow ? tvEmps.flatMap((e) => TVL(e).rows.filter(tvMatch)) : [];
+  const tvSec = !tvShow ? '' : tvEmps.map((e) => { const TV = TVL(e); const rr0 = TV.rows.filter(tvMatch); const tvMax = Math.max(1, ...rr0.map((r) => r.total_uds || 0));
+    const tvMods = [...new Set(TV.rows.map((r) => r.modelo))].filter((m) => m !== 'Accesorios').map((m) => { const rr = TV.rows.filter((r) => r.modelo === m); return `<div class="kpi"><span class="l">${esc(m)}</span><span class="v">${nf(0).format(rr.reduce((s, r) => s + (r.total_uds || 0), 0))}</span><span class="l">${nf(0).format(rr.reduce((s, r) => s + r.cartones, 0))} cartones${rr[0].uds_carton ? ' de ' + rr[0].uds_carton : ''}</span></div>`; }).join('');
+    const tvList = rr0.map((r) => `<div class="stockrow"><span class="nm">${esc(r.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${e === 'HUNTER' ? 'Hunter' : 'JEER'} · Almacén TVL</span></span><span class="pill ${tvCls[r.estado] || 'mut'}">${esc(r.estado)}</span>
       <div class="gauge"><i style="width:${r.total_uds ? Math.max(2, r.total_uds / tvMax * 100) : 0}%;background:var(--${tvCls[r.estado] === 'mut' ? 'muted' : tvCls[r.estado]})"></i></div>
       <div class="meta">${r.total_uds != null ? `<span>Total <b>${nf(0).format(r.total_uds)} uds</b></span>` : ''}<span>Cartones <b>${r.cartones}</b>${r.uds_carton ? ` × ${r.uds_carton} = ${nf(0).format(r.uds_en_cartones)} uds` : ''}</span><span>Sueltas <b>${r.sueltas}</b></span>${r.nota ? `<span>${esc(r.nota)}</span>` : ''}</div></div>`).join('');
-  const isHR = (r) => r.modelo !== 'Accesorios' && r.modelo !== 'Ruedas'; const tvTot = tvShow ? TV.rows.filter(isHR).reduce((s, r) => s + (r.total_uds || 0), 0) : 0; const tvRu = tvShow ? TV.rows.filter((r) => r.modelo === 'Ruedas') : [];
-  const tvSec = tvShow ? `<section class="card">
-    <h3>Almacén TVL · Hunter</h3>
-    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas en ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.cartones, 0))} cartones y ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.sueltas, 0))} sueltas${tvRu.length ? `, más ${nf(0).format(tvRu.reduce((s, r) => s + (r.total_uds || 0), 0))} ruedas (casters)` : ''}. ${esc(TV.nota)}</p>
+    const tvTot = TV.rows.filter(isHR).reduce((s, r) => s + (r.total_uds || 0), 0); const tvRu = TV.rows.filter((r) => r.modelo === 'Ruedas'); const sl = TV.rows.filter(isHR).reduce((s, r) => s + r.sueltas, 0);
+    return `<section class="card" style="border-top:3px solid ${COL[e]}">
+    <h3>Almacén TVL · ${e === 'HUNTER' ? 'Hunter' : 'JEER'}</h3>
+    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas en ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.cartones, 0))} cartones${sl ? ` y ${nf(0).format(sl)} sueltas` : ''}${tvRu.length ? `, más ${nf(0).format(tvRu.reduce((s, r) => s + (r.total_uds || 0), 0))} ruedas (casters)` : ''}. ${esc(TV.nota)}</p>
     <section class="kpis" style="margin:6px 0 10px">${tvMods}</section>
     ${tvList || '<p class="mut">Ninguna referencia con esta búsqueda.</p>'}
     <p class="hint" style="margin-top:8px">Fuente: ${esc(TV.fuente)}.</p>
-  </section>` : '';
+  </section>`; }).join('');
   const notas = emps.map((e) => AM[e].nota_stock ? `<b>${e}:</b> ${esc(AM[e].nota_stock)}` : '').filter(Boolean).join(' ');
   const selStyle = 'height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px;flex:1 1 160px;min-width:0';
   const leido = emps.map((e) => `${e} ${fdate(AM[e].leido.slice(0, 10)).d} ${fdate(AM[e].leido.slice(0, 10)).m} ${AM[e].leido.slice(11)} h`).join(' · ');
@@ -633,7 +636,7 @@ inventario() {
     ${PA === TVN ? '' : (list || '<p class="mut">Ninguna referencia con estos filtros.</p>')}
   </section>
   ${tvSec}
-  <p class="foot-note">Leído de Amazon Seller Central: ${leido}${tvShow ? ` · Almacén TVL: ${fdate(TV.leido.slice(0, 10)).d} ${fdate(TV.leido.slice(0, 10)).m} ${TV.leido.slice(11)} h` : ''}</p>`;
+  <p class="foot-note">Leído de Amazon Seller Central: ${leido}${tvShow ? ` · Almacén TVL: ${fdate(TVL(tvEmps[0]).leido.slice(0, 10)).d} ${fdate(TVL(tvEmps[0]).leido.slice(0, 10)).m} ${TVL(tvEmps[0]).leido.slice(11)} h` : ''}</p>`;
 },
 };
 
@@ -755,11 +758,12 @@ async function downloadStock() {
     ws['!cols'] = [10, 16, 52, 16, 11, 12, 10, 12, 14, 20, 12, 18, 52].map((w) => ({ wch: w }));
     ws['!autofilter'] = { ref: ws['!ref'] };
     const wb = XLSX.utils.book_new();
-    const TVx = (D.almacenes && D.almacenes.HUNTER && D.almacenes.HUNTER.TVL) || null;
-    const tvIn = TVx && (!E || E === 'HUNTER') && (!SP || SP === 'Almacén TVL (Hunter)');
-    if (SP !== 'Almacén TVL (Hunter)') XLSX.utils.book_append_sheet(wb, ws, 'Inventario Amazon');
+    const tvE = ['HUNTER', 'JEER'].filter((e) => D.almacenes && D.almacenes[e] && D.almacenes[e].TVL && (!E || E === e));
+    const tvIn = tvE.length > 0 && (!SP || SP === 'Almacén TVL');
+    const TVx = tvIn ? D.almacenes[tvE[0]].TVL : null;
+    if (SP !== 'Almacén TVL') XLSX.utils.book_append_sheet(wb, ws, 'Inventario Amazon');
     if (tvIn) {
-      const tr = TVx.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': 'HUNTER', 'Almacén': 'TVL · Anaheim, CA', 'Modelo': r.modelo, 'Producto': r.producto, 'Código TVL': r.lineas.join(' + '), 'Cartones': r.cartones, 'Unidades por cartón': r.uds_carton, 'Unidades en cartones': r.uds_en_cartones, 'Unidades sueltas': r.sueltas, 'Total unidades': r.total_uds, 'Estado': r.estado }));
+      const tr = tvE.flatMap((e) => D.almacenes[e].TVL.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': e, 'Almacén': 'TVL · Anaheim, CA', 'Modelo': r.modelo, 'Producto': r.producto, 'Código TVL': r.lineas.join(' + '), 'Cartones': r.cartones, 'Unidades por cartón': r.uds_carton, 'Unidades en cartones': r.uds_en_cartones, 'Unidades sueltas': r.sueltas, 'Total unidades': r.total_uds, 'Estado': r.estado })));
       const wt = XLSX.utils.json_to_sheet(tr); wt['!cols'] = [10, 18, 11, 22, 34, 10, 12, 14, 12, 12, 12].map((w) => ({ wch: w })); wt['!autofilter'] = { ref: wt['!ref'] };
       XLSX.utils.book_append_sheet(wb, wt, 'Almacén TVL');
     }
