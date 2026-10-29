@@ -1,0 +1,17 @@
+{
+  "name": "Engineered Now · Panel de control",
+  "short_name": "EN Panel",
+  "description": "Panel de control de Hunter, JEER e IPAI",
+  "start_url": "./#resumen",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1418",
+  "theme_color": "#0E1418",
+  "lang": "es",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
