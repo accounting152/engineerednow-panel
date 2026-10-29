@@ -575,22 +575,24 @@ inventario() {
   const E = state.invEmp || '';
   const emps = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e));
   const all = emps.flatMap((e) => AM[e].fba.map((f) => ({ ...f, empresa: e, pais: f.pais || 'Estados Unidos' })));
-  const TVL = (e) => (D.almacenes && D.almacenes[e] && D.almacenes[e].TVL) || null; const TVN = 'Almacén TVL';
-  const tvEmps = ['HUNTER', 'JEER'].filter((e) => TVL(e) && (!E || E === e));
+  const WHall = ['HUNTER', 'JEER'].flatMap((e) => Object.entries((D.almacenes || {})[e] || {}).map(([k, o]) => ({ e, k, o, label: o.filtro || o.nombre })));
+  const WH = WHall.filter((w) => !E || E === w.e);
+  const whLabels = [...new Set(WH.map((w) => w.label))];
+  const isWhPA = (p) => whLabels.includes(p);
   const CH = (D.almacenes && D.almacenes.IPAI && D.almacenes.IPAI.CHINA) || null; const CHN = 'China (IPAI)';
   const chOn = CH && (!E || E === 'IPAI');
-  const paises = [...new Set(all.map((f) => f.pais))].concat(tvEmps.length ? [TVN] : []).concat(chOn ? [CHN] : []);
+  const paises = [...new Set(all.map((f) => f.pais))].concat(whLabels).concat(chOn ? [CHN] : []);
   const PA = paises.includes(state.invPais) ? state.invPais : '';
   const ES = state.invEstado || '';
   const q = (state.invQ || '').toLowerCase();
   const urgent = (f) => f.estado === 'Reponer ya' || f.estado === 'Agotado';
-  const rows = all.filter((f) => PA !== TVN && PA !== CHN && (!PA || f.pais === PA) && (!ES || (ES === 'urg' ? urgent(f) : f.estado === ES)) && (!q || `${f.producto} ${f.sku}`.toLowerCase().includes(q)));
+  const rows = all.filter((f) => !isWhPA(PA) && PA !== CHN && (!PA || f.pais === PA) && (!ES || (ES === 'urg' ? urgent(f) : f.estado === ES)) && (!q || `${f.producto} ${f.sku}`.toLowerCase().includes(q)));
   const own = (r) => r.filter((f) => (f.compartido || 'No') === 'No');
   const sum = (r, k) => r.reduce((s, f) => s + (+f[k] || 0), 0);
   const seg = [['', 'Todas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER']].concat(CH ? [['IPAI', 'IPAI']] : []).map(([v, l]) => `<button aria-pressed="${E === v}" data-ie="${v}">${l}</button>`).join('');
   const cards = ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => { const r = AM[e].fba.map((f) => ({ ...f, pais: f.pais || 'Estados Unidos' })); const o = own(r);
     return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgentes</span></div>
-      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${TVL(e) ? `<dt>Almacén TVL</dt><dd>${nf(0).format(TVL(e).rows.filter((x) => x.modelo !== 'Ruedas' && x.modelo !== 'Accesorios').reduce((s, x) => s + (x.total_uds || 0), 0))} reposacabezas</dd>` : ''}</dl></button>`; }).join('');
+      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${WHall.filter((w) => w.e === e).map((w) => `<dt>${esc(w.o.nombre)}</dt><dd>${nf(0).format(w.o.rows.filter((x) => x.modelo !== 'Ruedas' && x.modelo !== 'Accesorios').reduce((s, x) => s + (x.total_uds || 0), 0))} reposacabezas</dd>`).join('')}</dl></button>`; }).join('');
   const chSum = (k) => CH ? CH.rows.reduce((s, r) => s + r[k], 0) : 0;
   const cardsAll = cards + (CH ? `<button class="co" style="--cc:${COL.IPAI}" data-ie="IPAI"><div class="name">IPAI<span class="pill info">China</span></div>
       <dl class="rows"><dt>Stock en China</dt><dd>${nf(0).format(chSum('stock'))} uds</dd>${['H3', 'H4', 'H6'].map((m) => `<dt>${m}</dt><dd>${nf(0).format(CH.rows.filter((r) => r.modelo === m).reduce((s, r) => s + r.stock, 0))}</dd>`).join('')}</dl></button>` : '');
@@ -601,20 +603,21 @@ inventario() {
     return `<div class="stockrow"><span class="nm">${esc(f.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${esc(f.empresa)} · ${esc(f.pais)}</span></span><span class="pill ${cls[f.estado] || 'mut'}">${esc(f.estado)}</span>
       <div class="gauge"><i style="width:${Math.max(w, cob === 0 ? 0 : 2)}%;background:var(--${(cls[f.estado] || 'mut') === 'mut' ? 'muted' : cls[f.estado]})"></i></div>
       <div class="meta"><span>Disponible <b>${f.disponible}</b></span>${+f.en_camino ? `<span>En camino <b>${f.en_camino}</b></span>` : ''}<span>Vendidas 90 d <b>${f.unidades_90d == null ? '—' : f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span><span>${esc(f.sku)}</span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`; }).join('');
-  const tvShow = tvEmps.length > 0 && (!PA || PA === TVN);
+  const whShown = WH.filter((w) => !PA || PA === w.label);
+  const tvShow = whShown.length > 0;
   const tvCls = { 'En almacén': 'ok', 'Poco stock': 'warn', 'Sin stock': 'bad', 'Accesorio': 'mut' };
   const isHR = (r) => r.modelo !== 'Accesorios' && r.modelo !== 'Ruedas';
   const tvMatch = (r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q);
-  const tvRows = tvShow ? tvEmps.flatMap((e) => TVL(e).rows.filter(tvMatch)) : [];
-  const tvSec = !tvShow ? '' : tvEmps.map((e) => { const TV = TVL(e); const rr0 = TV.rows.filter(tvMatch); const tvMax = Math.max(1, ...rr0.map((r) => r.total_uds || 0));
-    const tvMods = [...new Set(TV.rows.map((r) => r.modelo))].filter((m) => m !== 'Accesorios').map((m) => { const rr = TV.rows.filter((r) => r.modelo === m); return `<div class="kpi"><span class="l">${esc(m)}</span><span class="v">${nf(0).format(rr.reduce((s, r) => s + (r.total_uds || 0), 0))}</span><span class="l">${nf(0).format(rr.reduce((s, r) => s + r.cartones, 0))} cartones${rr[0].uds_carton ? ' de ' + rr[0].uds_carton : ''}</span></div>`; }).join('');
-    const tvList = rr0.map((r) => `<div class="stockrow"><span class="nm">${esc(r.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${e === 'HUNTER' ? 'Hunter' : 'JEER'} · Almacén TVL</span></span><span class="pill ${tvCls[r.estado] || 'mut'}">${esc(r.estado)}</span>
+  const tvRows = whShown.flatMap((w) => w.o.rows.filter(tvMatch));
+  const tvSec = whShown.map(({ e, o: TV }) => { const rr0 = TV.rows.filter(tvMatch); const tvMax = Math.max(1, ...rr0.map((r) => r.total_uds || 0)); const enCaja = TV.rows.some((r) => r.cartones != null);
+    const tvMods = [...new Set(TV.rows.map((r) => r.modelo))].filter((m) => m !== 'Accesorios').map((m) => { const rr = TV.rows.filter((r) => r.modelo === m); const u = rr.reduce((s, r) => s + (r.total_uds || 0), 0); return `<div class="kpi"><span class="l">${esc(m)}</span><span class="v">${nf(0).format(u)}</span><span class="l">${enCaja ? `${nf(0).format(rr.reduce((s, r) => s + (r.cartones || 0), 0))} cartones${rr[0].uds_carton ? ' de ' + rr[0].uds_carton : ''}` : `${rr.length} ${rr.length === 1 ? 'referencia' : 'referencias'}`}</span></div>`; }).join('');
+    const tvList = rr0.map((r) => `<div class="stockrow"><span class="nm">${esc(r.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${e === 'HUNTER' ? 'Hunter' : 'JEER'} · ${esc(TV.nombre)}</span></span><span class="pill ${tvCls[r.estado] || 'mut'}">${esc(r.estado)}</span>
       <div class="gauge"><i style="width:${r.total_uds ? Math.max(2, r.total_uds / tvMax * 100) : 0}%;background:var(--${tvCls[r.estado] === 'mut' ? 'muted' : tvCls[r.estado]})"></i></div>
-      <div class="meta">${r.total_uds != null ? `<span>Total <b>${nf(0).format(r.total_uds)} uds</b></span>` : ''}<span>Cartones <b>${r.cartones}</b>${r.uds_carton ? ` × ${r.uds_carton} = ${nf(0).format(r.uds_en_cartones)} uds` : ''}</span><span>Sueltas <b>${r.sueltas}</b></span>${r.nota ? `<span>${esc(r.nota)}</span>` : ''}</div></div>`).join('');
-    const tvTot = TV.rows.filter(isHR).reduce((s, r) => s + (r.total_uds || 0), 0); const tvRu = TV.rows.filter((r) => r.modelo === 'Ruedas'); const sl = TV.rows.filter(isHR).reduce((s, r) => s + r.sueltas, 0);
+      <div class="meta">${r.total_uds != null ? `<span>Total <b>${nf(0).format(r.total_uds)} uds</b></span>` : ''}${r.cartones != null ? `<span>Cartones <b>${r.cartones}</b>${r.uds_carton ? ` × ${r.uds_carton} = ${nf(0).format(r.uds_en_cartones)} uds` : ''}</span><span>Sueltas <b>${r.sueltas}</b></span>` : (r.uds_carton && r.total_uds ? `<span>Equivale a <b>${nf(1).format(r.total_uds / r.uds_carton)}</b> cartones de ${r.uds_carton}</span>` : '')}${r.codigo && r.cartones == null ? `<span>Columna «${esc(r.codigo)}»</span>` : ''}${r.nota ? `<span>${esc(r.nota)}</span>` : ''}</div></div>`).join('');
+    const tvTot = TV.rows.filter(isHR).reduce((s, r) => s + (r.total_uds || 0), 0); const tvRu = TV.rows.filter((r) => r.modelo === 'Ruedas'); const sl = TV.rows.filter(isHR).reduce((s, r) => s + (r.sueltas || 0), 0);
     return `<section class="card" style="border-top:3px solid ${COL[e]}">
-    <h3>Almacén TVL · ${e === 'HUNTER' ? 'Hunter' : 'JEER'}</h3>
-    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas en ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + r.cartones, 0))} cartones${sl ? ` y ${nf(0).format(sl)} sueltas` : ''}${tvRu.length ? `, más ${nf(0).format(tvRu.reduce((s, r) => s + (r.total_uds || 0), 0))} ruedas (casters)` : ''}. ${esc(TV.nota)}</p>
+    <h3>${esc(TV.nombre)} · ${e === 'HUNTER' ? 'Hunter' : 'JEER'}</h3>
+    <p class="hint">${esc(TV.ubicacion)}. ${nf(0).format(tvTot)} unidades de reposacabezas${enCaja ? ` en ${nf(0).format(TV.rows.filter(isHR).reduce((s, r) => s + (r.cartones || 0), 0))} cartones${sl ? ` y ${nf(0).format(sl)} sueltas` : ''}` : ''}${tvRu.length ? `, más ${nf(0).format(tvRu.reduce((s, r) => s + (r.total_uds || 0), 0))} ruedas (casters)` : ''}. ${esc(TV.nota)}</p>
     <section class="kpis" style="margin:6px 0 10px">${tvMods}</section>
     ${tvList || '<p class="mut">Ninguna referencia con esta búsqueda.</p>'}
     <p class="hint" style="margin-top:8px">Fuente: ${esc(TV.fuente)}.</p>
@@ -640,7 +643,7 @@ inventario() {
   return `<div class="seg" role="group" aria-label="Sociedad">${seg}</div>
   <section class="cos" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))">${cardsAll}</section>
   <section class="card">
-    <h3>${(PA === TVN || PA === CHN || E === 'IPAI') ? 'Inventario' : 'Inventario en almacenes de Amazon'}</h3>
+    <h3>${(isWhPA(PA) || PA === CHN || E === 'IPAI') ? 'Inventario' : 'Inventario en almacenes de Amazon'}</h3>
     ${E === 'IPAI' ? '' : `<p class="hint">Cobertura = disponible ÷ ventas diarias de los últimos 90 días. ${notas}</p>`}
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <select id="invPais" aria-label="País" style="${selStyle}"><option value="">Todos los países</option>${paises.map((x) => `<option ${PA === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
@@ -650,14 +653,14 @@ inventario() {
       <input id="invQ" type="search" placeholder="Buscar producto o SKU" value="${esc(state.invQ || '')}" aria-label="Buscar producto"></label>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
       <button class="btn" id="xlsBtn" style="height:44px;padding:0 16px">Descargar Excel</button>
-      <span class="mut" style="font-size:13px">${(PA === TVN || PA === CHN || E === 'IPAI') ? (tvShow ? tvRows.length + ' referencias en TVL' : '') + (tvShow && chShow ? ' · ' : '') + (chShow ? chRows.length + ' en China' : '') + ' (abajo)' : rows.length + ' referencias de Amazon con estos filtros' + (tvShow ? ' · ' + tvRows.length + ' en TVL' : '') + (chShow ? ' · ' + chRows.length + ' en China' : '')}</span>
+      <span class="mut" style="font-size:13px">${(isWhPA(PA) || PA === CHN || E === 'IPAI') ? (tvShow ? tvRows.length + ' referencias en almacenes propios' : '') + (tvShow && chShow ? ' · ' : '') + (chShow ? chRows.length + ' en China' : '') + ' (abajo)' : rows.length + ' referencias de Amazon con estos filtros' + (tvShow ? ' · ' + tvRows.length + ' en almacenes propios' : '') + (chShow ? ' · ' + chRows.length + ' en China' : '')}</span>
     </div>
     <div class="err" id="xlsMsg" style="color:var(--muted)"></div>
-    ${(PA === TVN || PA === CHN || E === 'IPAI') ? '' : (list || '<p class="mut">Ninguna referencia con estos filtros.</p>')}
+    ${(isWhPA(PA) || PA === CHN || E === 'IPAI') ? '' : (list || '<p class="mut">Ninguna referencia con estos filtros.</p>')}
   </section>
   ${tvSec}
   ${chSec}
-  <p class="foot-note">${leido ? 'Leído de Amazon Seller Central: ' + leido : ''}${tvShow ? ` · Almacén TVL: ${fdate(TVL(tvEmps[0]).leido.slice(0, 10)).d} ${fdate(TVL(tvEmps[0]).leido.slice(0, 10)).m} ${TVL(tvEmps[0]).leido.slice(11)} h` : ''}${chShow ? ' · China: hoja del 10 oct' : ''}</p>`;
+  <p class="foot-note">${leido ? 'Leído de Amazon Seller Central: ' + leido : ''}${whShown.map((w) => ` · ${w.o.nombre} ${w.e === 'HUNTER' ? 'Hunter' : 'JEER'}: ${fdate(w.o.leido.slice(0, 10)).d} ${fdate(w.o.leido.slice(0, 10)).m}`).join('')}${chShow ? ' · China: hoja del 10 oct' : ''}</p>`;
 },
 };
 
@@ -779,14 +782,14 @@ async function downloadStock() {
     ws['!cols'] = [10, 16, 52, 16, 11, 12, 10, 12, 14, 20, 12, 18, 52].map((w) => ({ wch: w }));
     ws['!autofilter'] = { ref: ws['!ref'] };
     const wb = XLSX.utils.book_new();
-    const tvE = ['HUNTER', 'JEER'].filter((e) => D.almacenes && D.almacenes[e] && D.almacenes[e].TVL && (!E || E === e));
-    const tvIn = tvE.length > 0 && (!SP || SP === 'Almacén TVL');
-    const TVx = tvIn ? D.almacenes[tvE[0]].TVL : null;
-    if (SP !== 'Almacén TVL' && SP !== 'China (IPAI)' && E !== 'IPAI') XLSX.utils.book_append_sheet(wb, ws, 'Inventario Amazon');
+    const whE = ['HUNTER', 'JEER'].filter((e) => !E || E === e).flatMap((e) => Object.values((D.almacenes || {})[e] || {}).map((o) => ({ e, o }))).filter((w) => !SP || SP === (w.o.filtro || w.o.nombre));
+    const tvIn = whE.length > 0;
+    const whLab = ['HUNTER', 'JEER'].flatMap((e) => Object.values((D.almacenes || {})[e] || {}).map((o) => o.filtro || o.nombre));
+    if (!whLab.includes(SP) && SP !== 'China (IPAI)' && E !== 'IPAI') XLSX.utils.book_append_sheet(wb, ws, 'Inventario Amazon');
     if (tvIn) {
-      const tr = tvE.flatMap((e) => D.almacenes[e].TVL.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': e, 'Almacén': 'TVL · Anaheim, CA', 'Modelo': r.modelo, 'Producto': r.producto, 'Código TVL': r.lineas.join(' + '), 'Cartones': r.cartones, 'Unidades por cartón': r.uds_carton, 'Unidades en cartones': r.uds_en_cartones, 'Unidades sueltas': r.sueltas, 'Total unidades': r.total_uds, 'Estado': r.estado })));
-      const wt = XLSX.utils.json_to_sheet(tr); wt['!cols'] = [10, 18, 11, 22, 34, 10, 12, 14, 12, 12, 12].map((w) => ({ wch: w })); wt['!autofilter'] = { ref: wt['!ref'] };
-      XLSX.utils.book_append_sheet(wb, wt, 'Almacén TVL');
+      const tr = whE.flatMap(({ e, o }) => o.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': e, 'Almacén': o.nombre, 'Modelo': r.modelo, 'Producto': r.producto, 'Código': (r.lineas || [r.codigo]).join(' + '), 'Cartones': r.cartones, 'Unidades por cartón': r.uds_carton, 'Unidades en cartones': r.uds_en_cartones, 'Unidades sueltas': r.sueltas, 'Total unidades': r.total_uds, 'Estado': r.estado })));
+      const wt = XLSX.utils.json_to_sheet(tr); wt['!cols'] = [10, 14, 11, 24, 34, 10, 12, 14, 12, 12, 12].map((w) => ({ wch: w })); wt['!autofilter'] = { ref: wt['!ref'] };
+      XLSX.utils.book_append_sheet(wb, wt, 'Almacenes propios');
     }
     const CHx = D.almacenes && D.almacenes.IPAI && D.almacenes.IPAI.CHINA;
     if (CHx && (!E || E === 'IPAI') && (!SP || SP === 'China (IPAI)')) {
@@ -794,7 +797,7 @@ async function downloadStock() {
       const wc = XLSX.utils.json_to_sheet(cr); wc['!cols'] = [8, 10, 8, 22, 12, 12].map((w) => ({ wch: w })); wc['!autofilter'] = { ref: wc['!ref'] };
       XLSX.utils.book_append_sheet(wb, wc, 'China IPAI');
     }
-    const info = XLSX.utils.aoa_to_sheet([['Empresa', E || 'Todas'], ['País', SP || 'Todos'], ['Filtro de estado', ES === 'urg' ? 'Urgentes' : (ES || 'Todos')], ['Foto del inventario', A.leido], ['Fuente', 'Amazon Seller Central · Inventario FBA' + (tvIn ? ' · ' + TVx.fuente : '')], ['Cartones TVL', tvIn ? TVx.nota : ''], ['Cobertura', 'Disponible ÷ ventas diarias de los últimos 90 días'], ['Nota', A.nota_stock || '']]);
+    const info = XLSX.utils.aoa_to_sheet([['Empresa', E || 'Todas'], ['País', SP || 'Todos'], ['Filtro de estado', ES === 'urg' ? 'Urgentes' : (ES || 'Todos')], ['Foto del inventario', A.leido], ['Fuente', 'Amazon Seller Central · Inventario FBA' + (tvIn ? ' · ' + [...new Set(whE.map((w) => w.o.fuente))].join(' · ') : '')], ['Almacenes propios', tvIn ? [...new Set(whE.map((w) => w.o.nombre + ': ' + w.o.nota))].join(' ') : ''], ['Cobertura', 'Disponible ÷ ventas diarias de los últimos 90 días'], ['Nota', A.nota_stock || '']]);
     info['!cols'] = [{ wch: 20 }, { wch: 50 }];
     XLSX.utils.book_append_sheet(wb, info, 'Información');
     const name = `Inventario_${E || 'TODAS'}_${(SP || 'Todos').replace(/\s+/g, '_')}_${(D.corte || '').slice(0, 10)}.xlsx`;
