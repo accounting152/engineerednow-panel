@@ -200,7 +200,27 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 /* tab bar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);
   border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
-.tabs-in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+.tabs button{font-size:10.5px}
+.amzsel{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.amzbtn{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;text-align:left}
+.amzbtn[aria-pressed="true"]{border-color:var(--cc);box-shadow:0 0 0 2px color-mix(in srgb,var(--cc) 35%,transparent),var(--shadow)}
+.amzbtn[disabled]{opacity:.55;cursor:default}
+.amzbtn .lg{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--cc) 16%,transparent);color:var(--cc);font-family:var(--display);font-stretch:120%;font-weight:800}
+.amzbtn b{display:block;font-family:var(--display);font-stretch:115%;font-size:15px}
+.amzbtn span{font-size:12px;color:var(--muted)}
+.stockrow{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.stockrow:last-child{border-bottom:0}
+.stockrow .nm{font-weight:600;line-height:1.3}
+.stockrow .meta{grid-column:1/-1;display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.stockrow .meta b{color:var(--fg);font-family:var(--mono);font-weight:500}
+.gauge{grid-column:1/-1;height:6px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.gauge i{display:block;height:100%;border-radius:99px}
+.liq{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.liq:last-child{border-bottom:0}
+.liq .v{font-family:var(--mono);font-weight:600;text-align:right}
+.liq .s{font-size:12px;color:var(--muted)}
+
 .tabs button{border:0;background:none;display:grid;justify-items:center;gap:3px;padding:6px 0;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;position:relative}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current="page"]{color:var(--accent)}
@@ -255,6 +275,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
       <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
       <button data-tab="resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resultados</button>
+      <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Amazon</button>
       <button data-tab="cobros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Cobros</button>
     </div>
   </nav>
@@ -304,7 +325,7 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER' };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER' };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -312,7 +333,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','cobros'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','amazon','cobros'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -323,7 +344,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', cobros: 'Cobros' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Amazon', cobros: 'Cobros' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -461,6 +482,54 @@ resultados() {
   </div>`;
 },
 
+amazon() {
+  const AM = D.amazon || {};
+  const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Pendiente de conectar'}</span></div></button>`; };
+  const sel = `<div class="amzsel">${btn('JEER', 'EE. UU., Canadá, México, Brasil')}${btn('HUNTER', '13 países')}</div>`;
+  const A = AM[state.amz];
+  if (!A) return sel + `<div class="card mut">Todavía no hay datos de Amazon de ${state.amz}.</div>`;
+  const v30 = A.paises.reduce((s, p) => s + p.ventas_30d_usd, 0), u30 = A.paises.reduce((s, p) => s + p.unidades_30d, 0);
+  const vy = A.paises.reduce((s, p) => s + p.ventas_ytd_usd, 0), uy = A.paises.reduce((s, p) => s + p.unidades_ytd, 0);
+  const urg = A.fba.filter((f) => f.estado === 'Reponer ya' || f.estado === 'Agotado');
+  const pmax = Math.max(...A.paises.map((p) => p.ventas_ytd_usd));
+  const paises = A.paises.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)} <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.unidades_ytd)} uds en el año · ${nf(0).format(p.unidades_30d)} en 30 días</span></span>
+    <span class="v">${money(p.ventas_ytd_usd, 'USD', 0)}</span>
+    <div class="bar"><i style="width:${p.ventas_ytd_usd / pmax * 100}%;background:${COL[state.amz]}"></i></div>
+    <span class="mut" style="font-size:12px;grid-column:1/-1">${p.moneda !== 'USD' ? `${money(p.ventas_ytd, p.moneda, 0)} en el año · ${money(p.ventas_30d, p.moneda, 0)} en 30 días` : `${money(p.ventas_30d, 'USD', 0)} en 30 días`}</span></div>`).join('');
+  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin ventas ni stock': 'mut' };
+  const stock = A.fba.filter((f) => f.estado !== 'Sin ventas ni stock').map((f) => {
+    const cob = f.cobertura_dias === '' ? null : +f.cobertura_dias; const w = cob == null ? 0 : Math.min(100, cob / 120 * 100);
+    return `<div class="stockrow"><span class="nm">${esc(f.producto)}</span><span class="pill ${cls[f.estado]}">${esc(f.estado)}</span>
+      <div class="gauge"><i style="width:${Math.max(w, cob === 0 ? 0 : 2)}%;background:var(--${cls[f.estado] === 'mut' ? 'muted' : cls[f.estado]})"></i></div>
+      <div class="meta"><span>Disponible <b>${f.disponible}</b></span><span>Vendidas 90 d <b>${f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`;
+  }).join('');
+  const sinMov = A.fba.filter((f) => f.estado === 'Sin ventas ni stock').length;
+  const liq = A.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio), b = fdate(l.periodo_fin), c = fdate(l.fecha_pago); const ok = !!l.banco_fecha; const bf = ok ? fdate(l.banco_fecha) : null;
+    return `<div class="liq"><span>${a.d} ${a.m} – ${b.d} ${b.m}<div class="s">Pagado ${c.d} ${c.m}${ok ? ` · en Mercury el ${bf.d} ${bf.m}` : ''}${l.qb !== 'Registrado' ? ' · <span class="warn">pendiente en QuickBooks</span>' : ''}</div></span>
+      <span class="v">${money(l.importe, 'USD')}<div class="s ${ok ? 'ok' : 'bad'}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : 'No llegó'}</div></span></div>`; }).join('');
+  const np = fdate(A.proximo_pago);
+  return sel + `
+  <section class="card hero">
+    <div class="eyebrow">${state.amz} en Amazon · últimos 30 días</div>
+    <div class="big">${nf(0).format(v30)}<small>US$</small></div>
+    <div class="mut" style="font-size:13px">${nf(0).format(u30)} unidades · ${A.pedidos_90d} pedidos en 90 días, ${A.cancelados_90d} cancelados</div>
+  </section>
+  <section class="kpis">
+    <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${compact(vy)}</span><span class="l">US$ · ${nf(0).format(uy)} unidades</span></div>
+    <div class="kpi"><span class="l">Próximo pago</span><span class="v">${money(A.saldo_amazon, 'USD', 0)}</span><span class="l">el ${np.d} ${np.m} · ${money(A.saldo_diferido, 'USD', 0)} retenidos</span></div>
+    <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Stock urgente</span><span class="v">${urg.length}</span><span class="l">productos agotados o a punto</span></div>
+    <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Sana' : esc(A.estado_cuenta)}</span><span class="l">Valoración ${nf(1).format(A.valoracion)}/5 · ${esc(A.productos_activos)} activos</span></div>
+  </section>
+  <div class="cols">
+    <section class="card"><h3>Ventas diarias · Estados Unidos</h3><p class="hint">Últimos 30 días, US$. Toca una barra para ver el día.</p><div class="chart" id="chAmzDay"></div></section>
+    <section class="card"><h3>Ventas por mes · Estados Unidos</h3><p class="hint">2026, US$. Mayo cae por falta de stock.</p><div class="chart" id="chAmzMon"></div></section>
+    <section class="card"><h3>Por país</h3><p class="hint">Ventas del año en US$ · ${esc(A.nota_tc)}</p>${paises}</section>
+    <section class="card"><h3>Liquidaciones de Amazon frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en Mercury</p>${liq}</section>
+    <section class="card span2"><h3>Stock en almacenes de Amazon (FBA)</h3><p class="hint">Cobertura = unidades disponibles ÷ ventas diarias de los últimos 90 días. ${sinMov} referencias sin ventas ni stock no se muestran.</p>${stock}</section>
+  </div>
+  <p class="foot-note">Leído de Amazon Seller Central el ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m} a las ${A.leido.slice(11)} h</p>`;
+},
+
 cobros() {
   const ar = D.cxc.filter((c) => +c.importe_usd > 0);
   const max = Math.max(...ar.map((c) => +c.importe_usd));
@@ -498,6 +567,12 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
+  amazon() {
+    document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; render(); } }));
+    const A = (D.amazon || {})[state.amz]; if (!A) return;
+    barChart($('#chAmzDay'), A.diario_us.map((r) => ({ k: r.fecha, v: +r.ventas, u: +r.unidades })), (k) => fdate(k).d, (d) => `${fdate(d.k).d} ${fdate(d.k).m}`, 7);
+    barChart($('#chAmzMon'), A.mensual_us.map((r) => ({ k: r.mes + '-01', v: +r.ventas_pedidas, u: +r.unidades_pedidas })), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MES[+d.k.slice(5, 7) - 1]} 2026`, 1);
+  },
   resumen() { document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go))); },
   pendientes() {
     document.querySelectorAll('[data-emp]').forEach((b) => b.addEventListener('click', () => { state.pendEmp = b.dataset.emp; document.querySelectorAll('[data-emp]').forEach((x) => x.setAttribute('aria-pressed', x === b)); drawMoves(); }));
@@ -563,7 +638,24 @@ function chartHist(box) {
       tip.show((ml + step * +el.dataset.i + step / 2) * k, y(d.t) * k, `Ene–sep ${d.y}`, emps.filter((e) => d[e]).map((e) => [COL[e], e, nf(1).format(d[e]) + 'K'])); };
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
-let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => D && state.tab === 'resultados' && render(), 150); });
+function barChart(box, rows, lab, title, every) {
+  const W = Math.max(300, box.clientWidth), H = 210, mt = 10, mb = 24, ml = 44, mr = 4;
+  const ticks = niceTicks(0, Math.max(...rows.map((r) => r.v), 1), 4); const top = ticks[ticks.length - 1];
+  const iw = W - ml - mr, ih = H - mt - mb; const y = (v) => mt + ih - v / top * ih;
+  const step = iw / rows.length, bw = Math.max(3, Math.min(26, step * .62));
+  const col = COL[state.amz];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t ? 'stroke-dasharray="2 4"' : ''}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${compact(t)}</text>`; });
+  rows.forEach((r, i) => { const x = ml + step * i + (step - bw) / 2; s += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${Math.max(0, y(0) - y(r.v))}" rx="${Math.min(4, bw / 2)}" fill="${col}"/>`;
+    if (i % every === 0 || rows.length < 13) s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${lab(r.k)}</text>`;
+    s += `<rect data-i="${i}" x="${ml + step * i}" y="0" width="${step}" height="${H}" fill="transparent"/>`; });
+  box.innerHTML = s + '</svg>';
+  const tip = tipFor(box);
+  box.querySelectorAll('rect[data-i]').forEach((el) => { const show = () => { const i = +el.dataset.i, r = rows[i], k = box.clientWidth / W;
+      tip.show((ml + step * i + step / 2) * k, y(r.v) * k, title(r), [[col, 'Ventas', money(r.v, 'USD', 0)], [null, 'Unidades', nf(0).format(r.u)]]); };
+    el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
+}
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => D && (state.tab === 'resultados' || state.tab === 'amazon') && render(), 150); });
 
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 })();
