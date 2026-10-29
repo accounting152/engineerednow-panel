@@ -276,7 +276,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
       <button data-tab="resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resultados</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Amazon</button>
-      <button data-tab="cobros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Cobros</button>
+      <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
     </div>
   </nav>
 </div>
@@ -325,7 +325,7 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '' };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '' };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -333,7 +333,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','amazon','cobros'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','amazon','inventario'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -344,7 +344,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Amazon', cobros: 'Cobros' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Amazon', inventario: 'Inventario' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -551,39 +551,57 @@ amazon() {
     <section class="card"><h3>Por país · ${perTxt}</h3><p class="hint">${esc(paisNote)}</p>${paises}</section>
     <section class="card"><h3>Liquidaciones frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
     ${dep ? `<section class="card span2"><h3>Ingresos de Amazon en banco por origen</h3><p class="hint">Del 1 de julio al 29 de octubre de 2026, según QuickBooks</p>${dep}</section>` : ''}
-    <section class="card span2" id="stock">
-      <h3>Stock en almacenes de Amazon (FBA)</h3>
-      <p class="hint">Foto a ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m}. Cobertura = disponible ÷ ventas diarias de los últimos 90 días. ${sinMov} referencias sin ventas ni stock no se muestran pero sí van en el Excel.${A.nota_stock ? ' ' + esc(A.nota_stock) : ''}</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <select id="stockPais" aria-label="País del inventario" style="height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px;flex:1 1 180px;min-width:0">${stockOpts}</select>
-        <button class="btn" id="xlsBtn" style="height:44px;padding:0 16px;flex:0 0 auto">Descargar Excel</button>
-      </div>
-      <div class="err" id="xlsMsg" style="color:var(--muted)"></div>
-      ${stock || '<p class="mut">Sin stock en este país.</p>'}
-    </section>
+    <section class="card span2"><h3>Stock en almacenes de Amazon</h3><p class="hint">${urg.length} productos agotados o a punto de agotarse. El detalle por país y la descarga en Excel están en Inventario.</p><button class="btn" data-go="inventario" style="height:44px;padding:0 16px">Ver inventario</button></section>
   </div>
   <p class="foot-note">Leído de Amazon Seller Central el ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m} a las ${A.leido.slice(11)} h</p>`;
 },
 
-cobros() {
-  const ar = D.cxc.filter((c) => +c.importe_usd > 0);
-  const max = Math.max(...ar.map((c) => +c.importe_usd));
-  const tot = ar.reduce((s, c) => s + +c.importe_usd, 0);
-  const list = ar.map((c) => `<div class="arrow"><span class="nm">${esc(c.cliente)} <span class="mut" style="font-weight:400;font-size:12px">· ${c.empresa}</span></span>
-    <span class="v ${c.tramo === 'Al corriente' ? 'ok' : ''}">${money(c.importe, c.moneda, 0)}</span>
-    <div class="bar"><i style="width:${+c.importe_usd / max * 100}%;background:${c.tramo === 'Al corriente' ? 'var(--ok)' : 'var(--bad)'}"></i></div></div>`).join('');
-  const ic = D.interco.map((r) => `<tr><td>${esc(r.relacion)}</td><td class="r">${money(r.importe_a_usd, 'USD', 0)}</td><td class="r">${r.importe_b_usd === '' ? '—' : money(r.importe_b_usd, 'USD', 0)}</td><td class="r ${r.diferencia_usd !== '' && Math.abs(+r.diferencia_usd) > 1 ? 'warn' : ''}">${r.diferencia_usd === '' ? '—' : money(r.diferencia_usd, 'USD', 0)}</td></tr>`).join('');
-  return `<section class="card hero">
-      <div class="eyebrow">Facturas abiertas</div>
-      <div class="big">${nf(0).format(tot)}<small>US$</small></div>
-      <div class="mut" style="font-size:13px">${nf(0).format(D.resumen.cxc_90_usd)} US$ con más de 90 días: probablemente cobros ya recibidos sin aplicar a su factura.</div>
-    </section>
-    <div class="cols">
-      <section class="card"><h3>Por cliente</h3><p class="hint">Rojo: más de 90 días · verde: al corriente</p>${list}</section>
-      <section class="card"><h3>Entre sociedades</h3><p class="hint">Cada saldo visto desde las dos partes, en US$</p>
-        <div class="scrollx"><table class="t"><thead><tr><th>Relación</th><th class="r">Lado A</th><th class="r">Lado B</th><th class="r">Dif.</th></tr></thead><tbody>${ic}</tbody></table></div>
-        <p class="hint" style="margin:12px 0 0">La diferencia JEER–IPAI se debe al tipo de cambio del dólar de Singapur.</p></section>
-    </div>`;
+inventario() {
+  const AM = D.amazon || {};
+  const E = state.invEmp || '';
+  const emps = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e));
+  const all = emps.flatMap((e) => AM[e].fba.map((f) => ({ ...f, empresa: e, pais: f.pais || 'Estados Unidos' })));
+  const paises = [...new Set(all.map((f) => f.pais))];
+  const PA = paises.includes(state.invPais) ? state.invPais : '';
+  const ES = state.invEstado || '';
+  const q = (state.invQ || '').toLowerCase();
+  const urgent = (f) => f.estado === 'Reponer ya' || f.estado === 'Agotado';
+  const rows = all.filter((f) => (!PA || f.pais === PA) && (!ES || (ES === 'urg' ? urgent(f) : f.estado === ES)) && (!q || `${f.producto} ${f.sku}`.toLowerCase().includes(q)));
+  const own = (r) => r.filter((f) => (f.compartido || 'No') === 'No');
+  const sum = (r, k) => r.reduce((s, f) => s + (+f[k] || 0), 0);
+  const seg = [['', 'Ambas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER']].map(([v, l]) => `<button aria-pressed="${E === v}" data-ie="${v}">${l}</button>`).join('');
+  const cards = ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => { const r = AM[e].fba.map((f) => ({ ...f, pais: f.pais || 'Estados Unidos' })); const o = own(r);
+    return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgentes</span></div>
+      <dl class="rows"><dt>Unidades disponibles</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Referencias con stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Vendidas 90 días</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd></dl></button>`; }).join('');
+  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin dato de ventas': 'mut', 'Stock de EE. UU.': 'info', 'Sin ventas ni stock': 'mut' };
+  const ord = { 'Reponer ya': 0, 'Agotado': 1, 'Vigilar': 2, 'Exceso': 3, 'Correcto': 4, 'Stock de EE. UU.': 5, 'Sin ventas': 6, 'Sin dato de ventas': 7, 'Sin ventas ni stock': 8 };
+  const shown = rows.filter((f) => f.estado !== 'Sin ventas ni stock').sort((a, b) => (ord[a.estado] - ord[b.estado]) || ((+b.unidades_90d || 0) - (+a.unidades_90d || 0)));
+  const list = shown.map((f) => { const cob = f.cobertura_dias === '' ? null : +f.cobertura_dias; const w = cob == null ? 0 : Math.min(100, cob / 120 * 100);
+    return `<div class="stockrow"><span class="nm">${esc(f.producto)} <span class="mut" style="font-weight:400;font-size:12px">· ${esc(f.empresa)} · ${esc(f.pais)}</span></span><span class="pill ${cls[f.estado] || 'mut'}">${esc(f.estado)}</span>
+      <div class="gauge"><i style="width:${Math.max(w, cob === 0 ? 0 : 2)}%;background:var(--${(cls[f.estado] || 'mut') === 'mut' ? 'muted' : cls[f.estado]})"></i></div>
+      <div class="meta"><span>Disponible <b>${f.disponible}</b></span>${+f.en_camino ? `<span>En camino <b>${f.en_camino}</b></span>` : ''}<span>Vendidas 90 d <b>${f.unidades_90d == null ? '—' : f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span><span>${esc(f.sku)}</span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`; }).join('');
+  const notas = emps.map((e) => AM[e].nota_stock ? `<b>${e}:</b> ${esc(AM[e].nota_stock)}` : '').filter(Boolean).join(' ');
+  const selStyle = 'height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px;flex:1 1 160px;min-width:0';
+  const leido = emps.map((e) => `${e} ${fdate(AM[e].leido.slice(0, 10)).d} ${fdate(AM[e].leido.slice(0, 10)).m} ${AM[e].leido.slice(11)} h`).join(' · ');
+  return `<div class="seg" role="group" aria-label="Sociedad">${seg}</div>
+  <section class="cos" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))">${cards}</section>
+  <section class="card">
+    <h3>Inventario en almacenes de Amazon</h3>
+    <p class="hint">Cobertura = disponible ÷ ventas diarias de los últimos 90 días. ${notas}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <select id="invPais" aria-label="País" style="${selStyle}"><option value="">Todos los países</option>${paises.map((x) => `<option ${PA === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <select id="invEstado" aria-label="Estado" style="${selStyle}">${[['', 'Todos los estados'], ['urg', 'Urgentes (agotado o reponer)'], ['Vigilar', 'Vigilar'], ['Correcto', 'Correcto'], ['Exceso', 'Exceso'], ['Sin ventas', 'Sin ventas']].map(([v, l]) => `<option value="${v}" ${ES === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    </div>
+    <label class="search" style="margin-bottom:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="invQ" type="search" placeholder="Buscar producto o SKU" value="${esc(state.invQ || '')}" aria-label="Buscar producto"></label>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <button class="btn" id="xlsBtn" style="height:44px;padding:0 16px">Descargar Excel</button>
+      <span class="mut" style="font-size:13px">${rows.length} referencias con estos filtros</span>
+    </div>
+    <div class="err" id="xlsMsg" style="color:var(--muted)"></div>
+    ${list || '<p class="mut">Ninguna referencia con estos filtros.</p>'}
+  </section>
+  <p class="foot-note">Leído de Amazon Seller Central: ${leido}</p>`;
 },
 };
 
@@ -605,25 +623,29 @@ function loadXLSX() {
   return xlsxLoading;
 }
 async function downloadStock() {
-  const A = D.amazon[state.amz]; const SP = state.amzStockPais || '';
+  const AM = D.amazon; const E = state.invEmp || ''; const SP = state.invPais || ''; const ES = state.invEstado || ''; const q = (state.invQ || '').toLowerCase();
+  const urgent = (f) => f.estado === 'Reponer ya' || f.estado === 'Agotado';
   const msg = $('#xlsMsg'); msg.textContent = 'Preparando el Excel…';
   try {
     await loadXLSX();
-    const rows = A.fba.filter((f) => !SP || (f.pais || 'Estados Unidos') === SP).map((f) => ({
-      'Empresa': state.amz, 'País': f.pais || 'Estados Unidos', 'Producto': f.producto, 'SKU / FNSKU': f.sku,
+    const rows = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e)).flatMap((e) => AM[e].fba.map((f) => ({ ...f, empresa: e, pais: f.pais || 'Estados Unidos' })))
+      .filter((f) => (!SP || f.pais === SP) && (!ES || (ES === 'urg' ? urgent(f) : f.estado === ES)) && (!q || `${f.producto} ${f.sku}`.toLowerCase().includes(q)))
+      .map((f) => ({
+      'Empresa': f.empresa, 'País': f.pais, 'Producto': f.producto, 'SKU / FNSKU': f.sku,
       'Disponible': f.disponible, 'En camino a Amazon': f.en_camino, 'Reservado': f.reservado,
       'Vendidas 90 días': f.unidades_90d, 'Ventas 90 días (moneda local)': f.ventas_90d, 'Stock compartido': f.compartido || 'No',
       'Cobertura (días)': f.cobertura_dias === '' ? null : +f.cobertura_dias, 'Estado': f.estado, 'Recomendación de Amazon': f.recomendacion_amazon,
     }));
+    const A = { leido: ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e)).map((e) => e + ' ' + AM[e].leido).join(' · '), nota_stock: ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e) && AM[e].nota_stock).map((e) => e + ': ' + AM[e].nota_stock).join(' ') };
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = [10, 16, 52, 16, 11, 12, 10, 12, 14, 20, 12, 18, 52].map((w) => ({ wch: w }));
     ws['!autofilter'] = { ref: ws['!ref'] };
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
-    const info = XLSX.utils.aoa_to_sheet([['Empresa', state.amz], ['País', SP || 'Todos'], ['Foto del inventario', A.leido], ['Fuente', 'Amazon Seller Central · Inventario FBA'], ['Cobertura', 'Disponible ÷ ventas diarias de los últimos 90 días'], ['Nota', A.nota_stock || '']]);
+    const info = XLSX.utils.aoa_to_sheet([['Empresa', E || 'Hunter y JEER'], ['País', SP || 'Todos'], ['Filtro de estado', ES === 'urg' ? 'Urgentes' : (ES || 'Todos')], ['Foto del inventario', A.leido], ['Fuente', 'Amazon Seller Central · Inventario FBA'], ['Cobertura', 'Disponible ÷ ventas diarias de los últimos 90 días'], ['Nota', A.nota_stock || '']]);
     info['!cols'] = [{ wch: 20 }, { wch: 50 }];
     XLSX.utils.book_append_sheet(wb, info, 'Información');
-    const name = `Inventario_${state.amz}_${(SP || 'Todos').replace(/\s+/g, '_')}_${A.leido.slice(0, 10)}.xlsx`;
+    const name = `Inventario_${E || 'HUNTER-JEER'}_${(SP || 'Todos').replace(/\s+/g, '_')}_${(D.corte || '').slice(0, 10)}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) {
       const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
@@ -653,11 +675,18 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
+  inventario() {
+    const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-ie]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invEmp = b.dataset.ie; state.invPais = ''; })));
+    $('#invPais').addEventListener('change', (e) => keep(() => { state.invPais = e.target.value; }));
+    $('#invEstado').addEventListener('change', (e) => keep(() => { state.invEstado = e.target.value; }));
+    let t; const qi = $('#invQ'); qi.addEventListener('input', (e) => { clearTimeout(t); t = setTimeout(() => { keep(() => { state.invQ = e.target.value; }); const n = $('#invQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 400); });
+    $('#xlsBtn').addEventListener('click', downloadStock);
+  },
   amazon() {
     document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; state.amzStockPais = ''; render(); } }));
     document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { state.amzPer = b.dataset.per; const y = scrollY; render(); scrollTo({ top: y }); }));
-    const sp = $('#stockPais'); if (sp) sp.addEventListener('change', () => { state.amzStockPais = sp.value; const y = scrollY; render(); scrollTo({ top: y }); });
-    const xb = $('#xlsBtn'); if (xb) xb.addEventListener('click', downloadStock);
+    document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     const A = (D.amazon || {})[state.amz]; if (!A) return;
     const P = state.amzPer || '30d';
     const days = amzDays(A);
