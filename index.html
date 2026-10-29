@@ -136,6 +136,16 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .alertrow .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn);font-weight:800;font-family:var(--mono)}
 
 /* segmented & chips */
+.utbl-wrap{overflow-x:auto;margin:6px -4px 0;padding:0 4px;-webkit-overflow-scrolling:touch}
+.utbl{border-collapse:separate;border-spacing:3px;width:100%;font-size:13px;min-width:560px}
+.utbl th{font-weight:600;color:var(--muted);font-size:11.5px;text-align:center;padding:4px 2px;white-space:nowrap}
+.utbl th.l,.utbl td.l{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;padding-right:8px;white-space:nowrap;font-weight:600;color:var(--fg)}
+.utbl td{text-align:center;padding:7px 4px;border-radius:7px;font-family:var(--mono);font-variant-numeric:tabular-nums;position:relative}
+.utbl td.h{outline:2px solid var(--fg);outline-offset:-2px}
+.utbl tr.tot td{font-weight:700;border-top:1px solid var(--line)}
+.utbl td.t{background:var(--surface2);font-weight:700}
+.ulegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:4px 0 2px}
+.ulegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .seg{display:flex;gap:6px;padding:4px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .seg::-webkit-scrollbar{display:none}
 .seg button{flex:1 0 auto;height:36px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:650;cursor:pointer;white-space:nowrap}
@@ -309,6 +319,7 @@ const money = (v, c = 'USD', d = 2) => (v === '' || v == null || isNaN(+v)) ? '�
 const compact = (v) => { const a = Math.abs(v); const s = v < 0 ? '−' : ''; if (a >= 1e6) return s + nf(2).format(a / 1e6) + ' M'; if (a >= 1e3) return s + nf(1).format(a / 1e3) + ' K'; return s + nf(0).format(a); };
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const fdate = (s) => { const [y, m, d] = String(s).split('-'); return { d: +d, m: MES[+m - 1] || '', y }; };
+const PCOL = ['#B8692F', '#3A6E9E', '#2F8C7F', '#8B5FBF'];
 const COL = { HUNTER: 'var(--c-hunter)', JEER: 'var(--c-jeer)', IPAI: 'var(--c-ipai)', VENANDI: 'var(--c-venandi)', VENATOR: 'var(--c-venator)' };
 const ST = { 'Cuadra': ['ok', 'Cuadra'], 'Explicado por pendientes': ['warn', 'Pendiente de conciliar'], 'Sin conexión bancaria': ['mut', 'Sin conexión'], 'Feed sin actualizar': ['bad', 'Revisar conexión'], 'Descuadre': ['bad', 'Descuadre'] };
 
@@ -550,6 +561,10 @@ amazon() {
     <section class="card"><h3>Por país · ${perTxt}</h3><p class="hint">${esc(paisNote)}</p>${paises}</section>
     <section class="card"><h3>Liquidaciones frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
     ${dep ? `<section class="card span2"><h3>Ingresos de Amazon en banco por origen</h3><p class="hint">Del 1 de julio al 29 de octubre de 2026, según QuickBooks</p>${dep}</section>` : ''}
+    <section class="card span2" id="units"><h3>Unidades vendidas por país y mes</h3><p class="hint">${esc(state.amz)} · 2026 · Seller Central (unidades pedidas)${/^\d{4}-\d\d$/.test(P) ? ' · Recuadrado ' + MESL[+P.slice(5, 7) - 1] : ''}. Toca una barra para ver el detalle.</p>
+      ${unitsBlock(A, P)}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="uXls" style="height:44px;padding:0 16px">Descargar Excel de unidades</button><span class="mut" id="uMsg" style="font-size:13px"></span></div>
+    </section>
     <section class="card span2"><h3>Stock en almacenes de Amazon</h3><p class="hint">${urg.length} productos agotados o a punto de agotarse. El detalle por país y la descarga en Excel están en Inventario.</p><button class="btn" data-go="inventario" style="height:44px;padding:0 16px">Ver inventario</button></section>
   </div>
   <p class="foot-note">Leído de Amazon Seller Central el ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m} a las ${A.leido.slice(11)} h</p>`;
@@ -605,6 +620,88 @@ inventario() {
 };
 
 const MESL = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function unitsData(A) {
+  const days = amzDays(A); const months = [...new Set(days.map((r) => r.f.slice(0, 7)))].sort();
+  const paises = Object.keys(A.dias || {});
+  const m = {}; paises.forEach((p) => { m[p] = {}; months.forEach((k) => { m[p][k] = { u: 0, v: 0 }; }); });
+  days.forEach((r) => { const c = m[r.pais][r.f.slice(0, 7)]; c.u += r.u; c.v += r.usd; });
+  const tot = (p) => months.reduce((s, k) => s + m[p][k].u, 0);
+  paises.sort((a, b) => tot(b) - tot(a));
+  return { months, paises, m, tot };
+}
+function unitsBlock(A, P) {
+  const { months, paises, m, tot } = unitsData(A);
+  const all = paises.reduce((s, p) => s + tot(p), 0);
+  const max = Math.max(1, ...paises.flatMap((p) => months.map((k) => m[p][k].u)));
+  const col = COL[state.amz];
+  const cell = (u, k) => `<td class="${k === P ? 'h' : ''}" style="background:color-mix(in srgb, ${col} ${u ? Math.round(8 + u / max * 62) : 0}%, var(--surface2))">${u ? nf(0).format(u) : '·'}</td>`;
+  const mt = (k) => paises.reduce((s, p) => s + m[p][k].u, 0);
+  const rows = paises.map((p, i) => { const t = tot(p); const v = months.reduce((s, k) => s + m[p][k].v, 0);
+    return `<tr><td class="l"><i class="dot" style="background:${PCOL[i % 4]};margin-right:6px"></i>${esc(p)}</td>${months.map((k) => cell(m[p][k].u, k)).join('')}<td class="t">${nf(0).format(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${t ? money(v / t, 'USD', 0) : '—'}</td></tr>`; }).join('');
+  const totRow = paises.length > 1 ? `<tr class="tot"><td class="l">Total</td>${months.map((k) => `<td class="${k === P ? 'h' : ''}">${nf(0).format(mt(k))}</td>`).join('')}<td class="t">${nf(0).format(all)}</td><td class="t">100%</td><td class="t">${all ? money(paises.reduce((s, p) => s + months.reduce((a, k) => a + m[p][k].v, 0), 0) / all, 'USD', 0) : '—'}</td></tr>` : '';
+  // month-over-month for last complete month vs previous
+  const lastFull = months.length > 2 ? months[months.length - 2] : null, prev = months.length > 2 ? months[months.length - 3] : null;
+  const mom = lastFull ? (mt(lastFull) - mt(prev)) / Math.max(1, mt(prev)) * 100 : null;
+  const best = months.reduce((b, k) => (mt(k) > mt(b) ? k : b), months[0]);
+  const kp = `<div class="kpis" style="margin:4px 0 10px"><div class="kpi"><span class="l">Unidades 2026</span><span class="v">${nf(0).format(all)}</span><span class="l">${paises.length} ${paises.length === 1 ? 'país' : 'países'}</span></div>
+    <div class="kpi"><span class="l">Mejor mes</span><span class="v">${MES[+best.slice(5, 7) - 1]}</span><span class="l">${nf(0).format(mt(best))} unidades</span></div>
+    ${lastFull ? `<div class="kpi ${mom < -10 ? 'alert' : ''}"><span class="l">${MESL[+lastFull.slice(5, 7) - 1]} frente a ${MESL[+prev.slice(5, 7) - 1]}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom > 0 ? '+' : ''}${nf(0).format(mom)}%</span><span class="l">${nf(0).format(mt(lastFull))} frente a ${nf(0).format(mt(prev))} uds</span></div>` : ''}
+    <div class="kpi"><span class="l">Media mensual</span><span class="v">${nf(0).format(all / Math.max(1, months.length))}</span><span class="l">unidades al mes</span></div></div>`;
+  const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % 4]}"></i>${esc(p)}</span>`).join('')}</div>`;
+  const note = A.paises_mes ? '<p class="hint" style="margin-top:8px">Los países que solo aparecen en QuickBooks (Francia, España, Italia, Canadá…) no tienen unidades: QuickBooks registra importes, no unidades.</p>' : (A.nota_stock && /Canadá/.test(A.nota_stock) ? '' : '');
+  return kp + leg + `<div class="chart" id="chUnits"></div>` +
+    `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">País</th>${months.map((k) => `<th>${MES[+k.slice(5, 7) - 1]}</th>`).join('')}<th>Total</th><th>% uds</th><th>US$/ud</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` + note +
+    (months[months.length - 1] ? `<p class="hint" style="margin-top:6px">${MESL[+months[months.length - 1].slice(5, 7) - 1]} va hasta el día ${fdate(amzDays(A).reduce((x, r) => (r.f > x ? r.f : x), '')).d}.</p>` : '');
+}
+function unitsChart(box, A, P) {
+  const { months, paises, m } = unitsData(A);
+  const W = Math.max(300, box.clientWidth), H = 220, mt = 10, mb = 24, ml = 40, mr = 4;
+  const totals = months.map((k) => paises.reduce((s, p) => s + m[p][k].u, 0));
+  const ticks = niceTicks(0, Math.max(1, ...totals), 4); const top = ticks[ticks.length - 1];
+  const iw = W - ml - mr, ih = H - mt - mb; const y = (v) => mt + ih - v / top * ih;
+  const step = iw / months.length, bw = Math.min(34, step * .62);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Unidades vendidas por mes y país">`;
+  ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t ? 'stroke-dasharray="2 4"' : ''}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${compact(t)}</text>`; });
+  months.forEach((k, i) => { const x = ml + step * i + (step - bw) / 2; let acc = 0; const op = /^\d{4}-\d\d$/.test(P) && P !== k ? 0.3 : 1;
+    paises.forEach((p, j) => { const u = m[p][k].u; if (!u) return; const y1 = y(acc + u), y0 = y(acc); s += `<rect x="${x}" y="${y1}" width="${bw}" height="${Math.max(0, y0 - y1 - (acc + u < totals[i] ? 1.5 : 0))}" fill="${PCOL[j % 4]}" opacity="${op}"/>`; acc += u; });
+    s += `<text x="${x + bw / 2}" y="${y(totals[i]) - 4}" text-anchor="middle" style="font-weight:600">${totals[i]}</text>`;
+    s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${MES[+k.slice(5, 7) - 1]}</text>`;
+    s += `<rect data-i="${i}" x="${ml + step * i}" y="0" width="${step}" height="${H}" fill="transparent"/>`; });
+  box.innerHTML = s + '</svg>';
+  const tip = tipFor(box);
+  box.querySelectorAll('rect[data-i]').forEach((el) => { const show = () => { const i = +el.dataset.i, k = months[i], sc = box.clientWidth / W;
+      tip.show((ml + step * i + step / 2) * sc, y(totals[i]) * sc, `${MESL[+k.slice(5, 7) - 1]} 2026`, paises.map((p, j) => [PCOL[j % 4], p, nf(0).format(m[p][k].u) + ' uds']).concat([[null, 'Total', nf(0).format(totals[i]) + ' uds']])); };
+    el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
+}
+async function downloadUnits() {
+  const msg = $('#uMsg'); msg.textContent = 'Preparando el Excel…';
+  try {
+    await loadXLSX();
+    const wb = XLSX.utils.book_new(); const AM = D.amazon;
+    const flat = [];
+    ['HUNTER', 'JEER'].filter((e) => AM[e]).forEach((e) => {
+      const A = AM[e]; const { months, paises, m, tot } = unitsData(A);
+      const aoa = [['País'].concat(months.map((k) => MESL[+k.slice(5, 7) - 1]), ['Total', '% unidades', 'Ventas US$', 'US$ por unidad'])];
+      const all = paises.reduce((s, p) => s + tot(p), 0);
+      paises.forEach((p) => { const v = months.reduce((s, k) => s + m[p][k].v, 0); const t = tot(p);
+        aoa.push([p].concat(months.map((k) => m[p][k].u), [t, all ? +(t / all * 100).toFixed(1) : 0, +v.toFixed(2), t ? +(v / t).toFixed(2) : null]));
+        months.forEach((k) => flat.push({ 'Empresa': e, 'País': p, 'Mes': k, 'Unidades': m[p][k].u, 'Ventas US$': +m[p][k].v.toFixed(2), 'Moneda local': A.dias[p].moneda })); });
+      const vt = paises.reduce((s, p) => s + months.reduce((a, k) => a + m[p][k].v, 0), 0);
+      aoa.push(['Total'].concat(months.map((k) => paises.reduce((s, p) => s + m[p][k].u, 0)), [all, 100, +vt.toFixed(2), all ? +(vt / all).toFixed(2) : null]));
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 16 }].concat(months.map(() => ({ wch: 10 })), [{ wch: 9 }, { wch: 11 }, { wch: 13 }, { wch: 13 }]);
+      XLSX.utils.book_append_sheet(wb, ws, e + ' por país y mes');
+    });
+    const wf = XLSX.utils.json_to_sheet(flat); wf['!cols'] = [10, 16, 10, 10, 12, 12].map((w) => ({ wch: w })); wf['!autofilter'] = { ref: wf['!ref'] };
+    XLSX.utils.book_append_sheet(wb, wf, 'Detalle');
+    const info = XLSX.utils.aoa_to_sheet([['Fuente', 'Amazon Seller Central · Informes de negocio (unidades pedidas por día)'], ['Periodo', '1 de enero de 2026 hasta la última lectura'], ['Leído', ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => e + ' ' + AM[e].leido).join(' · ')], ['Tipo de cambio', 'BCE, 8-oct-2026, para pasar monedas locales a US$'], ['Nota', 'Hunter: los países que solo constan en QuickBooks no tienen unidades y no aparecen aquí.']]);
+    info['!cols'] = [{ wch: 16 }, { wch: 70 }]; XLSX.utils.book_append_sheet(wb, info, 'Información');
+    const name = `Unidades_Amazon_por_pais_y_mes_${(D.corte || '').slice(0, 10)}.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
+    XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
+  } catch (e) { msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.'; }
+}
 function amzDays(A) {
   const out = []; const fx = A.fx || { USD: 1 };
   Object.entries(A.dias || {}).forEach(([pais, o]) => (o.rows || []).forEach(([f, v, u]) => out.push({ pais, mon: o.moneda, f, v, u, usd: v * (fx[o.moneda] || 1) })));
@@ -694,6 +791,7 @@ const AFTER = {
     if (P === 'ytd') barChart($('#chAmzDay'), byKey(sel, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1);
     else barChart($('#chAmzDay'), byKey(sel, (r) => r.f), (k) => fdate(k).d, (d) => `${fdate(d.k).d} ${fdate(d.k).m}`, 5);
     barChart($('#chAmzMon'), byKey(days, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1, /^\d{4}-\d\d$/.test(P) ? P : null);
+    unitsChart($('#chUnits'), A, P); $('#uXls').addEventListener('click', downloadUnits);
   },
   resumen() { document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go))); },
   pendientes() {
