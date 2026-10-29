@@ -485,18 +485,18 @@ resultados() {
 amazon() {
   const AM = D.amazon || {};
   const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Pendiente de conectar'}</span></div></button>`; };
-  const sel = `<div class="amzsel">${btn('JEER', 'EE. UU., Canadá, México, Brasil')}${btn('HUNTER', '13 países')}</div>`;
+  const sel = `<div class="amzsel">${btn('JEER', 'EE. UU., Canadá, México, Brasil')}${btn('HUNTER', 'EE. UU. y 12 países más')}</div>`;
   const A = AM[state.amz];
   if (!A) return sel + `<div class="card mut">Todavía no hay datos de Amazon de ${state.amz}.</div>`;
-  const v30 = A.paises.reduce((s, p) => s + p.ventas_30d_usd, 0), u30 = A.paises.reduce((s, p) => s + p.unidades_30d, 0);
-  const vy = A.paises.reduce((s, p) => s + p.ventas_ytd_usd, 0), uy = A.paises.reduce((s, p) => s + p.unidades_ytd, 0);
+  const v30 = A.paises.reduce((s, p) => s + (+p.ventas_30d_usd || 0), 0), u30 = A.paises.reduce((s, p) => s + (+p.unidades_30d || 0), 0); const only30 = A.paises.filter((p) => p.ventas_30d_usd != null).length === 1;
+  const vy = A.paises.reduce((s, p) => s + (+p.ventas_ytd_usd || 0), 0), uy = A.paises.every((p) => p.unidades_ytd != null) ? A.paises.reduce((s, p) => s + p.unidades_ytd, 0) : null;
   const urg = A.fba.filter((f) => f.estado === 'Reponer ya' || f.estado === 'Agotado');
   const pmax = Math.max(...A.paises.map((p) => p.ventas_ytd_usd));
-  const paises = A.paises.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)} <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.unidades_ytd)} uds en el año · ${nf(0).format(p.unidades_30d)} en 30 días</span></span>
+  const paises = A.paises.map((p) => `<div class="arrow"><span class="nm">${esc(p.pais)}${p.unidades_ytd != null ? ` <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(p.unidades_ytd)} uds en el año · ${nf(0).format(p.unidades_30d)} en 30 días</span>` : ''}</span>
     <span class="v">${money(p.ventas_ytd_usd, 'USD', 0)}</span>
     <div class="bar"><i style="width:${p.ventas_ytd_usd / pmax * 100}%;background:${COL[state.amz]}"></i></div>
-    <span class="mut" style="font-size:12px;grid-column:1/-1">${p.moneda !== 'USD' ? `${money(p.ventas_ytd, p.moneda, 0)} en el año · ${money(p.ventas_30d, p.moneda, 0)} en 30 días` : `${money(p.ventas_30d, 'USD', 0)} en 30 días`}</span></div>`).join('');
-  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin ventas ni stock': 'mut' };
+    ${p.ventas_30d != null ? `<span class="mut" style="font-size:12px;grid-column:1/-1">${p.moneda !== 'USD' ? `${money(p.ventas_ytd, p.moneda, 0)} en el año · ${money(p.ventas_30d, p.moneda, 0)} en 30 días` : `${money(p.ventas_30d, 'USD', 0)} en 30 días`}</span>` : ''}</div>`).join('');
+  const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'Sin ventas': 'mut', 'Sin ventas ni stock': 'mut' };
   const stock = A.fba.filter((f) => f.estado !== 'Sin ventas ni stock').map((f) => {
     const cob = f.cobertura_dias === '' ? null : +f.cobertura_dias; const w = cob == null ? 0 : Math.min(100, cob / 120 * 100);
     return `<div class="stockrow"><span class="nm">${esc(f.producto)}</span><span class="pill ${cls[f.estado]}">${esc(f.estado)}</span>
@@ -504,27 +504,30 @@ amazon() {
       <div class="meta"><span>Disponible <b>${f.disponible}</b></span><span>Vendidas 90 d <b>${f.unidades_90d}</b></span><span>Cobertura <b>${cob == null ? '—' : nf(0).format(cob) + ' días'}</b></span>${f.recomendacion_amazon ? `<span>${esc(f.recomendacion_amazon)}</span>` : ''}</div></div>`;
   }).join('');
   const sinMov = A.fba.filter((f) => f.estado === 'Sin ventas ni stock').length;
-  const liq = A.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio), b = fdate(l.periodo_fin), c = fdate(l.fecha_pago); const ok = !!l.banco_fecha; const bf = ok ? fdate(l.banco_fecha) : null;
-    return `<div class="liq"><span>${a.d} ${a.m} – ${b.d} ${b.m}<div class="s">Pagado ${c.d} ${c.m}${ok ? ` · en Mercury el ${bf.d} ${bf.m}` : ''}${l.qb !== 'Registrado' ? ' · <span class="warn">pendiente en QuickBooks</span>' : ''}</div></span>
-      <span class="v">${money(l.importe, 'USD')}<div class="s ${ok ? 'ok' : 'bad'}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : 'No llegó'}</div></span></div>`; }).join('');
+  const BK = A.banco_liq || 'banco';
+  const liq = A.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio), b = fdate(l.periodo_fin); const c = l.fecha_pago ? fdate(l.fecha_pago) : null; const ok = !!l.banco_fecha; const bf = ok ? fdate(l.banco_fecha) : null; const proc = !l.fecha_pago;
+    return `<div class="liq"><span>${a.d} ${a.m} – ${b.d} ${b.m}<div class="s">${proc ? 'En proceso de pago' : `Pagado ${c.d} ${c.m}`}${ok ? ` · en ${esc(BK)} el ${bf.d} ${bf.m}` : ''}${l.qb !== 'Registrado' ? ' · <span class="warn">pendiente en QuickBooks</span>' : ''}</div></span>
+      <span class="v">${money(l.importe, 'USD')}<div class="s ${ok ? 'ok' : proc ? 'warn' : 'bad'}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : proc ? 'En camino' : 'No llegó'}</div></span></div>`; }).join('');
+  const dep = (A.depositos || []).map((d) => `<div class="liq"><span>${esc(d.origen)}<div class="s">${nf(0).format(d.ingresos)} ingresos en ${esc(d.cuenta)}</div></span><span class="v">${money(d.importe_usd, 'USD', 0)}</span></div>`).join('');
   const np = fdate(A.proximo_pago);
   return sel + `
   <section class="card hero">
-    <div class="eyebrow">${state.amz} en Amazon · últimos 30 días</div>
+    <div class="eyebrow">${state.amz} en Amazon · últimos 30 días${only30 ? ' · EE. UU.' : ''}</div>
     <div class="big">${nf(0).format(v30)}<small>US$</small></div>
-    <div class="mut" style="font-size:13px">${nf(0).format(u30)} unidades · ${A.pedidos_90d} pedidos en 90 días, ${A.cancelados_90d} cancelados</div>
+    <div class="mut" style="font-size:13px">${nf(0).format(u30)} unidades${A.pedidos_90d != null ? ` · ${A.pedidos_90d} pedidos en 90 días, ${A.cancelados_90d} cancelados` : ''}${A.ytd_us ? ` · EE. UU. en el año: ${money(A.ytd_us.ventas, 'USD', 0)}` : ''}</div>
   </section>
   <section class="kpis">
-    <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${compact(vy)}</span><span class="l">US$ · ${nf(0).format(uy)} unidades</span></div>
-    <div class="kpi"><span class="l">Próximo pago</span><span class="v">${money(A.saldo_amazon, 'USD', 0)}</span><span class="l">el ${np.d} ${np.m} · ${money(A.saldo_diferido, 'USD', 0)} retenidos</span></div>
+    <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${compact(vy)}</span><span class="l">US$${uy != null ? ` · ${nf(0).format(uy)} unidades` : ' · todos los países'}</span></div>
+    <div class="kpi"><span class="l">Próximo pago</span><span class="v">${money(A.saldo_amazon, 'USD', 0)}</span><span class="l">el ${np.d} ${np.m}${A.pago_en_proceso ? ` · ${money(A.pago_en_proceso, 'USD', 0)} ya en camino` : ` · ${money(A.saldo_diferido, 'USD', 0)} retenidos`}</span></div>
     <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Stock urgente</span><span class="v">${urg.length}</span><span class="l">productos agotados o a punto</span></div>
-    <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Sana' : esc(A.estado_cuenta)}</span><span class="l">Valoración ${nf(1).format(A.valoracion)}/5 · ${esc(A.productos_activos)} activos</span></div>
+    <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Sana' : esc(A.estado_cuenta)}</span><span class="l">${A.valoracion != null ? `Valoración ${nf(1).format(A.valoracion)}/5 · ${esc(A.productos_activos)} activos` : esc(A.cuenta_amazon || '')}</span></div>
   </section>
   <div class="cols">
     <section class="card"><h3>Ventas diarias · Estados Unidos</h3><p class="hint">Últimos 30 días, US$. Toca una barra para ver el día.</p><div class="chart" id="chAmzDay"></div></section>
-    <section class="card"><h3>Ventas por mes · Estados Unidos</h3><p class="hint">2026, US$. Mayo cae por falta de stock.</p><div class="chart" id="chAmzMon"></div></section>
-    <section class="card"><h3>Por país</h3><p class="hint">Ventas del año en US$ · ${esc(A.nota_tc)}</p>${paises}</section>
-    <section class="card"><h3>Liquidaciones de Amazon frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en Mercury</p>${liq}</section>
+    <section class="card"><h3>Ventas por mes · Estados Unidos</h3><p class="hint">2026, US$.${state.amz === 'JEER' ? ' Mayo cae por falta de stock.' : ' Septiembre y octubre bajan respecto al verano.'}</p><div class="chart" id="chAmzMon"></div></section>
+    <section class="card"><h3>Por país</h3><p class="hint">${A.paises_fuente ? esc(A.paises_fuente) : 'Ventas del año en US$ · ' + esc(A.nota_tc)}</p>${paises}</section>
+    <section class="card"><h3>Liquidaciones de Amazon frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}</p>${liq}</section>
+    ${dep ? `<section class="card span2"><h3>Ingresos de Amazon en banco por origen</h3><p class="hint">Del 1 de julio al 29 de octubre de 2026, según QuickBooks</p>${dep}</section>` : ''}
     <section class="card span2"><h3>Stock en almacenes de Amazon (FBA)</h3><p class="hint">Cobertura = unidades disponibles ÷ ventas diarias de los últimos 90 días. ${sinMov} referencias sin ventas ni stock no se muestran.</p>${stock}</section>
   </div>
   <p class="foot-note">Leído de Amazon Seller Central el ${fdate(A.leido.slice(0, 10)).d} ${fdate(A.leido.slice(0, 10)).m} a las ${A.leido.slice(11)} h</p>`;
