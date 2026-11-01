@@ -358,7 +358,7 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '' };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'] };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -750,7 +750,9 @@ function informesView() {
     <p class="hint" style="margin:8px 0 0"><i class="dot" style="background:var(--accent);margin-right:6px"></i>Días con foto de inventario: ${fechas.map((f) => `${fdate(f).d} ${fdate(f).m} ${f.slice(0, 4)}`).join(', ')}</p></section>`;
   if (!usada) return cal + `<section class="card"><h3>${esc(R.titulo)}</h3><p class="mut">No hay ninguna foto de inventario en o antes del ${fdate(sel).d} ${fdate(sel).m} ${sel.slice(0, 4)}. La primera es del ${fdate(fechas[0]).d} ${fdate(fechas[0]).m}.</p></section>`;
   const S = R.fotos[usada]; const C = S.columnas;
-  const emps = [...new Set(C.map((c) => c.empresa))];
+  const empsAll = [...new Set(C.map((c) => c.empresa))];
+  const emps = empsAll.filter((e) => (state.repEmps || empsAll).includes(e));
+  const chips = `<div class="seg" role="group" aria-label="Empresas" style="margin:4px 0 12px">${empsAll.map((e) => `<button aria-pressed="${emps.includes(e)}" data-remp="${e}" style="--cc:${COL[e]}">${emps.includes(e) ? '✓ ' : ''}${e}</button>`).join('')}</div><p class="hint" style="margin:-6px 0 10px">Toca una empresa para quitarla o añadirla. Puedes dejar una, dos o las tres.</p>`;
   const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
   const fmt = (v) => (v ? nf(0).format(v) : '');
   const neg = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
@@ -769,10 +771,10 @@ function informesView() {
   const totC = C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0));
   const sum = (arr) => arr.reduce((a, b) => a + b, 0);
   const VA = valE(() => true);
-  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas${PR ? ' · valor total ' + money(VA[e], vmon, 0) : ''}</span></div>`).join('') + `<div class="kpi"><span class="l">Total</span><span class="v">${nf(0).format(sum(totV))}</span><span class="l">+ ${nf(0).format(sum(totC) - sum(totV))} CASTER${PR ? ' · valor total ' + money(sum(emps.map((e) => VA[e])), vmon, 0) : ''}</span></div>`;
+  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas${PR ? ' · valor total ' + money(VA[e], vmon, 0) : ''}</span></div>`).join('') + `<div class="kpi"><span class="l">Total${emps.length < empsAll.length ? ' ' + emps.join(' + ') : ''}</span><span class="v">${nf(0).format(sum(emps.flatMap(idx).map((i) => totV[i])))}</span><span class="l">+ ${nf(0).format(sum(emps.flatMap(idx).map((i) => totC[i] - totV[i])))} CASTER${PR ? ' · valor total ' + money(sum(emps.map((e) => VA[e])), vmon, 0) : ''}</span></div>`;
   const aviso = usada !== sel ? `<p class="hint" style="color:var(--warn)">No hay foto del ${fdate(sel).d} ${fdate(sel).m}: se muestra la más reciente anterior, del ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}.</p>` : '';
   return cal + `<section class="card">
-    <h3>${esc(R.titulo)} · ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>${aviso}
+    <h3>${esc(R.titulo)} · ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>${aviso}${chips}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
     <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total reposacabezas', totV, 'tot', null, valE((f) => f.codigo !== 'CASTER'))}${row('Total con CASTER', totC, 'tot', null, valE(() => true))}</tbody></table></div>
     <p class="hint" style="margin-top:8px">${esc(S.nota)} ${PR ? esc(R.precio_fuente) + ' Valor = unidades × precio unitario. ' : ''}Origen de cada columna (pasa el dedo o el ratón por el título): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
@@ -784,7 +786,7 @@ async function downloadRep() {
   try {
     await loadXLSX();
     const R = D.informes.stock_modelo; const fechas = Object.keys(R.fotos).sort(); const usada = repFoto(R, state.repFecha || fechas[fechas.length - 1]); const S = R.fotos[usada]; const C = S.columnas;
-    const emps = [...new Set(C.map((c) => c.empresa))]; const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
+    const emps = [...new Set(C.map((c) => c.empresa))].filter((e) => (state.repEmps || [e]).includes(e)); const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
     const h1 = ['Código'], h2 = [''];
     emps.forEach((e) => { idx(e).forEach((i, k) => { h1.push(k === 0 ? e : ''); h2.push(C[i].nombre); }); h1.push(''); h2.push('Total ' + e); }); h1.push('Total'); h2.push('');
     const PR = R.precios || null;
@@ -798,9 +800,9 @@ async function downloadRep() {
     const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 20 }].concat(aoa[1].slice(1).map(() => ({ wch: 13 })));
     const merges = []; let col = 1; emps.forEach((e) => { const n = idx(e).length + 1; merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + n - 1 } }); col += n; }); ws['!merges'] = merges;
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock ' + usada);
-    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Nota', S.nota], ['Precios', R.precio_fuente || '']].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
+    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Empresas', emps.join(', ')], ['Nota', S.nota], ['Precios', R.precio_fuente || '']].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
     XLSX.utils.book_append_sheet(wb, info, 'Información');
-    const name = `Stock_por_modelo_y_almacen_${usada}.xlsx`;
+    const name = `Stock_por_modelo_y_almacen_${usada}${emps.length < 3 ? '_' + emps.join('-') : ''}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }); try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
     XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
@@ -975,6 +977,7 @@ const AFTER = {
     const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-isub]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invSub = b.dataset.isub; })));
     if (state.invSub === 'informes') {
+      document.querySelectorAll('[data-remp]').forEach((b) => b.addEventListener('click', () => keep(() => { const e = b.dataset.remp; const cur = state.repEmps || ['HUNTER', 'JEER', 'IPAI']; if (cur.includes(e)) { if (cur.length > 1) state.repEmps = cur.filter((x) => x !== e); } else state.repEmps = ['HUNTER', 'JEER', 'IPAI'].filter((x) => cur.includes(x) || x === e); })));
       document.querySelectorAll('[data-rday]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repFecha = b.dataset.rday; })));
       document.querySelectorAll('[data-rmes]').forEach((b) => b.addEventListener('click', () => keep(() => { const R = D.informes.stock_modelo; const f = Object.keys(R.fotos).sort(); const cur = state.repMes || (state.repFecha || f[f.length - 1]).slice(0, 7); const d = new Date(Date.UTC(+cur.slice(0, 4), +cur.slice(5, 7) - 1 + (+b.dataset.rmes), 1)); state.repMes = d.toISOString().slice(0, 7); })));
       const x = $('#repXls'); if (x) x.addEventListener('click', downloadRep);
