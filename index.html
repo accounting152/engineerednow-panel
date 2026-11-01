@@ -741,6 +741,12 @@ function detalleBlock(A) {
     </section>`;
   }).join('');
 }
+const MES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MESL_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const fdEN = (s) => { const [y, m, d] = String(s).split('-'); return { d: +d, m: MES_EN[+m - 1] || '', y }; };
+const nfE = (d) => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always' });
+const moneyE = (v, c = 'USD', d = 2) => (v === '' || v == null || isNaN(+v)) ? '—' : (+v < 0 ? '−' : '') + nfE(d).format(Math.abs(+v)) + ' ' + (CUR[c] || c);
+const PEN = { 'Estados Unidos': 'United States', 'Canadá': 'Canada', 'México': 'Mexico', 'Brasil': 'Brazil', 'Reino Unido': 'United Kingdom', 'Alemania': 'Germany', 'Francia': 'France', 'España': 'Spain', 'Italia': 'Italy', 'Países Bajos': 'Netherlands', 'Suecia': 'Sweden', 'Polonia': 'Poland', 'Japón': 'Japan' };
 function repFoto(R, f) {
   const ds = Object.keys(R.fotos).sort();
   const ok = ds.filter((d) => d <= f);
@@ -749,21 +755,21 @@ function repFoto(R, f) {
 function informesView() {
   const RS = D.informes || {};
   const list = [{ id: 'stock_modelo', body: () => stockModeloBody('stock_modelo') }, { id: 'stock_amazon', body: () => amzCobBody('stock_amazon') }].filter((x) => RS[x.id]);
-  if (!list.length) return '<div class="card mut">Todavía no hay informes.</div>';
+  if (!list.length) return '<div class="card mut">No reports yet.</div>';
   return list.map(({ id, body }) => {
     const R = RS[id]; const fechas = Object.keys(R.fotos || {}).sort(); const last = fechas[fechas.length - 1];
     let sub = '';
     if (last) { const S = R.fotos[last]; const u = S.filas.reduce((a, f) => a + f.valores.reduce((b, v) => b + v, 0), 0); const val = R.precios ? S.filas.reduce((a, f) => a + (R.precios[f.codigo] || 0) * f.valores.reduce((b, v) => b + v, 0), 0) : null;
-      sub = `Última foto: ${fdate(last).d} ${fdate(last).m} ${last.slice(0, 4)} · ${nf(0).format(u)} uds${val != null ? ' · ' + money(val, R.moneda_precio || 'USD', 0) : ''}`; }
+      sub = `Latest snapshot: ${fdEN(last).d} ${fdEN(last).m} ${last.slice(0, 4)} · ${nfE(0).format(u)} units${val != null ? ' · ' + moneyE(val, R.moneda_precio || 'USD', 0) : ''}`; }
     const open = !!(state.repOpen || {})[id];
     return `<section class="card rep-item${open ? ' open' : ''}">
       <button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button>
     </section>${open ? `<div class="rep-body">${body()}</div>` : ''}`;
-  }).join('') + '<p class="hint" style="margin-top:6px">Pulsa (+) para abrir un informe y (−) para cerrarlo.</p>';
+  }).join('') + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
 }
 function stockModeloBody(id) {
   const R = (D.informes || {})[id];
-  if (!R) return '<div class="card mut">Todavía no hay informes.</div>';
+  if (!R) return '<div class="card mut">No reports yet.</div>';
   const fechas = Object.keys(R.fotos).sort();
   const sel = state.repFecha || fechas[fechas.length - 1];
   const usada = repFoto(R, sel);
@@ -772,26 +778,26 @@ function stockModeloBody(id) {
   const first = new Date(Date.UTC(yy, mm - 1, 1)); const dow = (first.getUTCDay() + 6) % 7; const nd = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
   let cells = '';
   for (let i = 0; i < dow; i++) cells += '<span></span>';
-  for (let d = 1; d <= nd; d++) { const k = `${mes}-${String(d).padStart(2, '0')}`; const has = R.fotos[k]; cells += `<button class="cal-d${has ? ' has' : ''}${k === sel ? ' sel' : ''}" data-rday="${k}" data-rid="${id}" aria-label="${d} ${MESL[mm - 1]}">${d}</button>`; }
-  const cal = `<section class="card cal"><div class="cal-h"><button class="cal-nav" data-rmes="-1" data-rid="${id}" aria-label="Mes anterior">‹</button><b>${MESL[mm - 1][0].toUpperCase() + MESL[mm - 1].slice(1)} ${yy}</b><button class="cal-nav" data-rmes="1" data-rid="${id}" aria-label="Mes siguiente">›</button></div>
-    <div class="cal-g">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((x) => `<span class="cal-w">${x}</span>`).join('')}${cells}</div>
-    <p class="hint" style="margin:8px 0 0"><i class="dot" style="background:var(--accent);margin-right:6px"></i>Días con foto de inventario: ${fechas.map((f) => `${fdate(f).d} ${fdate(f).m} ${f.slice(0, 4)}`).join(', ')}</p></section>`;
-  if (!usada) return cal + `<section class="card"><h3>${esc(R.titulo)}</h3><p class="mut">No hay ninguna foto de inventario en o antes del ${fdate(sel).d} ${fdate(sel).m} ${sel.slice(0, 4)}. La primera es del ${fdate(fechas[0]).d} ${fdate(fechas[0]).m}.</p></section>`;
+  for (let d = 1; d <= nd; d++) { const k = `${mes}-${String(d).padStart(2, '0')}`; const has = R.fotos[k]; cells += `<button class="cal-d${has ? ' has' : ''}${k === sel ? ' sel' : ''}" data-rday="${k}" data-rid="${id}" aria-label="${d} ${MESL_EN[mm - 1]}">${d}</button>`; }
+  const cal = `<section class="card cal"><div class="cal-h"><button class="cal-nav" data-rmes="-1" data-rid="${id}" aria-label="Previous month">‹</button><b>${MESL_EN[mm - 1][0].toUpperCase() + MESL_EN[mm - 1].slice(1)} ${yy}</b><button class="cal-nav" data-rmes="1" data-rid="${id}" aria-label="Next month">›</button></div>
+    <div class="cal-g">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((x) => `<span class="cal-w">${x}</span>`).join('')}${cells}</div>
+    <p class="hint" style="margin:8px 0 0"><i class="dot" style="background:var(--accent);margin-right:6px"></i>Days with an inventory snapshot: ${fechas.map((f) => `${fdEN(f).d} ${fdEN(f).m} ${f.slice(0, 4)}`).join(', ')}</p></section>`;
+  if (!usada) return cal + `<section class="card"><h3>${esc(R.titulo)}</h3><p class="mut">There is no inventory snapshot on or before ${fdEN(sel).d} ${fdEN(sel).m} ${sel.slice(0, 4)}. The first one is from ${fdEN(fechas[0]).d} ${fdEN(fechas[0]).m}.</p></section>`;
   const S = R.fotos[usada]; const C = S.columnas;
   const empsAll = [...new Set(C.map((c) => c.empresa))];
   let emps = empsAll.filter((e) => ((state.repEmpsBy || {})[id] || empsAll).includes(e)); if (!emps.length) emps = empsAll.slice();
-  const chips = `<div class="seg" role="group" aria-label="Empresas" style="margin:4px 0 12px">${empsAll.map((e) => `<button aria-pressed="${emps.includes(e)}" data-remp="${e}" data-rid="${id}" data-rall="${empsAll.join(',')}" style="--cc:${COL[e]}">${emps.includes(e) ? '✓ ' : ''}${e}</button>`).join('')}</div><p class="hint" style="margin:-6px 0 10px">Toca una empresa para quitarla o añadirla. ${empsAll.length > 2 ? 'Puedes dejar una, dos o las tres.' : 'Puedes dejar una o las dos.'}</p>`;
+  const chips = `<div class="seg" role="group" aria-label="Companies" style="margin:4px 0 12px">${empsAll.map((e) => `<button aria-pressed="${emps.includes(e)}" data-remp="${e}" data-rid="${id}" data-rall="${empsAll.join(',')}" style="--cc:${COL[e]}">${emps.includes(e) ? '✓ ' : ''}${e}</button>`).join('')}</div><p class="hint" style="margin:-6px 0 10px">Tap a company to remove or add it. ${empsAll.length > 2 ? 'You can keep one, two or all three.' : 'You can keep one or both.'}</p>`;
   const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
-  const fmt = (v) => (v ? nf(0).format(v) : '');
+  const fmt = (v) => (v ? nfE(0).format(v) : '');
   const neg = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
   const PR = R.precios || null; const vmon = R.moneda_precio || 'USD';
-  const fv = (v) => (v ? money(v, vmon, 0) : '');
-  const g1 = `<tr><th class="l" rowspan="2">Código</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th>${PR ? `<th rowspan="2" class="pr">Precio unitario (${CUR[R.moneda_precio] || R.moneda_precio})</th>${emps.map((e) => `<th rowspan="2" class="vl" style="border-bottom:3px solid ${COL[e]}">Valor ${e}</th>`).join('')}<th rowspan="2" class="vg">Valor total</th>` : ''}</tr>`;
+  const fv = (v) => (v ? moneyE(v, vmon, 0) : '');
+  const g1 = `<tr><th class="l" rowspan="2">Code</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th>${PR ? `<th rowspan="2" class="pr">Unit price (${CUR[R.moneda_precio] || R.moneda_precio})</th>${emps.map((e) => `<th rowspan="2" class="vl" style="border-bottom:3px solid ${COL[e]}">Value ${e}</th>`).join('')}<th rowspan="2" class="vg">Total value</th>` : ''}</tr>`;
   const g2 = `<tr>${emps.map((e) => idx(e).map((i) => `<th title="${esc(C[i].fuente)}">${esc(C[i].nombre)}</th>`).join('') + `<th class="te">Total ${e}</th>`).join('')}</tr>`;
   const row = (lab, vals, cls, price, valsE) => { let tot = 0; const sums = {}; const tds = emps.map((e) => { const ii = idx(e); const s = ii.reduce((a, i) => a + vals[i], 0); sums[e] = s; tot += s; return ii.map((i) => `<td${neg(vals[i])}>${fmt(vals[i])}</td>`).join('') + `<td class="te"${neg(s)}>${fmt(s)}</td>`; }).join('');
     let vtd = '';
     if (PR) { const ve = valsE || Object.fromEntries(emps.map((e) => [e, (price || 0) * sums[e]])); const vt = emps.reduce((a, e) => a + ve[e], 0);
-      vtd = `<td class="pr">${price != null ? money(price, vmon) : ''}</td>${emps.map((e) => `<td class="vl"${neg(ve[e])}>${fv(ve[e])}</td>`).join('')}<td class="vg"${neg(vt)}>${fv(vt)}</td>`; }
+      vtd = `<td class="pr">${price != null ? moneyE(price, vmon) : ''}</td>${emps.map((e) => `<td class="vl"${neg(ve[e])}>${fv(ve[e])}</td>`).join('')}<td class="vg"${neg(vt)}>${fv(vt)}</td>`; }
     return `<tr class="${cls || ''}"><td class="l">${esc(lab)}</td>${tds}<td class="tg"${neg(tot)}>${fmt(tot)}</td>${vtd}</tr>`; };
   const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0)]));
   const filas = S.filas.map((f) => row(f.codigo, f.valores, f.codigo === 'CASTER' ? 'cast' : '', PR ? PR[f.codigo] : null)).join('');
@@ -799,17 +805,17 @@ function stockModeloBody(id) {
   const totC = C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0));
   const sum = (arr) => arr.reduce((a, b) => a + b, 0);
   const VA = valE(() => true);
-  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas${PR ? ' · valor total ' + money(VA[e], vmon, 0) : ''}</span></div>`).join('') + `<div class="kpi"><span class="l">Total${emps.length < empsAll.length ? ' ' + emps.join(' + ') : ''}</span><span class="v">${nf(0).format(sum(emps.flatMap(idx).map((i) => totV[i])))}</span><span class="l">+ ${nf(0).format(sum(emps.flatMap(idx).map((i) => totC[i] - totV[i])))} CASTER${PR ? ' · valor total ' + money(sum(emps.map((e) => VA[e])), vmon, 0) : ''}</span></div>`;
-  const aviso = usada !== sel ? `<p class="hint" style="color:var(--warn)">No hay foto del ${fdate(sel).d} ${fdate(sel).m}: se muestra la más reciente anterior, del ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}.</p>` : '';
+  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nfE(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">headrests${PR ? ' · total value ' + moneyE(VA[e], vmon, 0) : ''}</span></div>`).join('') + `<div class="kpi"><span class="l">Total${emps.length < empsAll.length ? ' ' + emps.join(' + ') : ''}</span><span class="v">${nfE(0).format(sum(emps.flatMap(idx).map((i) => totV[i])))}</span><span class="l">+ ${nfE(0).format(sum(emps.flatMap(idx).map((i) => totC[i] - totV[i])))} CASTER${PR ? ' · total value ' + moneyE(sum(emps.map((e) => VA[e])), vmon, 0) : ''}</span></div>`;
+  const aviso = usada !== sel ? `<p class="hint" style="color:var(--warn)">No snapshot for ${fdEN(sel).d} ${fdEN(sel).m}: showing the most recent earlier one, from ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}.</p>` : '';
   return cal + `<section class="card">
-    <h3>${esc(R.titulo)} · ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>${aviso}${chips}
+    <h3>${esc(R.titulo)} · ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}</h3>${aviso}${chips}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total reposacabezas', totV, 'tot', null, valE((f) => f.codigo !== 'CASTER'))}${row('Total con CASTER', totC, 'tot', null, valE(() => true))}</tbody></table></div>
-    <p class="hint" style="margin-top:8px">${esc(S.nota)} ${PR ? esc(R.precio_fuente) + ' Valor = unidades × precio unitario. ' : ''}Origen de cada columna (pasa el dedo o el ratón por el título): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
+    <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total headrests', totV, 'tot', null, valE((f) => f.codigo !== 'CASTER'))}${row('Total incl. CASTER', totC, 'tot', null, valE(() => true))}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(S.nota)} ${PR ? esc(R.precio_fuente) + ' Value = units × unit price. ' : ''}Source of each column (hover or tap the header): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
   </section>`;
 }
-const PAB = { 'Estados Unidos': 'EE. UU.', 'Canadá': 'Canadá', 'México': 'México', 'Brasil': 'Brasil', 'Reino Unido': 'R. Unido', 'Alemania': 'Alemania', 'Francia': 'Francia', 'España': 'España', 'Italia': 'Italia', 'Países Bajos': 'P. Bajos', 'Suecia': 'Suecia', 'Polonia': 'Polonia', 'Japón': 'Japón' };
+const PAB = { 'Estados Unidos': 'US', 'Canadá': 'Canada', 'México': 'Mexico', 'Brasil': 'Brazil', 'Reino Unido': 'UK', 'Alemania': 'Germany', 'Francia': 'France', 'España': 'Spain', 'Italia': 'Italy', 'Países Bajos': 'Netherl.', 'Suecia': 'Sweden', 'Polonia': 'Poland', 'Japón': 'Japan' };
 function amzCobModel(id) {
   const R = D.informes[id]; const fechas = Object.keys(R.fotos).sort(); const usada = fechas[fechas.length - 1]; const S = R.fotos[usada]; const C = S.columnas;
   const AL = (R.almacenes || []).map((a) => Object.assign({}, a, { ci: C.findIndex((c) => c.empresa === a.empresa && c.nombre === a.nombre) })).filter((a) => a.ci >= 0);
@@ -821,7 +827,7 @@ function amzCobModel(id) {
   const cob = (st, v) => (v ? st / (v / P.dias) : null);
   return { R, S, C, AL, sel, per, P, usada, vend, devu, cob };
 }
-function cobTxt(st, v, d) { if (v == null) return ''; if (v <= 0) return st ? 'Sin ventas' : ''; if (!st) return 'Agotado'; return nf(0).format(st / (v / d)); }
+function cobTxt(st, v, d) { if (v == null) return ''; if (v <= 0) return st ? 'No sales' : ''; if (!st) return 'Out of stock'; return nfE(0).format(st / (v / d)); }
 function cobCls(st, v, d) { if (v == null || v <= 0) return ''; const x = st / (v / d); return x < 30 ? 'cb-bad' : x < 60 ? 'cb-warn' : x > 180 ? 'cb-hi' : 'cb-ok'; }
 // Semáforo gradual de cobertura: < 90 días rojo (más intenso cuanto menor), 90–180 naranja, > 180 verde (más intenso cuanto mayor)
 function cobSem(x) {
@@ -834,33 +840,33 @@ function cobStyle(st, v, d) { if (v == null || v <= 0) return ''; const s = cobS
 function amzCobBody(id) {
   const R = (D.informes || {})[id]; if (!R || !R.almacenes) return stockModeloBody(id);
   const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M;
-  const fmt = (v) => (v ? nf(0).format(v) : '');
-  const whChips = `<div class="seg wrap" role="group" aria-label="Almacenes de Amazon" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
-  const perSeg = `<div class="seg" role="group" aria-label="Periodo de ventas" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}">Últimos ${k} días</button>`).join('')}</div>
-    <p class="hint" style="margin:0 0 10px">Ventas del ${fdate(P.desde).d} ${fdate(P.desde).m} al ${fdate(P.hasta).d} ${fdate(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} días). Toca un almacén para quitarlo o añadirlo.</p>`;
-  const g1 = `<tr><th class="l" rowspan="2">Código</th>${sel.map((a) => `<th colspan="${a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
-  const g2 = `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Unidades vendidas en ${esc(p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Unidades devueltas (reembolsadas) en el periodo, ya restadas">Devueltas</th><th class="te">Netas</th><th class="cbh">Cobertura (días)</th>`).join('')}</tr>`;
+  const fmt = (v) => (v ? nfE(0).format(v) : '');
+  const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
+  const perSeg = `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}">Last ${k} days</button>`).join('')}</div>
+    <p class="hint" style="margin:0 0 10px">Net sales from ${fdEN(P.desde).d} ${fdEN(P.desde).m} to ${fdEN(P.hasta).d} ${fdEN(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} days). Tap a warehouse to remove or add it.</p>`;
+  const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
+  const g2 = `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Net units sold in ${esc(PEN[p] || p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Units returned (refunded) in the period, already deducted">Returned</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>`).join('')}</tr>`;
   const ng = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
-  const cells = (a, st, vs, dv) => { if (!a.ventas) return `<td class="te">${fmt(st)}</td>${a.paises.map(() => '<td class="mut">…</td>').join('')}<td class="mut">…</td><td class="te mut">…</td><td class="mut">pendiente</td>`;
-    const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td>${vs.map((v) => `<td${ng(v)}>${fmt(v)}</td>`).join('')}<td class="mut">${dv ? '−' + nf(0).format(dv) : ''}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb"${cobStyle(st, tv, P.dias)}>${cobTxt(st, tv, P.dias)}</td>`; };
+  const cells = (a, st, vs, dv) => { if (!a.ventas) return `<td class="te">${fmt(st)}</td>${a.paises.map(() => '<td class="mut">…</td>').join('')}<td class="mut">…</td><td class="te mut">…</td><td class="mut">pending</td>`;
+    const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td>${vs.map((v) => `<td${ng(v)}>${fmt(v)}</td>`).join('')}<td class="mut">${dv ? '−' + nfE(0).format(dv) : ''}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb"${cobStyle(st, tv, P.dias)}>${cobTxt(st, tv, P.dias)}</td>`; };
   const rowOf = (lab, cls, codes) => `<tr class="${cls}"><td class="l">${esc(lab)}</td>${sel.map((a) => { const st = codes.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c) || { valores: [] }).valores[a.ci] || 0, 0); const vs = a.paises.map((p) => codes.reduce((x, c) => x + (vend(a, p, c) || 0), 0)); return cells(a, st, vs, codes.reduce((x, c) => x + (devu(a, c) || 0), 0)); }).join('')}</tr>`;
   const codes = S.filas.map((f) => f.codigo); const hr = codes.filter((c) => c !== 'CASTER');
   const filas = codes.map((c) => rowOf(c, c === 'CASTER' ? 'cast' : '', [c])).join('');
   const kp = sel.map((a) => { const st = hr.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c).valores[a.ci] || 0), 0); const v = a.ventas ? hr.reduce((x, c) => x + a.paises.reduce((y, p) => y + (vend(a, p, c) || 0), 0), 0) : null;
-    return `<div class="kpi"><span class="l">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</span><span class="v">${v == null ? '—' : v > 0 ? nf(0).format(st / (v / P.dias)) + ' días' : 'sin ventas'}</span><span class="l">${nf(0).format(st)} en stock · ${v == null ? 'ventas pendientes' : nf(0).format(v) + ' netas en ' + P.dias + ' días'}</span></div>`; }).join('');
+    return `<div class="kpi"><span class="l">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</span><span class="v">${v == null ? '—' : v > 0 ? nfE(0).format(st / (v / P.dias)) + ' days' : 'no sales'}</span><span class="l">${nfE(0).format(st)} in stock · ${v == null ? 'sales pending' : nfE(0).format(v) + ' net in ' + P.dias + ' days'}</span></div>`; }).join('');
   const pend = sel.filter((a) => !a.ventas);
   return `<section class="card">
-    <h3>${esc(R.titulo)} · stock a ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>
+    <h3>${esc(R.titulo)} · stock at ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}</h3>
     ${whChips}${perSeg}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    ${pend.length ? `<p class="hint" style="color:var(--warn)">Ventas por país pendientes para ${pend.map((a) => (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre).join(', ')}: falta iniciar sesión en su cuenta de Seller Central.</p>` : ''}
-    <div class="rtbl-wrap"><table class="rtbl cobt"><thead>${g1}${g2}</thead><tbody>${filas}${rowOf('Total reposacabezas', 'tot', hr)}${rowOf('Total con CASTER', 'tot', codes)}</tbody></table></div>
-    <p class="hint" style="margin-top:8px">Semáforo de cobertura: <span class="cb sem" style="background:${cobSem(20).css}">&lt; 90 días</span> <span class="cb sem" style="background:${cobSem(120).css}">90–180</span> <span class="cb sem" style="background:${cobSem(500).css}">&gt; 180</span> (el color es más intenso cuanto más extremo es el valor). ${esc(R.cobertura_nota)} ${esc(R.ventas_fuente)} ${esc(S.nota)}</p>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
+    ${pend.length ? `<p class="hint" style="color:var(--warn)">Country sales pending for ${pend.map((a) => (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre).join(', ')}: Seller Central login needed.</p>` : ''}
+    <div class="rtbl-wrap"><table class="rtbl cobt"><thead>${g1}${g2}</thead><tbody>${filas}${rowOf('Total headrests', 'tot', hr)}${rowOf('Total incl. CASTER', 'tot', codes)}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">Coverage traffic light: <span class="cb sem" style="background:${cobSem(20).css}">&lt; 90 days</span> <span class="cb sem" style="background:${cobSem(120).css}">90–180</span> <span class="cb sem" style="background:${cobSem(500).css}">&gt; 180</span> (the more extreme the value, the stronger the colour). ${esc(R.cobertura_nota)} ${esc(R.ventas_fuente)} ${esc(S.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
   </section>`;
 }
 async function downloadCob(id) {
-  const msg = $('#repMsg-' + id); msg.textContent = 'Preparando el Excel…';
+  const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS();
     const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend, devu } = M;
@@ -871,12 +877,12 @@ async function downloadCob(id) {
     const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } }; const topMed = { top: { style: 'medium', color: { argb: 'FF11181D' } } };
     const CL = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
-    const ws = wb.addWorksheet(`Cobertura ${per} días`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
-    ws.getCell('A1').value = `${R.titulo} · ventas y cobertura, últimos ${per} días`; ws.getCell('A1').font = F({ bold: true, size: 14 });
-    ws.getCell('A2').value = `Stock a ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}. Ventas del ${P.desde} al ${P.hasta} (${P.dias} días). Cobertura (días) = stock ÷ (vendidas ÷ ${P.dias}).`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const ws = wb.addWorksheet(`Coverage ${per} days`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
+    ws.getCell('A1').value = `${R.titulo} · net sales and coverage, last ${per} days`; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = `Stock at ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}. Net sales from ${P.desde} to ${P.hasta} (${P.dias} days). Coverage (days) = stock ÷ (net units ÷ ${P.dias}).`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const hr1 = 5, hr2 = 6, r0 = 7; let col = 2; const L = [];
-    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Código'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
-    sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; a.paises.forEach((p) => { ws.getCell(hr2, col).value = p; o.p[p] = col; col++; }); o.d = col; ws.getCell(hr2, col).value = 'Devueltas (ya restadas)'; col++; o.v = col; ws.getCell(hr2, col).value = 'Netas'; col++; o.c = col; ws.getCell(hr2, col).value = 'Cobertura (días)'; col++;
+    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Code'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
+    sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; a.paises.forEach((p) => { ws.getCell(hr2, col).value = PEN[p] || p; o.p[p] = col; col++; }); o.d = col; ws.getCell(hr2, col).value = 'Returned (deducted)'; col++; o.v = col; ws.getCell(hr2, col).value = 'Net'; col++; o.c = col; ws.getCell(hr2, col).value = 'Coverage (days)'; col++;
       ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre}`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[a.empresa]); L.push(o); });
     const lastCol = col - 1;
     for (let c = 2; c <= lastCol; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (L.some((o) => o.s === c || o.v === c)) h.fill = fill('FFE8ECEF'); if (L.some((o) => o.c === c)) h.fill = fill('FFF6E7DA'); }
@@ -887,31 +893,31 @@ async function downloadCob(id) {
     S.filas.forEach((f) => {
       ws.getCell(r, 1).value = f.codigo; ws.getCell(r, 1).font = F({ bold: true });
       L.forEach((o) => { const a = o.a; const st = f.valores[a.ci] || 0; const cs = ws.getCell(r, o.s); cs.value = st; cs.numFmt = NF; cs.font = F({ color: { argb: 'FF0000FF' }, bold: true }); cs.fill = fill('FFF2F4F6');
-        if (!a.ventas) { ws.getCell(r, o.c).value = 'pendiente'; ws.getCell(r, o.c).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); return; }
+        if (!a.ventas) { ws.getCell(r, o.c).value = 'pending'; ws.getCell(r, o.c).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); return; }
         let tv = 0; a.paises.forEach((p) => { const v = vend(a, p, f.codigo) || 0; tv += v; const c = ws.getCell(r, o.p[p]); c.value = v; c.numFmt = NF; c.font = F({ color: { argb: 'FF0000FF' } }); });
         const cd = ws.getCell(r, o.d); cd.value = devu(a, f.codigo) || 0; cd.numFmt = NF; cd.font = F({ color: { argb: 'FF5F6E79' }, italic: true });
         const cv = ws.getCell(r, o.v); cv.value = { formula: `SUM(${CL(o.s + 1)}${r}:${CL(o.d - 1)}${r})`, result: tv }; cv.numFmt = NF; cv.font = F({ bold: true }); cv.fill = fill('FFF2F4F6');
         const cc = ws.getCell(r, o.c); cc.value = { formula: cobF(o, r), result: cobR(st, tv) }; cc.numFmt = DF; cc.font = F({ bold: true }); const sm = tv > 0 ? cobSem(st / (tv / P.dias)) : null; cc.fill = fill(sm ? sm.argb : 'FFFBF3EC'); });
       for (let c = 1; c <= lastCol; c++) ws.getCell(r, c).border = thin; r++; });
     const first = r0, last = r - 1; const castRow = r0 + S.filas.findIndex((f) => f.codigo === 'CASTER');
-    [['Total reposacabezas', true], ['Total con CASTER', false]].forEach(([lab, noCast]) => {
+    [['Total headrests', true], ['Total incl. CASTER', false]].forEach(([lab, noCast]) => {
       ws.getCell(r, 1).value = lab; ws.getCell(r, 1).font = F({ bold: true }); ws.getCell(r, 1).border = topMed;
       L.forEach((o) => { const cs = [o.s, ...Object.values(o.p), o.d, o.v]; const res = {};
         cs.forEach((c) => { if (!o.a.ventas && c !== o.s) return; let x = 0; for (let k = first; k <= last; k++) { if (noCast && k === castRow) continue; const v = ws.getCell(k, c).value; x += typeof v === 'object' && v ? (v.result || 0) : (v || 0); } res[c] = x;
           const cell = ws.getCell(r, c); cell.value = { formula: `SUM(${CL(c)}${first}:${CL(c)}${last})${noCast && castRow >= first ? `-${CL(c)}${castRow}` : ''}`, result: x }; cell.numFmt = NF; cell.font = F({ bold: true }); cell.border = topMed; });
         const cc = ws.getCell(r, o.c); cc.border = topMed; if (o.a.ventas) { cc.value = { formula: cobF(o, r), result: cobR(res[o.s], res[o.v]) }; cc.numFmt = DF; cc.font = F({ bold: true }); const sm = res[o.v] > 0 ? cobSem(res[o.s] / (res[o.v] / P.dias)) : null; cc.fill = fill(sm ? sm.argb : 'FFF6E7DA'); } });
       r++; });
-    r++; ws.getCell(r, 1).value = 'Notas'; ws.getCell(r, 1).font = F({ bold: true }); r++;
-    [R.cobertura_nota, R.ventas_fuente, S.nota, 'Semáforo de cobertura: rojo < 90 días, naranja 90–180, verde > 180 (tono más intenso cuanto más extremo). Países: unidades netas (pedidas − devueltas). Números en azul: datos de Amazon. Netas, totales y cobertura: fórmulas. Cobertura vacía = sin ventas netas en el periodo.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: ventas por país pendientes de descargar.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    r++; ws.getCell(r, 1).value = 'Notes'; ws.getCell(r, 1).font = F({ bold: true }); r++;
+    [R.cobertura_nota, R.ventas_fuente, S.nota, 'Coverage traffic light: red < 90 days, orange 90–180, green > 180 (stronger colour for more extreme values). Countries: net units (ordered − returned). Blue numbers: Amazon data. Net, totals and coverage: formulas. Empty coverage = no net sales in the period.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: country sales still to be downloaded.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
     ws.getColumn(1).width = 20; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = L.some((o) => o.c === c) ? 12 : 10;
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
     const buf = await wb.xlsx.writeBuffer();
-    const name = `Stock_Amazon_cobertura_${per}d_${usada}.xlsx`;
+    const name = `Amazon_stock_coverage_${per}d_${usada}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    msg.textContent = 'Descargado: ' + name;
-  } catch (e) { msg.textContent = 'No se pudo generar el Excel (' + (e && e.message || e) + ').'; }
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
 let exceljsLoading = null;
 function loadExcelJS() {
@@ -920,7 +926,7 @@ function loadExcelJS() {
   return exceljsLoading;
 }
 async function downloadRep(id) {
-  const msg = $('#repMsg-' + id); msg.textContent = 'Preparando el Excel…';
+  const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS();
     const R = D.informes[id]; const fechas = Object.keys(R.fotos).sort(); const usada = repFoto(R, state.repFecha || fechas[fechas.length - 1]); const S = R.fotos[usada]; const C = S.columnas; const PR = R.precios || null;
@@ -931,19 +937,19 @@ async function downloadRep(id) {
     const NF = '#,##0;[Red]-#,##0;;@', VF = '#,##0 "US$";[Red]-#,##0 "US$";;@', VP = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@';
     const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } }; const topMed = { top: { style: 'medium', color: { argb: 'FF11181D' } } };
     const CL = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now'; const fd = fdate(usada);
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now'; const fd = fdEN(usada);
     const ws = wb.addWorksheet('Stock ' + usada, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
     ws.getCell('A1').value = `${R.titulo} · ${fd.d} ${fd.m} ${usada.slice(0, 4)}`; ws.getCell('A1').font = F({ bold: true, size: 14 });
-    ws.getCell('A2').value = `Empresas: ${emps.join(', ')}. Unidades disponibles. Origen y fecha de cada columna en la hoja «Origen de datos».`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    ws.getCell('A2').value = `Companies: ${emps.join(', ')}. Available units. Source and date of each column in the "Data sources" sheet.`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const hr1 = 5, hr2 = 6, r0 = 7;
     let col = 2; const dc = {}; const tc = {};
     emps.forEach((e) => { const st = col; idx(e).forEach((i) => { ws.getCell(hr2, col).value = C[i].nombre; dc[i] = col; col++; }); ws.getCell(hr2, col).value = 'Total ' + e; tc[e] = { st, en: col - 1, t: col }; col++;
       ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = e; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[e]); });
     const gt = col; const pc = gt + 1; const vc = {}; emps.forEach((e, k) => { vc[e] = pc + 1 + k; }); const vt = pc + emps.length + 1; const lastCol = PR ? vt : gt;
     const hdr = (c, txt, argb, white) => { ws.mergeCells(hr1, c, hr2, c); const h = ws.getCell(hr1, c); h.value = txt; h.fill = fill(argb); h.font = F({ bold: true, size: 9, color: { argb: white ? 'FFFFFFFF' : 'FF11181D' } }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; };
-    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Código'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Code'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
     hdr(gt, 'TOTAL', 'FF11181D', true);
-    if (PR) { hdr(pc, `Precio unitario (${R.moneda_precio || 'USD'})`, 'FFE8ECEF', false); emps.forEach((e) => hdr(vc[e], 'Valor ' + e, COLX[e], true)); hdr(vt, 'Valor total (US$)', 'FF2E7D5B', true); }
+    if (PR) { hdr(pc, `Unit price (${R.moneda_precio || 'USD'})`, 'FFE8ECEF', false); emps.forEach((e) => hdr(vc[e], 'Value ' + e, COLX[e], true)); hdr(vt, 'Total value (US$)', 'FF2E7D5B', true); }
     for (let c = 2; c < gt; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (Object.values(tc).some((x) => x.t === c)) h.fill = fill('FFE8ECEF'); }
     ws.getRow(hr2).height = 42;
     let r = r0;
@@ -961,27 +967,27 @@ async function downloadRep(id) {
     });
     const first = r0, last = r - 1; const castRow = r0 + S.filas.findIndex((f) => f.codigo === 'CASTER');
     const colsTot = []; for (let c = 2; c <= gt; c++) colsTot.push(c); if (PR) { emps.forEach((e) => colsTot.push(vc[e])); colsTot.push(vt); }
-    [['Total reposacabezas', true], ['Total con CASTER', false]].forEach(([lab, noCast]) => {
+    [['Total headrests', true], ['Total incl. CASTER', false]].forEach(([lab, noCast]) => {
       ws.getCell(r, 1).value = lab; ws.getCell(r, 1).font = F({ bold: true }); ws.getCell(r, 1).border = topMed;
       colsTot.forEach((c) => { let res = 0; for (let k = first; k <= last; k++) { if (noCast && k === castRow) continue; const v = ws.getCell(k, c).value; res += typeof v === 'object' && v ? (v.result || 0) : (v || 0); }
         const cell = ws.getCell(r, c); cell.value = { formula: `SUM(${CL(c)}${first}:${CL(c)}${last})${noCast ? `-${CL(c)}${castRow}` : ''}`, result: res }; cell.font = F({ bold: true }); cell.numFmt = c <= gt ? NF : VF; cell.border = topMed; });
       if (PR) ws.getCell(r, pc).border = topMed;
       r++;
     });
-    r++; ws.getCell(r, 1).value = 'Notas'; ws.getCell(r, 1).font = F({ bold: true }); r++;
-    [S.nota, 'Números en azul: datos leídos de cada almacén. Totales en negro: fórmulas.', PR ? (R.precio_fuente + ' Valor = unidades × precio unitario.') : ''].filter(Boolean).forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    r++; ws.getCell(r, 1).value = 'Notes'; ws.getCell(r, 1).font = F({ bold: true }); r++;
+    [S.nota, 'Blue numbers: data read from each warehouse. Black totals: formulas.', PR ? (R.precio_fuente + ' Value = units × unit price.') : ''].filter(Boolean).forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
     ws.getColumn(1).width = 22; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = c <= gt ? 11.5 : 14;
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
-    const w2 = wb.addWorksheet('Origen de datos'); w2.addRow(['Empresa', 'Columna', 'Origen y fecha del dato']); w2.getRow(1).font = F({ bold: true }); w2.getRow(1).fill = fill('FFE8ECEF');
+    const w2 = wb.addWorksheet('Data sources'); w2.addRow(['Company', 'Column', 'Source and date of the data']); w2.getRow(1).font = F({ bold: true }); w2.getRow(1).fill = fill('FFE8ECEF');
     C.filter((c) => emps.includes(c.empresa)).forEach((c) => { const rr = w2.addRow([c.empresa, c.nombre, c.fuente]); rr.font = F(); });
     w2.getColumn(1).width = 12; w2.getColumn(2).width = 22; w2.getColumn(3).width = 44;
     const buf = await wb.xlsx.writeBuffer();
-    const name = `${id === 'stock_amazon' ? 'Stock_Amazon_por_modelo' : 'Stock_por_modelo_y_almacen'}_${usada}${emps.length < empsAll.length ? '_' + emps.join('-') : ''}.xlsx`;
+    const name = `${id === 'stock_amazon' ? 'Amazon_stock_by_model' : 'Stock_by_model_and_warehouse'}_${usada}${emps.length < empsAll.length ? '_' + emps.join('-') : ''}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    msg.textContent = 'Descargado: ' + name;
-  } catch (e) { msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.'; console.error(e); }
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check your connection.' : 'Could not create the Excel file in this browser.'; console.error(e); }
 }
 function unitsData(A) {
   const days = amzDays(A); const months = [...new Set(days.map((r) => r.f.slice(0, 7)))].sort();
