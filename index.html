@@ -146,6 +146,14 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .utbl td.t{background:var(--surface2);font-weight:700}
 .ulegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:4px 0 2px}
 .ulegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.rep-item{padding:0;overflow:hidden}
+.rep-head{display:flex;align-items:center;gap:14px;width:100%;padding:16px;border:0;background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.rep-pm{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#16110C;font-size:22px;font-weight:800;line-height:1}
+.rep-item.open .rep-pm{background:var(--surface2);color:var(--fg);border:1px solid var(--line)}
+.rep-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rep-t .mut{font-size:13px}
+.rep-body{min-width:0;max-width:100%;display:grid;gap:14px;margin:-4px 0 0}
+.rep-body>*{min-width:0}
 .cal{max-width:420px}
 .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .cal-nav{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:20px;cursor:pointer}
@@ -358,7 +366,8 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'] };
+let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -734,6 +743,21 @@ function repFoto(R, f) {
   return ok.length ? ok[ok.length - 1] : null;
 }
 function informesView() {
+  const RS = D.informes || {};
+  const list = [{ id: 'stock_modelo', body: stockModeloBody }].filter((x) => RS[x.id]);
+  if (!list.length) return '<div class="card mut">Todavía no hay informes.</div>';
+  return list.map(({ id, body }) => {
+    const R = RS[id]; const fechas = Object.keys(R.fotos || {}).sort(); const last = fechas[fechas.length - 1];
+    let sub = '';
+    if (id === 'stock_modelo' && last) { const S = R.fotos[last]; const u = S.filas.reduce((a, f) => a + f.valores.reduce((b, v) => b + v, 0), 0); const val = R.precios ? S.filas.reduce((a, f) => a + (R.precios[f.codigo] || 0) * f.valores.reduce((b, v) => b + v, 0), 0) : null;
+      sub = `Última foto: ${fdate(last).d} ${fdate(last).m} ${last.slice(0, 4)} · ${nf(0).format(u)} uds${val != null ? ' · ' + money(val, R.moneda_precio || 'USD', 0) : ''}`; }
+    const open = !!(state.repOpen || {})[id];
+    return `<section class="card rep-item${open ? ' open' : ''}">
+      <button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button>
+    </section>${open ? `<div class="rep-body">${body()}</div>` : ''}`;
+  }).join('') + '<p class="hint" style="margin-top:6px">Pulsa (+) para abrir un informe y (−) para cerrarlo.</p>';
+}
+function stockModeloBody() {
   const R = (D.informes || {}).stock_modelo;
   if (!R) return '<div class="card mut">Todavía no hay informes.</div>';
   const fechas = Object.keys(R.fotos).sort();
@@ -1020,6 +1044,7 @@ const AFTER = {
     const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-isub]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invSub = b.dataset.isub; })));
     if (state.invSub === 'informes') {
+      document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => keep(() => { const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
       document.querySelectorAll('[data-remp]').forEach((b) => b.addEventListener('click', () => keep(() => { const e = b.dataset.remp; const cur = state.repEmps || ['HUNTER', 'JEER', 'IPAI']; if (cur.includes(e)) { if (cur.length > 1) state.repEmps = cur.filter((x) => x !== e); } else state.repEmps = ['HUNTER', 'JEER', 'IPAI'].filter((x) => cur.includes(x) || x === e); })));
       document.querySelectorAll('[data-rday]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repFecha = b.dataset.rday; })));
       document.querySelectorAll('[data-rmes]').forEach((b) => b.addEventListener('click', () => keep(() => { const R = D.informes.stock_modelo; const f = Object.keys(R.fotos).sort(); const cur = state.repMes || (state.repFecha || f[f.length - 1]).slice(0, 7); const d = new Date(Date.UTC(+cur.slice(0, 4), +cur.slice(5, 7) - 1 + (+b.dataset.rmes), 1)); state.repMes = d.toISOString().slice(0, 7); })));
