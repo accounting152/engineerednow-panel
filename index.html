@@ -559,6 +559,7 @@ amazon() {
     <section class="card"><h3>${P === 'ytd' ? 'Ventas por mes' : 'Ventas por día'} · ${esc(scope)}</h3><p class="hint">US$ ${perTxt}. Toca una barra para ver el detalle.</p><div class="chart" id="chAmzDay"></div></section>
     <section class="card"><h3>Ventas por mes · ${esc(scope)}</h3><p class="hint">2026, US$. ${/^\d{4}-\d\d$/.test(P) ? 'Resaltado el mes elegido.' : ''}</p><div class="chart" id="chAmzMon"></div></section>
     <section class="card"><h3>Por país · ${perTxt}</h3><p class="hint">${esc(paisNote)}</p>${paises}</section>
+    ${detalleBlock(A)}
     <section class="card"><h3>Liquidaciones frente a banco</h3><p class="hint">Pagos de Amazon EE. UU. cruzados con los ingresos en ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
     ${dep ? `<section class="card span2"><h3>Ingresos de Amazon en banco por origen</h3><p class="hint">Del 1 de julio al 29 de octubre de 2026, según QuickBooks</p>${dep}</section>` : ''}
     <section class="card span2" id="units"><h3>Unidades vendidas por país y mes</h3><p class="hint">${esc(state.amz)} · 2026 · Seller Central (unidades pedidas)${/^\d{4}-\d\d$/.test(P) ? ' · Recuadrado ' + MESL[+P.slice(5, 7) - 1] : ''}. Toca una barra para ver el detalle.</p>
@@ -665,6 +666,39 @@ inventario() {
 };
 
 const MESL = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function detalleBlock(A) {
+  const DP = A.detalle_paises || {};
+  return Object.entries(DP).map(([pais, J]) => {
+    const fx = (A.fx || {})[J.moneda] || 0;
+    const stock = (A.fba || []).filter((f) => f.pais === pais);
+    const urg = stock.filter((f) => f.estado === 'Agotado' || f.estado === 'Reponer ya');
+    const disp = stock.reduce((s, f) => s + (+f.disponible || 0), 0);
+    const np = fdate(J.proximo_pago);
+    const tot = J.unidades_ytd || 1;
+    const vmax = Math.max(1, ...J.por_codigo.map((r) => r.unidades));
+    const cod = J.por_codigo.map((r) => `<div class="arrow"><span class="nm">${esc(r.codigo)} <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(r.unidades)} uds · ${nf(0).format(r.unidades / tot * 100)}%</span></span><span class="v">${money(r.ventas, J.moneda, 0)}</span><div class="bar"><i style="width:${r.unidades / vmax * 100}%;background:${COL.HUNTER}"></i></div></div>`).join('');
+    const liq = J.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio); const b = l.periodo_fin ? fdate(l.periodo_fin) : null; const bf = l.banco_fecha ? fdate(l.banco_fecha) : null;
+      const cls = l.estado === 'Cobrado en Wells Fargo' ? 'ok' : (l.estado === 'Abierta' ? 'info' : 'warn');
+      return `<div class="liq"><span>${a.d} ${a.m} – ${b ? b.d + ' ' + b.m : 'hoy'}<div class="s">Ventas ${money(l.ventas, J.moneda, 0)}${l.reembolsos ? ' · reembolsos ' + money(l.reembolsos, J.moneda, 0) : ''} · tarifas ${money(l.gastos, J.moneda, 0)}${bf ? ` · en Wells Fargo el ${bf.d} ${bf.m}: ${money(l.banco_usd, 'USD')}` : ''}</div></span>
+        <span class="v">${money(l.importe, J.moneda, 0)}<div class="s ${cls}" style="font-family:var(--body)">${l.estado === 'Cobrado en Wells Fargo' ? 'Cobrado ✓' : l.estado === 'Abierta' ? 'Periodo abierto' : 'En camino'}</div></span></div>`; }).join('');
+    const urgL = urg.map((f) => `<span class="pill bad" style="margin:0 6px 6px 0">${esc(f.codigo || f.producto)} · ${f.disponible} uds</span>`).join('');
+    return `<section class="card span2" style="border-top:3px solid ${COL.HUNTER}">
+      <h3>${esc(pais)} en detalle</h3><p class="hint">${esc(J.cuenta)}. Leído el ${fdate(J.leido.slice(0, 10)).d} ${fdate(J.leido.slice(0, 10)).m}. Ventas de 2026 (pedidas) por código.</p>
+      <section class="kpis" style="margin:4px 0 12px">
+        <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${money(J.ventas_ytd, J.moneda, 0)}</span><span class="l">≈ ${money(J.ventas_ytd * fx, 'USD', 0)} · ${nf(0).format(J.unidades_ytd)} uds</span></div>
+        <div class="kpi"><span class="l">Próximo pago</span><span class="v">${money(J.saldo, J.moneda, 0)}</span><span class="l">el ${np.d} ${np.m} · ≈ ${money(J.proximo_pago_usd, 'USD', 0)}</span></div>
+        <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Stock en Amazon ${esc(pais)}</span><span class="v">${nf(0).format(disp)}</span><span class="l">${urg.length} códigos agotados o a punto</span></div>
+        <div class="kpi"><span class="l">Cuenta</span><span class="v ok" style="font-size:18px">${J.estado_cuenta === 'En buen estado' ? 'Sana' : esc(J.estado_cuenta)}</span><span class="l">Nivel ${J.nivel_estado} · defectos ${esc(J.odr)}</span></div>
+      </section>
+      <div class="cols">
+        <div><h3 style="font-size:15px">Ventas 2026 por código</h3>${cod}</div>
+        <div><h3 style="font-size:15px">Liquidaciones frente a banco</h3><p class="hint">${esc(J.nota_pago)}</p>${liq}</div>
+      </div>
+      ${urg.length ? `<h3 style="font-size:15px;margin-top:12px">Reponer en ${esc(pais)}</h3><div>${urgL}</div>` : ''}
+      <button class="btn" data-go="inventario" style="height:44px;padding:0 16px;margin-top:10px">Ver inventario</button>
+    </section>`;
+  }).join('');
+}
 function unitsData(A) {
   const days = amzDays(A); const months = [...new Set(days.map((r) => r.f.slice(0, 7)))].sort();
   const paises = Object.keys(A.dias || {});
