@@ -749,7 +749,7 @@ function informesView() {
   const S = R.fotos[usada]; const C = S.columnas;
   const emps = [...new Set(C.map((c) => c.empresa))];
   const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
-  const fmt = (v) => (v ? nf(0).format(v) : '<span class="mut">·</span>');
+  const fmt = (v) => (v ? nf(0).format(v) : '');
   const neg = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
   const g1 = `<tr><th class="l" rowspan="2">Código</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th></tr>`;
   const g2 = `<tr>${emps.map((e) => idx(e).map((i) => `<th title="${esc(C[i].fuente)}">${esc(C[i].nombre)}</th>`).join('') + `<th class="te">Total ${e}</th>`).join('')}</tr>`;
