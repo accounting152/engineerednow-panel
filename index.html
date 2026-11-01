@@ -790,8 +790,8 @@ async function downloadRep() {
     const PR = R.precios || null;
     if (PR) { h1.push('Precio unitario (' + (R.moneda_precio || 'USD') + ')'); h2.push(''); emps.forEach((e) => { h1.push('Valor ' + e); h2.push(''); }); h1.push('Valor total'); h2.push(''); }
     const line = (lab, vals, price, valsE) => { const r = [lab]; let t = 0; const sums = {}; emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { r.push(vals[i]); s += vals[i]; }); r.push(s); sums[e] = s; t += s; }); r.push(t);
-      if (PR) { r.push(price == null ? '' : price); let vt = 0; emps.forEach((e) => { const v = valsE ? valsE[e] : Math.round((price || 0) * sums[e] * 100) / 100; r.push(v); vt += v; }); r.push(Math.round(vt * 100) / 100); } return r; };
-    const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, Math.round(S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0) * 100) / 100]));
+      if (PR) { r.push(price == null ? '' : price); let vt = 0; emps.forEach((e) => { const v = valsE ? valsE[e] : Math.round((price || 0) * sums[e]); r.push(v); vt += v; }); r.push(Math.round(vt)); } return r; };
+    const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, Math.round(S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0))]));
     const aoa = [h1, h2].concat(S.filas.map((f) => line(f.codigo, f.valores, PR ? PR[f.codigo] : null)));
     aoa.push(line('Total reposacabezas', C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0)), null, valE((f) => f.codigo !== 'CASTER')));
     aoa.push(line('Total con CASTER', C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0)), null, valE(() => true)));
