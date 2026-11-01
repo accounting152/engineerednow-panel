@@ -163,6 +163,12 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .cal-d.has{color:var(--fg);font-weight:700;background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .cal-d.sel{background:var(--accent);color:#16110C;border-color:var(--accent)}
 .cobt th.cbh{color:var(--fg)}
+.cb-u{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;background:color-mix(in srgb,var(--warn) 18%,transparent)}
+.row-pm{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:8px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--fg);font-weight:700;font-size:14px;line-height:1;cursor:pointer;vertical-align:middle}
+.btn.ghost{background:var(--surface2);color:var(--fg);border:1px solid var(--line);font-size:13px}
+.row-pm.off{visibility:hidden}
+.cobt tr.sub td{font-size:12px;color:var(--muted);background:var(--surface2)}
+.cobt tr.sub td.l{padding-left:38px}
 .cb{font-weight:700}.cb-bad{color:var(--bad)}.cb-warn{color:var(--warn)}.cb-ok{color:var(--ok)}.cb-hi{color:var(--info)}
 p .cb{padding:1px 6px;border-radius:6px;background:var(--surface2)}
 .seg.wrap{flex-wrap:wrap;overflow:visible}
@@ -823,31 +829,48 @@ function amzCobModel(id) {
 }
 function cobTxt(st, v, d) { if (v == null) return ''; if (v <= 0) return st ? 'Sin ventas' : ''; if (!st) return 'Agotado'; return nf(0).format(st / (v / d)); }
 function cobCls(st, v, d) { if (v == null || v <= 0) return ''; const x = st / (v / d); return x < 30 ? 'cb-bad' : x < 60 ? 'cb-warn' : x > 180 ? 'cb-hi' : 'cb-ok'; }
+function cobLow(st, v, d) { return v != null && v > 0 && st / (v / d) < 90; }
 function amzCobBody(id) {
   const R = (D.informes || {})[id]; if (!R || !R.almacenes) return stockModeloBody(id);
-  const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M;
+  const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend } = M;
+  const devP = (a, p, c) => (a.devueltas ? ((a.devueltas[per][p] || {})[c] || 0) : null);
   const fmt = (v) => (v ? nf(0).format(v) : '');
+  const ng = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
+  const open = state.cobOpen || {};
   const whChips = `<div class="seg wrap" role="group" aria-label="Almacenes de Amazon" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
   const perSeg = `<div class="seg" role="group" aria-label="Periodo de ventas" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}">Últimos ${k} días</button>`).join('')}</div>
-    <p class="hint" style="margin:0 0 10px">Ventas del ${fdate(P.desde).d} ${fdate(P.desde).m} al ${fdate(P.hasta).d} ${fdate(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} días). Toca un almacén para quitarlo o añadirlo.</p>`;
-  const g1 = `<tr><th class="l" rowspan="2">Código</th>${sel.map((a) => `<th colspan="${a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
-  const g2 = `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Unidades vendidas en ${esc(p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Unidades devueltas (reembolsadas) en el periodo, ya restadas">Devueltas</th><th class="te">Netas</th><th class="cbh">Cobertura (días)</th>`).join('')}</tr>`;
-  const ng = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
-  const cells = (a, st, vs, dv) => { if (!a.ventas) return `<td class="te">${fmt(st)}</td>${a.paises.map(() => '<td class="mut">…</td>').join('')}<td class="mut">…</td><td class="te mut">…</td><td class="mut">pendiente</td>`;
-    const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td>${vs.map((v) => `<td${ng(v)}>${fmt(v)}</td>`).join('')}<td class="mut">${dv ? '−' + nf(0).format(dv) : ''}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb ${cobCls(st, tv, P.dias)}">${cobTxt(st, tv, P.dias)}</td>`; };
-  const rowOf = (lab, cls, codes) => `<tr class="${cls}"><td class="l">${esc(lab)}</td>${sel.map((a) => { const st = codes.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c) || { valores: [] }).valores[a.ci] || 0, 0); const vs = a.paises.map((p) => codes.reduce((x, c) => x + (vend(a, p, c) || 0), 0)); return cells(a, st, vs, codes.reduce((x, c) => x + (devu(a, c) || 0), 0)); }).join('')}</tr>`;
+    <p class="hint" style="margin:0 0 10px">Ventas netas del ${fdate(P.desde).d} ${fdate(P.desde).m} al ${fdate(P.hasta).d} ${fdate(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} días). Toca un almacén para quitarlo o añadirlo. Pulsa (+) en un modelo para ver sus países.</p>`;
+  const paisesSel = [...new Set(sel.flatMap((a) => a.paises))];
+  const stockOf = (a, codes) => codes.reduce((x, c) => x + ((S.filas.find((f) => f.codigo === c) || { valores: [] }).valores[a.ci] || 0), 0);
+  const netOf = (a, codes, ps) => (a.ventas ? codes.reduce((x, c) => x + (ps || a.paises).reduce((y, p) => y + (a.paises.includes(p) ? vend(a, p, c) || 0 : 0), 0), 0) : null);
+  const devOf = (a, codes, ps) => (a.devueltas ? codes.reduce((x, c) => x + (ps || a.paises).reduce((y, p) => y + (a.paises.includes(p) ? devP(a, p, c) || 0 : 0), 0), 0) : null);
+  const countriesFor = (codes) => paisesSel.filter((p) => sel.some((a) => a.ventas && a.paises.includes(p) && (netOf(a, codes, [p]) || devOf(a, codes, [p]))));
+  const g1 = `<tr><th class="l" rowspan="2">Código</th>${sel.map((a) => `<th colspan="4" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}<span class="mut" style="display:block;font-size:10.5px;font-weight:500">${esc(a.paises.map((p) => PAB[p] || p).join(', '))}</span></th>`).join('')}</tr>`;
+  const g2 = `<tr>${sel.map(() => `<th class="te">Stock</th><th title="Unidades devueltas (reembolsadas) en el periodo, ya restadas">Devueltas</th><th class="te">Netas</th><th class="cbh">Cobertura (días)</th>`).join('')}</tr>`;
+  const mainCells = (a, codes) => { const st = stockOf(a, codes); if (!a.ventas) return `<td class="te">${fmt(st)}</td><td class="mut">…</td><td class="te mut">…</td><td class="mut">pendiente</td>`;
+    const v = netOf(a, codes); const dv = devOf(a, codes);
+    return `<td class="te">${fmt(st)}</td><td class="mut">${dv ? '−' + nf(0).format(dv) : ''}</td><td class="te"${ng(v)}>${fmt(v)}</td><td class="cb ${cobCls(st, v, P.dias)}${cobLow(st, v, P.dias) ? ' cb-u' : ''}">${cobTxt(st, v, P.dias)}</td>`; };
+  const subCells = (a, codes, p) => { if (!a.paises.includes(p) || !a.ventas) return '<td class="te"></td><td></td><td class="te"></td><td></td>';
+    const v = netOf(a, codes, [p]); const dv = devOf(a, codes, [p]); return `<td class="te"></td><td class="mut">${dv ? '−' + nf(0).format(dv) : ''}</td><td class="te"${ng(v)}>${fmt(v)}</td><td></td>`; };
+  const block = (key, lab, cls, codes) => { const ps = countriesFor(codes); const isOpen = !!open[key];
+    const btn = ps.length ? `<button class="row-pm" data-cobrow="${esc(key)}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Contraer' : 'Ver'} países de ${esc(lab)}">${isOpen ? '−' : '+'}</button>` : '<span class="row-pm off"></span>';
+    let h = `<tr class="${cls}"><td class="l">${btn}${esc(lab)}</td>${sel.map((a) => mainCells(a, codes)).join('')}</tr>`;
+    if (isOpen) h += ps.map((p) => `<tr class="sub"><td class="l">${esc(p)}</td>${sel.map((a) => subCells(a, codes, p)).join('')}</tr>`).join('');
+    return h; };
   const codes = S.filas.map((f) => f.codigo); const hr = codes.filter((c) => c !== 'CASTER');
-  const filas = codes.map((c) => rowOf(c, c === 'CASTER' ? 'cast' : '', [c])).join('');
-  const kp = sel.map((a) => { const st = hr.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c).valores[a.ci] || 0), 0); const v = a.ventas ? hr.reduce((x, c) => x + a.paises.reduce((y, p) => y + (vend(a, p, c) || 0), 0), 0) : null;
+  const filas = codes.map((c) => block(c, c, c === 'CASTER' ? 'cast' : '', [c])).join('');
+  const kp = sel.map((a) => { const st = stockOf(a, hr); const v = netOf(a, hr);
     return `<div class="kpi"><span class="l">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</span><span class="v">${v == null ? '—' : v > 0 ? nf(0).format(st / (v / P.dias)) + ' días' : 'sin ventas'}</span><span class="l">${nf(0).format(st)} en stock · ${v == null ? 'ventas pendientes' : nf(0).format(v) + ' netas en ' + P.dias + ' días'}</span></div>`; }).join('');
   const pend = sel.filter((a) => !a.ventas);
+  const anyOpen = Object.values(open).some(Boolean);
   return `<section class="card">
     <h3>${esc(R.titulo)} · stock a ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>
     ${whChips}${perSeg}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    ${pend.length ? `<p class="hint" style="color:var(--warn)">Ventas por país pendientes para ${pend.map((a) => (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre).join(', ')}: falta iniciar sesión en su cuenta de Seller Central.</p>` : ''}
-    <div class="rtbl-wrap"><table class="rtbl cobt"><thead>${g1}${g2}</thead><tbody>${filas}${rowOf('Total reposacabezas', 'tot', hr)}${rowOf('Total con CASTER', 'tot', codes)}</tbody></table></div>
-    <p class="hint" style="margin-top:8px"><span class="cb cb-bad">&lt; 30</span> <span class="cb cb-warn">30–59</span> <span class="cb cb-ok">60–180</span> <span class="cb cb-hi">&gt; 180</span> días. ${esc(R.cobertura_nota)} ${esc(R.ventas_fuente)} ${esc(S.nota)}</p>
+    ${pend.length ? `<p class="hint" style="color:var(--warn)">Ventas por país pendientes para ${pend.map((a) => (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre).join(', ')}.</p>` : ''}
+    <div style="display:flex;gap:8px;margin:0 0 8px"><button class="btn ghost" data-coball="1" style="height:36px;padding:0 12px">+ Ver todos los países</button>${anyOpen ? '<button class="btn ghost" data-coball="0" style="height:36px;padding:0 12px">− Contraer todo</button>' : ''}</div>
+    <div class="rtbl-wrap"><table class="rtbl cobt" style="min-width:${180 + sel.length * 300}px"><thead>${g1}${g2}</thead><tbody>${filas}${block('__tot', 'Total reposacabezas', 'tot', hr)}${block('__totc', 'Total con CASTER', 'tot', codes)}</tbody></table></div>
+    <p class="hint" style="margin-top:8px"><span class="cb cb-u">Subrayado</span> = cobertura menor de 90 días. Colores: <span class="cb cb-bad">&lt; 30</span> <span class="cb cb-warn">30–59</span> <span class="cb cb-ok">60–180</span> <span class="cb cb-hi">&gt; 180</span> días. ${esc(R.cobertura_nota)} ${esc(R.ventas_fuente)} ${esc(S.nota)}</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
   </section>`;
 }
@@ -855,7 +878,8 @@ async function downloadCob(id) {
   const msg = $('#repMsg-' + id); msg.textContent = 'Preparando el Excel…';
   try {
     await loadExcelJS();
-    const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend, devu } = M;
+    const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend } = M;
+    const devP = (a, p, c) => (a.devueltas ? ((a.devueltas[per][p] || {})[c] || 0) : 0);
     const COLX = { HUNTER: 'FFB8692F', JEER: 'FF3A6E9E', IPAI: 'FF6E5CC9' };
     const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
     const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
@@ -863,39 +887,47 @@ async function downloadCob(id) {
     const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } }; const topMed = { top: { style: 'medium', color: { argb: 'FF11181D' } } };
     const CL = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
-    const ws = wb.addWorksheet(`Cobertura ${per} días`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
-    ws.getCell('A1').value = `${R.titulo} · ventas y cobertura, últimos ${per} días`; ws.getCell('A1').font = F({ bold: true, size: 14 });
-    ws.getCell('A2').value = `Stock a ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}. Ventas del ${P.desde} al ${P.hasta} (${P.dias} días). Cobertura (días) = stock ÷ (vendidas ÷ ${P.dias}).`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const ws = wb.addWorksheet(`Cobertura ${per} días`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }], properties: { outlineProperties: { summaryBelow: false } } });
+    ws.getCell('A1').value = `${R.titulo} · ventas netas y cobertura, últimos ${per} días`; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = `Stock a ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}. Ventas netas (pedidas − devueltas) del ${P.desde} al ${P.hasta} (${P.dias} días). Cobertura (días) = stock ÷ (netas ÷ ${P.dias}). Subrayado y fondo amarillo = cobertura menor de 90 días. Pulsa + a la izquierda de cada modelo para ver sus países.`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const hr1 = 5, hr2 = 6, r0 = 7; let col = 2; const L = [];
-    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Código'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
-    sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; a.paises.forEach((p) => { ws.getCell(hr2, col).value = p; o.p[p] = col; col++; }); o.d = col; ws.getCell(hr2, col).value = 'Devueltas (ya restadas)'; col++; o.v = col; ws.getCell(hr2, col).value = 'Netas'; col++; o.c = col; ws.getCell(hr2, col).value = 'Cobertura (días)'; col++;
-      ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre}`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[a.empresa]); L.push(o); });
-    const lastCol = col - 1;
+    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Código / país'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
+    sel.forEach((a) => { const o = { a, s: col, d: col + 1, v: col + 2, c: col + 3 }; ['Stock', 'Devueltas (ya restadas)', 'Netas', 'Cobertura (días)'].forEach((t, k) => { ws.getCell(hr2, col + k).value = t; }); col += 4;
+      ws.mergeCells(hr1, o.s, hr1, o.c); const h = ws.getCell(hr1, o.s); h.value = `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre} (${a.paises.join(', ')})`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.fill = fill(COLX[a.empresa]); L.push(o); });
+    const lastCol = col - 1; ws.getRow(hr1).height = 32;
     for (let c = 2; c <= lastCol; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (L.some((o) => o.s === c || o.v === c)) h.fill = fill('FFE8ECEF'); if (L.some((o) => o.c === c)) h.fill = fill('FFF6E7DA'); }
     ws.getRow(hr2).height = 30;
     const cobF = (o, r) => `IF(${CL(o.v)}${r}<=0,"",${CL(o.s)}${r}/(${CL(o.v)}${r}/${P.dias}))`;
-    const cobR = (st, v) => (v > 0 ? st / (v / P.dias) : '');
-    let r = r0;
+    const low = (st, v) => v > 0 && st / (v / P.dias) < 90;
+    const paisesSel = [...new Set(sel.flatMap((a) => a.paises))];
+    const mainRows = []; let castMain = null; let r = r0;
+    const setCob = (o, r, st, v, bold) => { const cc = ws.getCell(r, o.c); cc.value = { formula: cobF(o, r), result: v > 0 ? st / (v / P.dias) : '' }; cc.numFmt = DF; const lw = low(st, v); cc.font = F({ bold: !!bold || lw, underline: lw ? true : undefined, color: lw ? { argb: 'FFC9402F' } : undefined }); cc.fill = fill(lw ? 'FFFFF2B3' : 'FFFBF3EC'); };
     S.filas.forEach((f) => {
-      ws.getCell(r, 1).value = f.codigo; ws.getCell(r, 1).font = F({ bold: true });
-      L.forEach((o) => { const a = o.a; const st = f.valores[a.ci] || 0; const cs = ws.getCell(r, o.s); cs.value = st; cs.numFmt = NF; cs.font = F({ color: { argb: 'FF0000FF' }, bold: true }); cs.fill = fill('FFF2F4F6');
-        if (!a.ventas) { ws.getCell(r, o.c).value = 'pendiente'; ws.getCell(r, o.c).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); return; }
-        let tv = 0; a.paises.forEach((p) => { const v = vend(a, p, f.codigo) || 0; tv += v; const c = ws.getCell(r, o.p[p]); c.value = v; c.numFmt = NF; c.font = F({ color: { argb: 'FF0000FF' } }); });
-        const cd = ws.getCell(r, o.d); cd.value = devu(a, f.codigo) || 0; cd.numFmt = NF; cd.font = F({ color: { argb: 'FF5F6E79' }, italic: true });
-        const cv = ws.getCell(r, o.v); cv.value = { formula: `SUM(${CL(o.s + 1)}${r}:${CL(o.d - 1)}${r})`, result: tv }; cv.numFmt = NF; cv.font = F({ bold: true }); cv.fill = fill('FFF2F4F6');
-        const cc = ws.getCell(r, o.c); cc.value = { formula: cobF(o, r), result: cobR(st, tv) }; cc.numFmt = DF; cc.font = F({ bold: true }); cc.fill = fill('FFFBF3EC'); });
-      for (let c = 1; c <= lastCol; c++) ws.getCell(r, c).border = thin; r++; });
-    const first = r0, last = r - 1; const castRow = r0 + S.filas.findIndex((f) => f.codigo === 'CASTER');
-    [['Total reposacabezas', true], ['Total con CASTER', false]].forEach(([lab, noCast]) => {
+      const mr = r; mainRows.push(mr); if (f.codigo === 'CASTER') castMain = mr;
+      const ps = paisesSel.filter((p) => sel.some((a) => a.ventas && a.paises.includes(p) && ((vend(a, p, f.codigo) || 0) || devP(a, p, f.codigo))));
+      ws.getCell(mr, 1).value = f.codigo; ws.getCell(mr, 1).font = F({ bold: true });
+      ps.forEach((p, k) => { const rr = mr + 1 + k; const row = ws.getRow(rr); row.outlineLevel = 1; row.hidden = true; const lc = ws.getCell(rr, 1); lc.value = '   ' + p; lc.font = F({ size: 9, color: { argb: 'FF5F6E79' } });
+        L.forEach((o) => { const a = o.a; if (!a.ventas || !a.paises.includes(p)) return; const v = vend(a, p, f.codigo) || 0, dv = devP(a, p, f.codigo) || 0;
+          const cv = ws.getCell(rr, o.v); cv.value = v; cv.numFmt = NF; cv.font = F({ size: 9, color: { argb: 'FF0000FF' } }); const cd = ws.getCell(rr, o.d); cd.value = dv; cd.numFmt = NF; cd.font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); });
+        for (let c = 1; c <= lastCol; c++) ws.getCell(rr, c).border = thin; });
+      L.forEach((o) => { const a = o.a; const st = f.valores[a.ci] || 0; const cs = ws.getCell(mr, o.s); cs.value = st; cs.numFmt = NF; cs.font = F({ color: { argb: 'FF0000FF' }, bold: true }); cs.fill = fill('FFF2F4F6');
+        if (!a.ventas) { ws.getCell(mr, o.c).value = 'pendiente'; ws.getCell(mr, o.c).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); return; }
+        let tv = 0, td = 0; ps.forEach((p) => { if (a.paises.includes(p)) { tv += vend(a, p, f.codigo) || 0; td += devP(a, p, f.codigo) || 0; } });
+        const rng = (c) => (ps.length ? `SUM(${CL(c)}${mr + 1}:${CL(c)}${mr + ps.length})` : '0');
+        const cd = ws.getCell(mr, o.d); cd.value = { formula: rng(o.d), result: td }; cd.numFmt = NF; cd.font = F({ italic: true, color: { argb: 'FF5F6E79' } });
+        const cv = ws.getCell(mr, o.v); cv.value = { formula: rng(o.v), result: tv }; cv.numFmt = NF; cv.font = F({ bold: true }); cv.fill = fill('FFF2F4F6');
+        setCob(o, mr, st, tv); });
+      for (let c = 1; c <= lastCol; c++) ws.getCell(mr, c).border = thin;
+      r = mr + 1 + ps.length; });
+    const resOf = (c, rows) => rows.reduce((x, k) => { const v = ws.getCell(k, c).value; return x + (typeof v === 'object' && v ? (v.result || 0) : (v || 0)); }, 0);
+    [['Total reposacabezas', mainRows.filter((k) => k !== castMain)], ['Total con CASTER', mainRows]].forEach(([lab, rows]) => {
       ws.getCell(r, 1).value = lab; ws.getCell(r, 1).font = F({ bold: true }); ws.getCell(r, 1).border = topMed;
-      L.forEach((o) => { const cs = [o.s, ...Object.values(o.p), o.d, o.v]; const res = {};
-        cs.forEach((c) => { if (!o.a.ventas && c !== o.s) return; let x = 0; for (let k = first; k <= last; k++) { if (noCast && k === castRow) continue; const v = ws.getCell(k, c).value; x += typeof v === 'object' && v ? (v.result || 0) : (v || 0); } res[c] = x;
-          const cell = ws.getCell(r, c); cell.value = { formula: `SUM(${CL(c)}${first}:${CL(c)}${last})${noCast && castRow >= first ? `-${CL(c)}${castRow}` : ''}`, result: x }; cell.numFmt = NF; cell.font = F({ bold: true }); cell.border = topMed; });
-        const cc = ws.getCell(r, o.c); cc.border = topMed; if (o.a.ventas) { cc.value = { formula: cobF(o, r), result: cobR(res[o.s], res[o.v]) }; cc.numFmt = DF; cc.font = F({ bold: true }); cc.fill = fill('FFF6E7DA'); } });
+      L.forEach((o) => { const res = {}; [o.s, o.d, o.v].forEach((c) => { if (!o.a.ventas && c !== o.s) return; res[c] = resOf(c, rows); const cell = ws.getCell(r, c); cell.value = { formula: rows.map((k) => `${CL(c)}${k}`).join('+'), result: res[c] }; cell.numFmt = NF; cell.font = F({ bold: true }); cell.border = topMed; });
+        const cc = ws.getCell(r, o.c); cc.border = topMed; if (o.a.ventas) { setCob(o, r, res[o.s], res[o.v], true); cc.border = topMed; } });
       r++; });
     r++; ws.getCell(r, 1).value = 'Notas'; ws.getCell(r, 1).font = F({ bold: true }); r++;
-    [R.cobertura_nota, R.ventas_fuente, S.nota, 'Países: unidades netas (pedidas − devueltas). Números en azul: datos de Amazon. Netas, totales y cobertura: fórmulas. Cobertura vacía = sin ventas netas en el periodo.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: ventas por país pendientes de descargar.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
-    ws.getColumn(1).width = 20; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = L.some((o) => o.c === c) ? 12 : 10;
+    [R.cobertura_nota, R.ventas_fuente, S.nota, 'Filas de país agrupadas: pulsa + a la izquierda (o los botones 1/2 de arriba) para expandir o contraer. Números en azul: datos de Amazon. Netas, devueltas del modelo, totales y cobertura: fórmulas.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: ventas por país pendientes de descargar.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    ws.getColumn(1).width = 22; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = L.some((o) => o.c === c) ? 12 : L.some((o) => o.d === c) ? 11 : 10;
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
     const buf = await wb.xlsx.writeBuffer();
     const name = `Stock_Amazon_cobertura_${per}d_${usada}.xlsx`;
@@ -1151,6 +1183,8 @@ const AFTER = {
       document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'stock_amazon' && D.informes.stock_amazon.almacenes ? downloadCob : downloadRep)(x.dataset.rxls)));
       document.querySelectorAll('[data-awh]').forEach((b) => b.addEventListener('click', () => keep(() => { const all = D.informes.stock_amazon.almacenes.map((a) => a.id); const cur = state.amzWh || all; const k = b.dataset.awh; state.amzWh = cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : all.filter((x) => cur.includes(x) || x === k); })));
       document.querySelectorAll('[data-aper]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repPer = b.dataset.aper; })));
+      document.querySelectorAll('[data-cobrow]').forEach((b) => b.addEventListener('click', () => keep(() => { const k = b.dataset.cobrow; state.cobOpen = Object.assign({}, state.cobOpen, { [k]: !(state.cobOpen || {})[k] }); })));
+      document.querySelectorAll('[data-coball]').forEach((b) => b.addEventListener('click', () => keep(() => { if (b.dataset.coball === '1') { const o = {}; document.querySelectorAll('[data-cobrow]').forEach((x) => { o[x.dataset.cobrow] = true; }); state.cobOpen = o; } else state.cobOpen = {}; })));
       return;
     }
     document.querySelectorAll('[data-ie]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invEmp = b.dataset.ie; state.invPais = ''; })));
