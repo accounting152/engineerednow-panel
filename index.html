@@ -839,6 +839,7 @@ async function downloadRep() {
     r++; ws.getCell(r, 1).value = 'Notas'; ws.getCell(r, 1).font = F({ bold: true }); r++;
     [S.nota, 'Números en azul: datos leídos de cada almacén. Totales en negro: fórmulas.', PR ? (R.precio_fuente + ' Valor = unidades × precio unitario.') : ''].filter(Boolean).forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
     ws.getColumn(1).width = 22; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = c <= gt ? 11.5 : 14;
+    ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
     const w2 = wb.addWorksheet('Origen de datos'); w2.addRow(['Empresa', 'Columna', 'Origen y fecha del dato']); w2.getRow(1).font = F({ bold: true }); w2.getRow(1).fill = fill('FFE8ECEF');
     C.filter((c) => emps.includes(c.empresa)).forEach((c) => { const rr = w2.addRow([c.empresa, c.nombre, c.fuente]); rr.font = F(); });
     w2.getColumn(1).width = 12; w2.getColumn(2).width = 22; w2.getColumn(3).width = 44;
