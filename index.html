@@ -163,6 +163,9 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .rtbl .l{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;font-family:var(--body);font-weight:700;color:var(--fg)}
 .rtbl .te{background:var(--surface2);font-weight:700}
 .rtbl .tg{background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:800}
+.rtbl .pr{background:var(--surface2);color:var(--muted)}
+.rtbl .vl{font-weight:600}
+.rtbl .vg{background:color-mix(in srgb,var(--ok) 14%,var(--surface));font-weight:800}
 .rtbl tr.tot td{font-weight:800;border-top:2px solid var(--fg)}
 .rtbl tr.cast td{border-top:2px dashed var(--line)}
 .seg{display:flex;gap:6px;padding:4px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
@@ -751,21 +754,28 @@ function informesView() {
   const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
   const fmt = (v) => (v ? nf(0).format(v) : '');
   const neg = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
-  const g1 = `<tr><th class="l" rowspan="2">Código</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th></tr>`;
+  const PR = R.precios || null; const vmon = R.moneda_precio || 'USD';
+  const fv = (v) => (v ? money(v, vmon, 0) : '');
+  const g1 = `<tr><th class="l" rowspan="2">Código</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th>${PR ? `<th rowspan="2" class="pr">Precio unitario (${CUR[R.moneda_precio] || R.moneda_precio})</th>${emps.map((e) => `<th rowspan="2" class="vl" style="border-bottom:3px solid ${COL[e]}">Valor ${e}</th>`).join('')}<th rowspan="2" class="vg">Valor total</th>` : ''}</tr>`;
   const g2 = `<tr>${emps.map((e) => idx(e).map((i) => `<th title="${esc(C[i].fuente)}">${esc(C[i].nombre)}</th>`).join('') + `<th class="te">Total ${e}</th>`).join('')}</tr>`;
-  const row = (lab, vals, cls) => { let tot = 0; const tds = emps.map((e) => { const ii = idx(e); const s = ii.reduce((a, i) => a + vals[i], 0); tot += s; return ii.map((i) => `<td${neg(vals[i])}>${fmt(vals[i])}</td>`).join('') + `<td class="te"${neg(s)}>${fmt(s)}</td>`; }).join('');
-    return `<tr class="${cls || ''}"><td class="l">${esc(lab)}</td>${tds}<td class="tg"${neg(tot)}>${fmt(tot)}</td></tr>`; };
-  const filas = S.filas.map((f) => row(f.codigo, f.valores, f.codigo === 'CASTER' ? 'cast' : '')).join('');
+  const row = (lab, vals, cls, price, valsE) => { let tot = 0; const sums = {}; const tds = emps.map((e) => { const ii = idx(e); const s = ii.reduce((a, i) => a + vals[i], 0); sums[e] = s; tot += s; return ii.map((i) => `<td${neg(vals[i])}>${fmt(vals[i])}</td>`).join('') + `<td class="te"${neg(s)}>${fmt(s)}</td>`; }).join('');
+    let vtd = '';
+    if (PR) { const ve = valsE || Object.fromEntries(emps.map((e) => [e, (price || 0) * sums[e]])); const vt = emps.reduce((a, e) => a + ve[e], 0);
+      vtd = `<td class="pr">${price != null ? money(price, vmon) : ''}</td>${emps.map((e) => `<td class="vl"${neg(ve[e])}>${fv(ve[e])}</td>`).join('')}<td class="vg"${neg(vt)}>${fv(vt)}</td>`; }
+    return `<tr class="${cls || ''}"><td class="l">${esc(lab)}</td>${tds}<td class="tg"${neg(tot)}>${fmt(tot)}</td>${vtd}</tr>`; };
+  const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0)]));
+  const filas = S.filas.map((f) => row(f.codigo, f.valores, f.codigo === 'CASTER' ? 'cast' : '', PR ? PR[f.codigo] : null)).join('');
   const totV = C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0));
   const totC = C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0));
   const sum = (arr) => arr.reduce((a, b) => a + b, 0);
-  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas</span></div>`).join('') + `<div class="kpi"><span class="l">Total</span><span class="v">${nf(0).format(sum(totV))}</span><span class="l">+ ${nf(0).format(sum(totC) - sum(totV))} CASTER</span></div>`;
+  const VA = valE(() => true);
+  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas${PR ? ' · valor total ' + money(VA[e], vmon, 0) : ''}</span></div>`).join('') + `<div class="kpi"><span class="l">Total</span><span class="v">${nf(0).format(sum(totV))}</span><span class="l">+ ${nf(0).format(sum(totC) - sum(totV))} CASTER${PR ? ' · valor total ' + money(sum(emps.map((e) => VA[e])), vmon, 0) : ''}</span></div>`;
   const aviso = usada !== sel ? `<p class="hint" style="color:var(--warn)">No hay foto del ${fdate(sel).d} ${fdate(sel).m}: se muestra la más reciente anterior, del ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}.</p>` : '';
   return cal + `<section class="card">
     <h3>${esc(R.titulo)} · ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>${aviso}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total reposacabezas', totV, 'tot')}${row('Total con CASTER', totC, 'tot')}</tbody></table></div>
-    <p class="hint" style="margin-top:8px">${esc(S.nota)} Origen de cada columna (pasa el dedo o el ratón por el título): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
+    <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total reposacabezas', totV, 'tot', null, valE((f) => f.codigo !== 'CASTER'))}${row('Total con CASTER', totC, 'tot', null, valE(() => true))}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(S.nota)} ${PR ? esc(R.precio_fuente) + ' Valor = unidades × precio unitario. ' : ''}Origen de cada columna (pasa el dedo o el ratón por el título): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="repXls" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg" style="font-size:13px"></span></div>
   </section>`;
 }
@@ -777,14 +787,18 @@ async function downloadRep() {
     const emps = [...new Set(C.map((c) => c.empresa))]; const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
     const h1 = ['Código'], h2 = [''];
     emps.forEach((e) => { idx(e).forEach((i, k) => { h1.push(k === 0 ? e : ''); h2.push(C[i].nombre); }); h1.push(''); h2.push('Total ' + e); }); h1.push('Total'); h2.push('');
-    const line = (lab, vals) => { const r = [lab]; let t = 0; emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { r.push(vals[i]); s += vals[i]; }); r.push(s); t += s; }); r.push(t); return r; };
-    const aoa = [h1, h2].concat(S.filas.map((f) => line(f.codigo, f.valores)));
-    aoa.push(line('Total reposacabezas', C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0))));
-    aoa.push(line('Total con CASTER', C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0))));
+    const PR = R.precios || null;
+    if (PR) { h1.push('Precio unitario (' + (R.moneda_precio || 'USD') + ')'); h2.push(''); emps.forEach((e) => { h1.push('Valor ' + e); h2.push(''); }); h1.push('Valor total'); h2.push(''); }
+    const line = (lab, vals, price, valsE) => { const r = [lab]; let t = 0; const sums = {}; emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { r.push(vals[i]); s += vals[i]; }); r.push(s); sums[e] = s; t += s; }); r.push(t);
+      if (PR) { r.push(price == null ? '' : price); let vt = 0; emps.forEach((e) => { const v = valsE ? valsE[e] : Math.round((price || 0) * sums[e] * 100) / 100; r.push(v); vt += v; }); r.push(Math.round(vt * 100) / 100); } return r; };
+    const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, Math.round(S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0) * 100) / 100]));
+    const aoa = [h1, h2].concat(S.filas.map((f) => line(f.codigo, f.valores, PR ? PR[f.codigo] : null)));
+    aoa.push(line('Total reposacabezas', C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0)), null, valE((f) => f.codigo !== 'CASTER')));
+    aoa.push(line('Total con CASTER', C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0)), null, valE(() => true)));
     const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 20 }].concat(aoa[1].slice(1).map(() => ({ wch: 13 })));
     const merges = []; let col = 1; emps.forEach((e) => { const n = idx(e).length + 1; merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + n - 1 } }); col += n; }); ws['!merges'] = merges;
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock ' + usada);
-    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Nota', S.nota]].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
+    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Nota', S.nota], ['Precios', R.precio_fuente || '']].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
     XLSX.utils.book_append_sheet(wb, info, 'Información');
     const name = `Stock_por_modelo_y_almacen_${usada}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
