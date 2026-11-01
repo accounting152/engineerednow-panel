@@ -146,6 +146,25 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .utbl td.t{background:var(--surface2);font-weight:700}
 .ulegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:4px 0 2px}
 .ulegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cal{max-width:420px}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-nav{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:20px;cursor:pointer}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-w{font-size:11.5px;color:var(--muted);font-weight:600;padding:4px 0}
+.cal-d{height:40px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--muted);font:inherit;font-variant-numeric:tabular-nums;cursor:pointer}
+.cal-d.has{color:var(--fg);font-weight:700;background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.cal-d.sel{background:var(--accent);color:#16110C;border-color:var(--accent)}
+.rtbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+.rtbl{border-collapse:separate;border-spacing:0;font-size:13px;min-width:1100px;width:100%}
+.rtbl th,.rtbl td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.rtbl th{font-size:11.5px;color:var(--muted);font-weight:650;vertical-align:bottom;white-space:normal;min-width:64px}
+.rtbl th.grp{text-align:center;color:var(--fg);font-size:13px}
+.rtbl td{font-family:var(--mono)}
+.rtbl .l{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;font-family:var(--body);font-weight:700;color:var(--fg)}
+.rtbl .te{background:var(--surface2);font-weight:700}
+.rtbl .tg{background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:800}
+.rtbl tr.tot td{font-weight:800;border-top:2px solid var(--fg)}
+.rtbl tr.cast td{border-top:2px dashed var(--line)}
 .seg{display:flex;gap:6px;padding:4px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .seg::-webkit-scrollbar{display:none}
 .seg button{flex:1 0 auto;height:36px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:650;cursor:pointer;white-space:nowrap}
@@ -336,7 +355,7 @@ async function decrypt(pw) {
 }
 
 let D = null;
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '' };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '' };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -572,6 +591,11 @@ amazon() {
 },
 
 inventario() {
+  const subnav = `<div class="seg" role="group" aria-label="Inventario" style="margin-bottom:12px"><button aria-pressed="${state.invSub !== 'informes'}" data-isub="stock">Stock</button><button aria-pressed="${state.invSub === 'informes'}" data-isub="informes">Informes</button></div>`;
+  if (state.invSub === 'informes') return subnav + informesView();
+  return subnav + VIEWS.inventarioStock();
+},
+inventarioStock() {
   const AM = D.amazon || {};
   const E = state.invEmp || '';
   const emps = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e));
@@ -700,6 +724,73 @@ function detalleBlock(A) {
       <button class="btn" data-go="inventario" style="height:44px;padding:0 16px;margin-top:10px">Ver inventario</button>
     </section>`;
   }).join('');
+}
+function repFoto(R, f) {
+  const ds = Object.keys(R.fotos).sort();
+  const ok = ds.filter((d) => d <= f);
+  return ok.length ? ok[ok.length - 1] : null;
+}
+function informesView() {
+  const R = (D.informes || {}).stock_modelo;
+  if (!R) return '<div class="card mut">Todavía no hay informes.</div>';
+  const fechas = Object.keys(R.fotos).sort();
+  const sel = state.repFecha || fechas[fechas.length - 1];
+  const usada = repFoto(R, sel);
+  const mes = state.repMes || sel.slice(0, 7);
+  const [yy, mm] = mes.split('-').map(Number);
+  const first = new Date(Date.UTC(yy, mm - 1, 1)); const dow = (first.getUTCDay() + 6) % 7; const nd = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+  let cells = '';
+  for (let i = 0; i < dow; i++) cells += '<span></span>';
+  for (let d = 1; d <= nd; d++) { const k = `${mes}-${String(d).padStart(2, '0')}`; const has = R.fotos[k]; cells += `<button class="cal-d${has ? ' has' : ''}${k === sel ? ' sel' : ''}" data-rday="${k}" aria-label="${d} ${MESL[mm - 1]}">${d}</button>`; }
+  const cal = `<section class="card cal"><div class="cal-h"><button class="cal-nav" data-rmes="-1" aria-label="Mes anterior">‹</button><b>${MESL[mm - 1][0].toUpperCase() + MESL[mm - 1].slice(1)} ${yy}</b><button class="cal-nav" data-rmes="1" aria-label="Mes siguiente">›</button></div>
+    <div class="cal-g">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((x) => `<span class="cal-w">${x}</span>`).join('')}${cells}</div>
+    <p class="hint" style="margin:8px 0 0"><i class="dot" style="background:var(--accent);margin-right:6px"></i>Días con foto de inventario: ${fechas.map((f) => `${fdate(f).d} ${fdate(f).m} ${f.slice(0, 4)}`).join(', ')}</p></section>`;
+  if (!usada) return cal + `<section class="card"><h3>${esc(R.titulo)}</h3><p class="mut">No hay ninguna foto de inventario en o antes del ${fdate(sel).d} ${fdate(sel).m} ${sel.slice(0, 4)}. La primera es del ${fdate(fechas[0]).d} ${fdate(fechas[0]).m}.</p></section>`;
+  const S = R.fotos[usada]; const C = S.columnas;
+  const emps = [...new Set(C.map((c) => c.empresa))];
+  const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
+  const fmt = (v) => (v ? nf(0).format(v) : '<span class="mut">·</span>');
+  const neg = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
+  const g1 = `<tr><th class="l" rowspan="2">Código</th>${emps.map((e) => `<th colspan="${idx(e).length + 1}" class="grp" style="border-bottom:3px solid ${COL[e]}">${e}</th>`).join('')}<th rowspan="2" class="tg">Total</th></tr>`;
+  const g2 = `<tr>${emps.map((e) => idx(e).map((i) => `<th title="${esc(C[i].fuente)}">${esc(C[i].nombre)}</th>`).join('') + `<th class="te">Total ${e}</th>`).join('')}</tr>`;
+  const row = (lab, vals, cls) => { let tot = 0; const tds = emps.map((e) => { const ii = idx(e); const s = ii.reduce((a, i) => a + vals[i], 0); tot += s; return ii.map((i) => `<td${neg(vals[i])}>${fmt(vals[i])}</td>`).join('') + `<td class="te"${neg(s)}>${fmt(s)}</td>`; }).join('');
+    return `<tr class="${cls || ''}"><td class="l">${esc(lab)}</td>${tds}<td class="tg"${neg(tot)}>${fmt(tot)}</td></tr>`; };
+  const filas = S.filas.map((f) => row(f.codigo, f.valores, f.codigo === 'CASTER' ? 'cast' : '')).join('');
+  const totV = C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0));
+  const totC = C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0));
+  const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+  const kp = emps.map((e) => `<div class="kpi"><span class="l">${e}</span><span class="v">${nf(0).format(sum(idx(e).map((i) => totV[i])))}</span><span class="l">reposacabezas</span></div>`).join('') + `<div class="kpi"><span class="l">Total</span><span class="v">${nf(0).format(sum(totV))}</span><span class="l">+ ${nf(0).format(sum(totC) - sum(totV))} CASTER</span></div>`;
+  const aviso = usada !== sel ? `<p class="hint" style="color:var(--warn)">No hay foto del ${fdate(sel).d} ${fdate(sel).m}: se muestra la más reciente anterior, del ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}.</p>` : '';
+  return cal + `<section class="card">
+    <h3>${esc(R.titulo)} · ${fdate(usada).d} ${fdate(usada).m} ${usada.slice(0, 4)}</h3>${aviso}
+    <section class="kpis" style="margin:6px 0 12px">${kp}</section>
+    <div class="rtbl-wrap"><table class="rtbl"><thead>${g1}${g2}</thead><tbody>${filas}${row('Total reposacabezas', totV, 'tot')}${row('Total con CASTER', totC, 'tot')}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(S.nota)} Origen de cada columna (pasa el dedo o el ratón por el título): ${C.map((c) => `${c.empresa === 'HUNTER' ? 'Hunter' : c.empresa} ${c.nombre}: ${c.fuente}`).join(' · ')}.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="repXls" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg" style="font-size:13px"></span></div>
+  </section>`;
+}
+async function downloadRep() {
+  const msg = $('#repMsg'); msg.textContent = 'Preparando el Excel…';
+  try {
+    await loadXLSX();
+    const R = D.informes.stock_modelo; const fechas = Object.keys(R.fotos).sort(); const usada = repFoto(R, state.repFecha || fechas[fechas.length - 1]); const S = R.fotos[usada]; const C = S.columnas;
+    const emps = [...new Set(C.map((c) => c.empresa))]; const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
+    const h1 = ['Código'], h2 = [''];
+    emps.forEach((e) => { idx(e).forEach((i, k) => { h1.push(k === 0 ? e : ''); h2.push(C[i].nombre); }); h1.push(''); h2.push('Total ' + e); }); h1.push('Total'); h2.push('');
+    const line = (lab, vals) => { const r = [lab]; let t = 0; emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { r.push(vals[i]); s += vals[i]; }); r.push(s); t += s; }); r.push(t); return r; };
+    const aoa = [h1, h2].concat(S.filas.map((f) => line(f.codigo, f.valores)));
+    aoa.push(line('Total reposacabezas', C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0))));
+    aoa.push(line('Total con CASTER', C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0))));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 20 }].concat(aoa[1].slice(1).map(() => ({ wch: 13 })));
+    const merges = []; let col = 1; emps.forEach((e) => { const n = idx(e).length + 1; merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + n - 1 } }); col += n; }); ws['!merges'] = merges;
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock ' + usada);
+    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Nota', S.nota]].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, info, 'Información');
+    const name = `Stock_por_modelo_y_almacen_${usada}.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }); try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
+    XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
+  } catch (e) { msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.'; }
 }
 function unitsData(A) {
   const days = amzDays(A); const months = [...new Set(days.map((r) => r.f.slice(0, 7)))].sort();
@@ -868,6 +959,13 @@ function drawMoves() {
 const AFTER = {
   inventario() {
     const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-isub]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invSub = b.dataset.isub; })));
+    if (state.invSub === 'informes') {
+      document.querySelectorAll('[data-rday]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repFecha = b.dataset.rday; })));
+      document.querySelectorAll('[data-rmes]').forEach((b) => b.addEventListener('click', () => keep(() => { const R = D.informes.stock_modelo; const f = Object.keys(R.fotos).sort(); const cur = state.repMes || (state.repFecha || f[f.length - 1]).slice(0, 7); const d = new Date(Date.UTC(+cur.slice(0, 4), +cur.slice(5, 7) - 1 + (+b.dataset.rmes), 1)); state.repMes = d.toISOString().slice(0, 7); })));
+      const x = $('#repXls'); if (x) x.addEventListener('click', downloadRep);
+      return;
+    }
     document.querySelectorAll('[data-ie]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invEmp = b.dataset.ie; state.invPais = ''; })));
     $('#invPais').addEventListener('change', (e) => keep(() => { state.invPais = e.target.value; }));
     $('#invEstado').addEventListener('change', (e) => keep(() => { state.invEstado = e.target.value; }));
