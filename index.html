@@ -781,32 +781,74 @@ function informesView() {
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="repXls" style="height:44px;padding:0 16px">Descargar Excel</button><span class="mut" id="repMsg" style="font-size:13px"></span></div>
   </section>`;
 }
+let exceljsLoading = null;
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve();
+  if (!exceljsLoading) exceljsLoading = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'; sc.onload = res; sc.onerror = () => { exceljsLoading = null; rej(new Error('lib')); }; document.head.appendChild(sc); });
+  return exceljsLoading;
+}
 async function downloadRep() {
   const msg = $('#repMsg'); msg.textContent = 'Preparando el Excel…';
   try {
-    await loadXLSX();
-    const R = D.informes.stock_modelo; const fechas = Object.keys(R.fotos).sort(); const usada = repFoto(R, state.repFecha || fechas[fechas.length - 1]); const S = R.fotos[usada]; const C = S.columnas;
+    await loadExcelJS();
+    const R = D.informes.stock_modelo; const fechas = Object.keys(R.fotos).sort(); const usada = repFoto(R, state.repFecha || fechas[fechas.length - 1]); const S = R.fotos[usada]; const C = S.columnas; const PR = R.precios || null;
     const emps = [...new Set(C.map((c) => c.empresa))].filter((e) => (state.repEmps || [e]).includes(e)); const idx = (e) => C.map((c, i) => (c.empresa === e ? i : -1)).filter((i) => i >= 0);
-    const h1 = ['Código'], h2 = [''];
-    emps.forEach((e) => { idx(e).forEach((i, k) => { h1.push(k === 0 ? e : ''); h2.push(C[i].nombre); }); h1.push(''); h2.push('Total ' + e); }); h1.push('Total'); h2.push('');
-    const PR = R.precios || null;
-    if (PR) { h1.push('Precio unitario (' + (R.moneda_precio || 'USD') + ')'); h2.push(''); emps.forEach((e) => { h1.push('Valor ' + e); h2.push(''); }); h1.push('Valor total'); h2.push(''); }
-    const line = (lab, vals, price, valsE) => { const r = [lab]; let t = 0; const sums = {}; emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { r.push(vals[i]); s += vals[i]; }); r.push(s); sums[e] = s; t += s; }); r.push(t);
-      if (PR) { r.push(price == null ? '' : price); let vt = 0; emps.forEach((e) => { const v = valsE ? valsE[e] : Math.round((price || 0) * sums[e]); r.push(v); vt += v; }); r.push(Math.round(vt)); } return r; };
-    const valE = (filtro) => Object.fromEntries(emps.map((e) => [e, Math.round(S.filas.filter(filtro).reduce((a, f) => a + (PR ? (PR[f.codigo] || 0) : 0) * idx(e).reduce((b, i) => b + f.valores[i], 0), 0))]));
-    const aoa = [h1, h2].concat(S.filas.map((f) => line(f.codigo, f.valores, PR ? PR[f.codigo] : null)));
-    aoa.push(line('Total reposacabezas', C.map((c, i) => S.filas.filter((f) => f.codigo !== 'CASTER').reduce((a, f) => a + f.valores[i], 0)), null, valE((f) => f.codigo !== 'CASTER')));
-    aoa.push(line('Total con CASTER', C.map((c, i) => S.filas.reduce((a, f) => a + f.valores[i], 0)), null, valE(() => true)));
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 20 }].concat(aoa[1].slice(1).map(() => ({ wch: 13 })));
-    const merges = []; let col = 1; emps.forEach((e) => { const n = idx(e).length + 1; merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + n - 1 } }); col += n; }); ws['!merges'] = merges;
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock ' + usada);
-    const info = XLSX.utils.aoa_to_sheet([['Informe', R.titulo], ['Fecha', usada], ['Empresas', emps.join(', ')], ['Nota', S.nota], ['Precios', R.precio_fuente || '']].concat(C.map((c) => ['Origen ' + c.empresa + ' ' + c.nombre, c.fuente]))); info['!cols'] = [{ wch: 34 }, { wch: 60 }];
-    XLSX.utils.book_append_sheet(wb, info, 'Información');
+    const COLX = { HUNTER: 'FFB8692F', JEER: 'FF3A6E9E', IPAI: 'FF6E5CC9' };
+    const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
+    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const NF = '#,##0;[Red]-#,##0;;@', VF = '#,##0 "US$";[Red]-#,##0 "US$";;@', VP = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@';
+    const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } }; const topMed = { top: { style: 'medium', color: { argb: 'FF11181D' } } };
+    const CL = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now'; const fd = fdate(usada);
+    const ws = wb.addWorksheet('Stock ' + usada, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
+    ws.getCell('A1').value = `${R.titulo} · ${fd.d} ${fd.m} ${usada.slice(0, 4)}`; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = `Empresas: ${emps.join(', ')}. Unidades disponibles. Origen y fecha de cada columna en la hoja «Origen de datos».`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const hr1 = 5, hr2 = 6, r0 = 7;
+    let col = 2; const dc = {}; const tc = {};
+    emps.forEach((e) => { const st = col; idx(e).forEach((i) => { ws.getCell(hr2, col).value = C[i].nombre; dc[i] = col; col++; }); ws.getCell(hr2, col).value = 'Total ' + e; tc[e] = { st, en: col - 1, t: col }; col++;
+      ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = e; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[e]); });
+    const gt = col; const pc = gt + 1; const vc = {}; emps.forEach((e, k) => { vc[e] = pc + 1 + k; }); const vt = pc + emps.length + 1; const lastCol = PR ? vt : gt;
+    const hdr = (c, txt, argb, white) => { ws.mergeCells(hr1, c, hr2, c); const h = ws.getCell(hr1, c); h.value = txt; h.fill = fill(argb); h.font = F({ bold: true, size: 9, color: { argb: white ? 'FFFFFFFF' : 'FF11181D' } }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; };
+    ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Código'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
+    hdr(gt, 'TOTAL', 'FF11181D', true);
+    if (PR) { hdr(pc, `Precio unitario (${R.moneda_precio || 'USD'})`, 'FFE8ECEF', false); emps.forEach((e) => hdr(vc[e], 'Valor ' + e, COLX[e], true)); hdr(vt, 'Valor total (US$)', 'FF2E7D5B', true); }
+    for (let c = 2; c < gt; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (Object.values(tc).some((x) => x.t === c)) h.fill = fill('FFE8ECEF'); }
+    ws.getRow(hr2).height = 42;
+    let r = r0;
+    S.filas.forEach((f) => {
+      ws.getCell(r, 1).value = f.codigo; ws.getCell(r, 1).font = F({ bold: true });
+      let rowTot = 0; const sums = {};
+      emps.forEach((e) => { let s = 0; idx(e).forEach((i) => { const c = ws.getCell(r, dc[i]); c.value = f.valores[i]; c.font = F({ color: { argb: 'FF0000FF' } }); c.numFmt = NF; s += f.valores[i]; });
+        sums[e] = s; rowTot += s; const c = ws.getCell(r, tc[e].t); c.value = { formula: `SUM(${CL(tc[e].st)}${r}:${CL(tc[e].en)}${r})`, result: s }; c.font = F({ bold: true }); c.numFmt = NF; c.fill = fill('FFF2F4F6'); });
+      const g = ws.getCell(r, gt); g.value = { formula: emps.map((e) => `${CL(tc[e].t)}${r}`).join('+'), result: rowTot }; g.font = F({ bold: true }); g.numFmt = NF; g.fill = fill('FFF6E7DA');
+      if (PR) { const p = PR[f.codigo] || 0; const pcell = ws.getCell(r, pc); pcell.value = p; pcell.font = F({ color: { argb: 'FF0000FF' } }); pcell.numFmt = VP; let vtt = 0;
+        emps.forEach((e) => { const v = p * sums[e]; vtt += v; const c = ws.getCell(r, vc[e]); c.value = { formula: `${CL(tc[e].t)}${r}*${CL(pc)}${r}`, result: v }; c.font = F(); c.numFmt = VF; });
+        const c = ws.getCell(r, vt); c.value = { formula: emps.map((e) => `${CL(vc[e])}${r}`).join('+'), result: vtt }; c.font = F({ bold: true }); c.numFmt = VF; c.fill = fill('FFE3F1EA'); }
+      for (let c = 1; c <= lastCol; c++) ws.getCell(r, c).border = thin;
+      r++;
+    });
+    const first = r0, last = r - 1; const castRow = r0 + S.filas.findIndex((f) => f.codigo === 'CASTER');
+    const colsTot = []; for (let c = 2; c <= gt; c++) colsTot.push(c); if (PR) { emps.forEach((e) => colsTot.push(vc[e])); colsTot.push(vt); }
+    [['Total reposacabezas', true], ['Total con CASTER', false]].forEach(([lab, noCast]) => {
+      ws.getCell(r, 1).value = lab; ws.getCell(r, 1).font = F({ bold: true }); ws.getCell(r, 1).border = topMed;
+      colsTot.forEach((c) => { let res = 0; for (let k = first; k <= last; k++) { if (noCast && k === castRow) continue; const v = ws.getCell(k, c).value; res += typeof v === 'object' && v ? (v.result || 0) : (v || 0); }
+        const cell = ws.getCell(r, c); cell.value = { formula: `SUM(${CL(c)}${first}:${CL(c)}${last})${noCast ? `-${CL(c)}${castRow}` : ''}`, result: res }; cell.font = F({ bold: true }); cell.numFmt = c <= gt ? NF : VF; cell.border = topMed; });
+      if (PR) ws.getCell(r, pc).border = topMed;
+      r++;
+    });
+    r++; ws.getCell(r, 1).value = 'Notas'; ws.getCell(r, 1).font = F({ bold: true }); r++;
+    [S.nota, 'Números en azul: datos leídos de cada almacén. Totales en negro: fórmulas.', PR ? (R.precio_fuente + ' Valor = unidades × precio unitario.') : ''].filter(Boolean).forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    ws.getColumn(1).width = 22; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = c <= gt ? 11.5 : 14;
+    const w2 = wb.addWorksheet('Origen de datos'); w2.addRow(['Empresa', 'Columna', 'Origen y fecha del dato']); w2.getRow(1).font = F({ bold: true }); w2.getRow(1).fill = fill('FFE8ECEF');
+    C.filter((c) => emps.includes(c.empresa)).forEach((c) => { const rr = w2.addRow([c.empresa, c.nombre, c.fuente]); rr.font = F(); });
+    w2.getColumn(1).width = 12; w2.getColumn(2).width = 22; w2.getColumn(3).width = 44;
+    const buf = await wb.xlsx.writeBuffer();
     const name = `Stock_por_modelo_y_almacen_${usada}${emps.length < 3 ? '_' + emps.join('-') : ''}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-    if (dl) { const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }); try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
-    XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
-  } catch (e) { msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.'; }
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Descargado: ' + name;
+  } catch (e) { msg.textContent = e.message === 'lib' ? 'No se pudo cargar el generador de Excel. Revisa la conexión.' : 'No se pudo generar el Excel en este navegador.'; console.error(e); }
 }
 function unitsData(A) {
   const days = amzDays(A); const months = [...new Set(days.map((r) => r.f.slice(0, 7)))].sort();
