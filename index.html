@@ -823,7 +823,7 @@ function amzCobModel(id) {
   const AL = (R.almacenes || []).map((a) => Object.assign({}, a, { ci: C.findIndex((c) => c.empresa === a.empresa && c.nombre === a.nombre) })).filter((a) => a.ci >= 0);
   const selIds = (((state.amzWhBy || {})[id]) || AL.map((a) => a.id)).filter((x) => AL.some((a) => a.id === x));
   const sel = AL.filter((a) => (selIds.length ? selIds : AL.map((x) => x.id)).includes(a.id));
-  const per = (state.repPerBy || {})[id] || '30'; const P = R.periodos[per];
+  const per = (state.repPerBy || {})[id] || '90'; const P = R.periodos[per];
   const vend = (a, p, c) => (a.ventas ? ((a.ventas[per][p] || {})[c] || 0) : null);
   const devu = (a, c) => (a.devueltas ? a.paises.reduce((x, p) => x + ((a.devueltas[per][p] || {})[c] || 0), 0) : null);
   const cob = (st, v) => (v ? st / (v / P.dias) : null);
