@@ -373,7 +373,7 @@ async function decrypt(pw) {
 
 let D = null;
 let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'stock', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
+const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -609,8 +609,8 @@ amazon() {
 },
 
 inventario() {
-  const subnav = `<div class="seg" role="group" aria-label="Inventario" style="margin-bottom:12px"><button aria-pressed="${state.invSub !== 'informes'}" data-isub="stock">Stock</button><button aria-pressed="${state.invSub === 'informes'}" data-isub="informes">Informes</button></div>`;
-  if (state.invSub === 'informes') return subnav + informesView();
+  // Submenú Stock eliminado a petición del usuario (2-nov-2026): Inventario muestra solo Informes
+  state.invSub = 'informes'; return informesView();
   return subnav + VIEWS.inventarioStock();
 },
 inventarioStock() {
