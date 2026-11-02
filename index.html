@@ -1008,13 +1008,13 @@ function amzInformesView() {
     return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${body()}</div>` : ''}`; }).join('') + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
 }
 const PAG_ST = { 'Confirmed in bank': 'var(--ok)', 'Amazon deposit date': 'var(--info)', 'Expected date': 'var(--warn)', 'No transfer': 'var(--muted)', Open: 'var(--info)' };
-function pagRows(R) { const acc = state.pagAcc || 'All'; return R.filas.filter((r) => acc === 'All' || r.cuenta === acc); }
+function pagRows(R) { return R.filas; }
 function pagosBody(id) {
   const R = D.informes[id]; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
   const tab = state.pagTab === 'detail' ? 'detail' : 'transfers'; const acc = state.pagAcc || 'All';
   const tabs = `<div class="seg" role="tablist" aria-label="Report tabs" style="margin:4px 0 8px"><button aria-pressed="${tab === 'transfers'}" data-ptab="transfers">Transfers</button><button aria-pressed="${tab === 'detail'}" data-ptab="detail">Line detail</button></div>`;
   const accs = ['All', 'Standard orders', 'Invoiced orders (Amazon Business)'];
-  const accSeg = `<div class="seg wrap" role="group" aria-label="Amazon payment account" style="margin:0 0 10px">${accs.map((k) => `<button aria-pressed="${k === acc}" data-pacc="${k}">${k === 'All' ? 'Both accounts' : k}</button>`).join('')}</div>`;
+  const accSeg = '';
   const rows = pagRows(R).slice().reverse();
   const paid = rows.filter((r) => ['Confirmed in bank', 'Amazon deposit date', 'Expected date'].includes(r.estado));
   const conf = paid.filter((r) => r.estado === 'Confirmed in bank'); const exp = paid.filter((r) => r.estado !== 'Confirmed in bank');
