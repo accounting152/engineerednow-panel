@@ -354,7 +354,7 @@ const compact = (v) => { const a = Math.abs(v); const s = v < 0 ? '−' : ''; if
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const fdate = (s) => { const [y, m, d] = String(s).split('-'); return { d: +d, m: MES[+m - 1] || '', y }; };
 const PCOL = ['#B8692F', '#3A6E9E', '#2F8C7F', '#8B5FBF', '#C2496A', '#5E8A2E', '#D69A1E', '#4A5D9C', '#8A6B52', '#2A9BB5', '#9B4F96'];
-const COL = { HUNTER: 'var(--c-hunter)', JEER: 'var(--c-jeer)', IPAI: 'var(--c-ipai)', VENANDI: 'var(--c-venandi)', VENATOR: 'var(--c-venator)' };
+const COL = { HJ: 'var(--info)', HUNTER: 'var(--c-hunter)', JEER: 'var(--c-jeer)', IPAI: 'var(--c-ipai)', VENANDI: 'var(--c-venandi)', VENATOR: 'var(--c-venator)' };
 const ST = { 'Cuadra': ['ok', 'Cuadra'], 'Explicado por pendientes': ['warn', 'Pendiente de conciliar'], 'Sin conexión bancaria': ['mut', 'Sin conexión'], 'Feed sin actualizar': ['bad', 'Revisar conexión'], 'Descuadre': ['bad', 'Descuadre'] };
 
 /* ---------- crypto ---------- */
@@ -841,10 +841,10 @@ function amzCobBody(id) {
   const R = (D.informes || {})[id]; if (!R || !R.almacenes) return stockModeloBody(id);
   const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M; const CMP = !!R.compacto;
   const fmt = (v) => (v ? nfE(0).format(v) : '');
-  const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" data-rid="${id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
+  const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" data-rid="${id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.etiqueta ? esc(a.etiqueta) : (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' · ' + esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
   const perSeg = `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}" data-rid="${id}">Last ${k} days</button>`).join('')}</div>
     <p class="hint" style="margin:0 0 10px">Net sales from ${fdEN(P.desde).d} ${fdEN(P.desde).m} to ${fdEN(P.hasta).d} ${fdEN(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} days). Tap a warehouse to remove or add it.</p>`;
-  const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${CMP ? 3 : a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
+  const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${CMP ? 3 : a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.etiqueta ? esc(a.etiqueta) : (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' · ' + esc(a.nombre)}</th>`).join('')}</tr>`;
   const g2 = CMP ? `<tr>${sel.map(() => '<th class="te">Stock</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>').join('')}</tr>` : `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Net units sold in ${esc(PEN[p] || p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Units returned (refunded) in the period, already deducted">Returned</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>`).join('')}</tr>`;
   const ng = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
   const cells = (a, st, vs, dv) => { if (CMP) { if (!a.ventas) return `<td class="te">${fmt(st)}</td><td class="te mut">…</td><td class="mut">pending</td>`; const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb"${cobStyle(st, tv, P.dias)}>${cobTxt(st, tv, P.dias)}</td>`; }
@@ -854,13 +854,13 @@ function amzCobBody(id) {
   const codes = S.filas.map((f) => f.codigo); const hr = codes.filter((c) => c !== 'CASTER');
   const filas = codes.map((c) => rowOf(c, c === 'CASTER' ? 'cast' : '', [c])).join('');
   const kp = sel.map((a) => { const st = hr.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c).valores[a.ci] || 0), 0); const v = a.ventas ? hr.reduce((x, c) => x + a.paises.reduce((y, p) => y + (vend(a, p, c) || 0), 0), 0) : null;
-    return `<div class="kpi"><span class="l">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</span><span class="v">${v == null ? '—' : v > 0 ? nfE(0).format(st / (v / P.dias)) + ' days' : 'no sales'}</span><span class="l">${nfE(0).format(st)} in stock · ${v == null ? 'sales pending' : nfE(0).format(v) + ' net in ' + P.dias + ' days'}</span></div>`; }).join('');
+    return `<div class="kpi"><span class="l">${a.etiqueta ? esc(a.etiqueta) : (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' · ' + esc(a.nombre.replace('Amazon ', ''))}</span><span class="v">${v == null ? '—' : v > 0 ? nfE(0).format(st / (v / P.dias)) + ' days' : 'no sales'}</span><span class="l">${nfE(0).format(st)} in stock · ${v == null ? 'sales pending' : nfE(0).format(v) + ' net in ' + P.dias + ' days'}</span></div>`; }).join('');
   const pend = sel.filter((a) => !a.ventas);
   return `<section class="card">
     <h3>${esc(R.titulo)} · stock at ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}</h3>
     ${whChips}${perSeg}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    ${pend.length ? `<p class="hint" style="color:var(--warn)">Country sales pending for ${pend.map((a) => (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre).join(', ')}: Seller Central login needed.</p>` : ''}
+    ${pend.length ? `<p class="hint" style="color:var(--warn)">Country sales pending for ${pend.map((a) => (a.etiqueta || (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' ' + a.nombre)).join(', ')}: Seller Central login needed.</p>` : ''}
     <div class="rtbl-wrap"><table class="rtbl cobt"><thead>${g1}${g2}</thead><tbody>${filas}${rowOf('Total headrests', 'tot', hr)}${rowOf('Total incl. CASTER', 'tot', codes)}</tbody></table></div>
     <p class="hint" style="margin-top:8px">Coverage traffic light: <span class="cb sem" style="background:${cobSem(20).css}">&lt; 90 days</span> <span class="cb sem" style="background:${cobSem(120).css}">90–180</span> <span class="cb sem" style="background:${cobSem(500).css}">&gt; 180</span> (the more extreme the value, the stronger the colour). ${esc(R.cobertura_nota)} ${esc(R.ventas_fuente)} ${esc(S.nota)}</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
@@ -871,7 +871,7 @@ async function downloadCob(id) {
   try {
     await loadExcelJS();
     const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend, devu } = M; const CMP = !!R.compacto;
-    const COLX = { HUNTER: 'FFB8692F', JEER: 'FF3A6E9E', IPAI: 'FF6E5CC9' };
+    const COLX = { HUNTER: 'FFB8692F', JEER: 'FF3A6E9E', IPAI: 'FF6E5CC9', HJ: 'FF3A6E9E' };
     const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
     const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
     const NF = '#,##0;[Red]-#,##0;;@', DF = '#,##0;[Red]-#,##0;0;@';
@@ -884,7 +884,7 @@ async function downloadCob(id) {
     const hr1 = 5, hr2 = 6, r0 = 7; let col = 2; const L = [];
     ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Code'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
     sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; if (!CMP) a.paises.forEach((p) => { ws.getCell(hr2, col).value = PEN[p] || p; o.p[p] = col; col++; }); if (!CMP) { o.d = col; ws.getCell(hr2, col).value = 'Returned (deducted)'; col++; } o.v = col; ws.getCell(hr2, col).value = 'Net'; col++; o.c = col; ws.getCell(hr2, col).value = 'Coverage (days)'; col++;
-      ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre}`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[a.empresa]); L.push(o); });
+      ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = a.etiqueta || `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre}`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[a.empresa]); L.push(o); });
     const lastCol = col - 1;
     for (let c = 2; c <= lastCol; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (L.some((o) => o.s === c || o.v === c)) h.fill = fill('FFE8ECEF'); if (L.some((o) => o.c === c)) h.fill = fill('FFF6E7DA'); }
     ws.getRow(hr2).height = 30;
