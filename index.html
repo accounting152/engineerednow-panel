@@ -754,7 +754,7 @@ function repFoto(R, f) {
 }
 function informesView() {
   const RS = D.informes || {};
-  const list = [{ id: 'stock_modelo', body: () => stockModeloBody('stock_modelo') }, { id: 'stock_amazon', body: () => amzCobBody('stock_amazon') }].filter((x) => RS[x.id]);
+  const list = [{ id: 'stock_modelo', body: () => stockModeloBody('stock_modelo') }, { id: 'stock_amazon', body: () => amzCobBody('stock_amazon') }, { id: 'amazon_cobertura', body: () => amzCobBody('amazon_cobertura') }].filter((x) => RS[x.id]);
   if (!list.length) return '<div class="card mut">No reports yet.</div>';
   return list.map(({ id, body }) => {
     const R = RS[id]; const fechas = Object.keys(R.fotos || {}).sort(); const last = fechas[fechas.length - 1];
@@ -819,9 +819,9 @@ const PAB = { 'Estados Unidos': 'US', 'Canadá': 'Canada', 'México': 'Mexico', 
 function amzCobModel(id) {
   const R = D.informes[id]; const fechas = Object.keys(R.fotos).sort(); const usada = fechas[fechas.length - 1]; const S = R.fotos[usada]; const C = S.columnas;
   const AL = (R.almacenes || []).map((a) => Object.assign({}, a, { ci: C.findIndex((c) => c.empresa === a.empresa && c.nombre === a.nombre) })).filter((a) => a.ci >= 0);
-  const selIds = (state.amzWh || AL.map((a) => a.id)).filter((x) => AL.some((a) => a.id === x));
+  const selIds = (((state.amzWhBy || {})[id]) || AL.map((a) => a.id)).filter((x) => AL.some((a) => a.id === x));
   const sel = AL.filter((a) => (selIds.length ? selIds : AL.map((x) => x.id)).includes(a.id));
-  const per = state.repPer || '30'; const P = R.periodos[per];
+  const per = (state.repPerBy || {})[id] || '30'; const P = R.periodos[per];
   const vend = (a, p, c) => (a.ventas ? ((a.ventas[per][p] || {})[c] || 0) : null);
   const devu = (a, c) => (a.devueltas ? a.paises.reduce((x, p) => x + ((a.devueltas[per][p] || {})[c] || 0), 0) : null);
   const cob = (st, v) => (v ? st / (v / P.dias) : null);
@@ -839,15 +839,16 @@ function cobSem(x) {
 function cobStyle(st, v, d) { if (v == null || v <= 0) return ''; const s = cobSem(st / (v / d)); return s ? ` style="background:${s.css};color:var(--fg)"` : ''; }
 function amzCobBody(id) {
   const R = (D.informes || {})[id]; if (!R || !R.almacenes) return stockModeloBody(id);
-  const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M;
+  const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M; const CMP = !!R.compacto;
   const fmt = (v) => (v ? nfE(0).format(v) : '');
-  const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
-  const perSeg = `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}">Last ${k} days</button>`).join('')}</div>
+  const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" data-rid="${id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
+  const perSeg = `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}" data-rid="${id}">Last ${k} days</button>`).join('')}</div>
     <p class="hint" style="margin:0 0 10px">Net sales from ${fdEN(P.desde).d} ${fdEN(P.desde).m} to ${fdEN(P.hasta).d} ${fdEN(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} days). Tap a warehouse to remove or add it.</p>`;
-  const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
-  const g2 = `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Net units sold in ${esc(PEN[p] || p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Units returned (refunded) in the period, already deducted">Returned</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>`).join('')}</tr>`;
+  const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${CMP ? 3 : a.paises.length + 4}" class="grp" style="border-bottom:3px solid ${COL[a.empresa]}">${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${esc(a.nombre)}</th>`).join('')}</tr>`;
+  const g2 = CMP ? `<tr>${sel.map(() => '<th class="te">Stock</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>').join('')}</tr>` : `<tr>${sel.map((a) => `<th class="te">Stock</th>${a.paises.map((p) => `<th title="Net units sold in ${esc(PEN[p] || p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Units returned (refunded) in the period, already deducted">Returned</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>`).join('')}</tr>`;
   const ng = (v) => (v < 0 ? ' style="color:var(--bad)"' : '');
-  const cells = (a, st, vs, dv) => { if (!a.ventas) return `<td class="te">${fmt(st)}</td>${a.paises.map(() => '<td class="mut">…</td>').join('')}<td class="mut">…</td><td class="te mut">…</td><td class="mut">pending</td>`;
+  const cells = (a, st, vs, dv) => { if (CMP) { if (!a.ventas) return `<td class="te">${fmt(st)}</td><td class="te mut">…</td><td class="mut">pending</td>`; const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb"${cobStyle(st, tv, P.dias)}>${cobTxt(st, tv, P.dias)}</td>`; }
+    if (!a.ventas) return `<td class="te">${fmt(st)}</td>${a.paises.map(() => '<td class="mut">…</td>').join('')}<td class="mut">…</td><td class="te mut">…</td><td class="mut">pending</td>`;
     const tv = vs.reduce((x, y) => x + y, 0); return `<td class="te">${fmt(st)}</td>${vs.map((v) => `<td${ng(v)}>${fmt(v)}</td>`).join('')}<td class="mut">${dv ? '−' + nfE(0).format(dv) : ''}</td><td class="te"${ng(tv)}>${fmt(tv)}</td><td class="cb"${cobStyle(st, tv, P.dias)}>${cobTxt(st, tv, P.dias)}</td>`; };
   const rowOf = (lab, cls, codes) => `<tr class="${cls}"><td class="l">${esc(lab)}</td>${sel.map((a) => { const st = codes.reduce((x, c) => x + (S.filas.find((f) => f.codigo === c) || { valores: [] }).valores[a.ci] || 0, 0); const vs = a.paises.map((p) => codes.reduce((x, c) => x + (vend(a, p, c) || 0), 0)); return cells(a, st, vs, codes.reduce((x, c) => x + (devu(a, c) || 0), 0)); }).join('')}</tr>`;
   const codes = S.filas.map((f) => f.codigo); const hr = codes.filter((c) => c !== 'CASTER');
@@ -869,7 +870,7 @@ async function downloadCob(id) {
   const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS();
-    const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend, devu } = M;
+    const M = amzCobModel(id); const { R, S, sel, per, P, usada, vend, devu } = M; const CMP = !!R.compacto;
     const COLX = { HUNTER: 'FFB8692F', JEER: 'FF3A6E9E', IPAI: 'FF6E5CC9' };
     const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
     const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
@@ -882,7 +883,7 @@ async function downloadCob(id) {
     ws.getCell('A2').value = `Stock at ${fdEN(usada).d} ${fdEN(usada).m} ${usada.slice(0, 4)}. Net sales from ${P.desde} to ${P.hasta} (${P.dias} days). Coverage (days) = stock ÷ (net units ÷ ${P.dias}).`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const hr1 = 5, hr2 = 6, r0 = 7; let col = 2; const L = [];
     ws.mergeCells(hr1, 1, hr2, 1); const c1 = ws.getCell(hr1, 1); c1.value = 'Code'; c1.fill = fill('FF11181D'); c1.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c1.alignment = { horizontal: 'center', vertical: 'middle' };
-    sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; a.paises.forEach((p) => { ws.getCell(hr2, col).value = PEN[p] || p; o.p[p] = col; col++; }); o.d = col; ws.getCell(hr2, col).value = 'Returned (deducted)'; col++; o.v = col; ws.getCell(hr2, col).value = 'Net'; col++; o.c = col; ws.getCell(hr2, col).value = 'Coverage (days)'; col++;
+    sel.forEach((a) => { const st = col; const o = { a, s: col, p: {}, }; ws.getCell(hr2, col).value = 'Stock'; col++; if (!CMP) a.paises.forEach((p) => { ws.getCell(hr2, col).value = PEN[p] || p; o.p[p] = col; col++; }); if (!CMP) { o.d = col; ws.getCell(hr2, col).value = 'Returned (deducted)'; col++; } o.v = col; ws.getCell(hr2, col).value = 'Net'; col++; o.c = col; ws.getCell(hr2, col).value = 'Coverage (days)'; col++;
       ws.mergeCells(hr1, st, hr1, col - 1); const h = ws.getCell(hr1, st); h.value = `${a.empresa === 'HUNTER' ? 'Hunter' : a.empresa} · ${a.nombre}`; h.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center', vertical: 'middle' }; h.fill = fill(COLX[a.empresa]); L.push(o); });
     const lastCol = col - 1;
     for (let c = 2; c <= lastCol; c++) { const h = ws.getCell(hr2, c); h.font = F({ bold: true, size: 9 }); h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.border = { bottom: { style: 'medium', color: { argb: 'FF11181D' } } }; if (L.some((o) => o.s === c || o.v === c)) h.fill = fill('FFE8ECEF'); if (L.some((o) => o.c === c)) h.fill = fill('FFF6E7DA'); }
@@ -894,25 +895,25 @@ async function downloadCob(id) {
       ws.getCell(r, 1).value = f.codigo; ws.getCell(r, 1).font = F({ bold: true });
       L.forEach((o) => { const a = o.a; const st = f.valores[a.ci] || 0; const cs = ws.getCell(r, o.s); cs.value = st; cs.numFmt = NF; cs.font = F({ color: { argb: 'FF0000FF' }, bold: true }); cs.fill = fill('FFF2F4F6');
         if (!a.ventas) { ws.getCell(r, o.c).value = 'pending'; ws.getCell(r, o.c).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } }); return; }
-        let tv = 0; a.paises.forEach((p) => { const v = vend(a, p, f.codigo) || 0; tv += v; const c = ws.getCell(r, o.p[p]); c.value = v; c.numFmt = NF; c.font = F({ color: { argb: 'FF0000FF' } }); });
-        const cd = ws.getCell(r, o.d); cd.value = devu(a, f.codigo) || 0; cd.numFmt = NF; cd.font = F({ color: { argb: 'FF5F6E79' }, italic: true });
-        const cv = ws.getCell(r, o.v); cv.value = { formula: `SUM(${CL(o.s + 1)}${r}:${CL(o.d - 1)}${r})`, result: tv }; cv.numFmt = NF; cv.font = F({ bold: true }); cv.fill = fill('FFF2F4F6');
+        let tv = 0; a.paises.forEach((p) => { const v = vend(a, p, f.codigo) || 0; tv += v; if (CMP) return; const c = ws.getCell(r, o.p[p]); c.value = v; c.numFmt = NF; c.font = F({ color: { argb: 'FF0000FF' } }); });
+        const cv = ws.getCell(r, o.v); cv.numFmt = NF; cv.fill = fill('FFF2F4F6');
+        if (CMP) { cv.value = tv; cv.font = F({ bold: true, color: { argb: 'FF0000FF' } }); } else { const cd = ws.getCell(r, o.d); cd.value = devu(a, f.codigo) || 0; cd.numFmt = NF; cd.font = F({ color: { argb: 'FF5F6E79' }, italic: true }); cv.value = { formula: `SUM(${CL(o.s + 1)}${r}:${CL(o.d - 1)}${r})`, result: tv }; cv.font = F({ bold: true }); }
         const cc = ws.getCell(r, o.c); cc.value = { formula: cobF(o, r), result: cobR(st, tv) }; cc.numFmt = DF; cc.font = F({ bold: true }); const sm = tv > 0 ? cobSem(st / (tv / P.dias)) : null; cc.fill = fill(sm ? sm.argb : 'FFFBF3EC'); });
       for (let c = 1; c <= lastCol; c++) ws.getCell(r, c).border = thin; r++; });
     const first = r0, last = r - 1; const castRow = r0 + S.filas.findIndex((f) => f.codigo === 'CASTER');
     [['Total headrests', true], ['Total incl. CASTER', false]].forEach(([lab, noCast]) => {
       ws.getCell(r, 1).value = lab; ws.getCell(r, 1).font = F({ bold: true }); ws.getCell(r, 1).border = topMed;
-      L.forEach((o) => { const cs = [o.s, ...Object.values(o.p), o.d, o.v]; const res = {};
+      L.forEach((o) => { const cs = [o.s, ...Object.values(o.p), o.d, o.v].filter((x) => x != null); const res = {};
         cs.forEach((c) => { if (!o.a.ventas && c !== o.s) return; let x = 0; for (let k = first; k <= last; k++) { if (noCast && k === castRow) continue; const v = ws.getCell(k, c).value; x += typeof v === 'object' && v ? (v.result || 0) : (v || 0); } res[c] = x;
           const cell = ws.getCell(r, c); cell.value = { formula: `SUM(${CL(c)}${first}:${CL(c)}${last})${noCast && castRow >= first ? `-${CL(c)}${castRow}` : ''}`, result: x }; cell.numFmt = NF; cell.font = F({ bold: true }); cell.border = topMed; });
         const cc = ws.getCell(r, o.c); cc.border = topMed; if (o.a.ventas) { cc.value = { formula: cobF(o, r), result: cobR(res[o.s], res[o.v]) }; cc.numFmt = DF; cc.font = F({ bold: true }); const sm = res[o.v] > 0 ? cobSem(res[o.s] / (res[o.v] / P.dias)) : null; cc.fill = fill(sm ? sm.argb : 'FFF6E7DA'); } });
       r++; });
     r++; ws.getCell(r, 1).value = 'Notes'; ws.getCell(r, 1).font = F({ bold: true }); r++;
-    [R.cobertura_nota, R.ventas_fuente, S.nota, 'Coverage traffic light: red < 90 days, orange 90–180, green > 180 (stronger colour for more extreme values). Countries: net units (ordered − returned). Blue numbers: Amazon data. Net, totals and coverage: formulas. Empty coverage = no net sales in the period.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: country sales still to be downloaded.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    [R.cobertura_nota, R.ventas_fuente, S.nota, CMP ? 'Coverage traffic light: red < 90 days, orange 90–180, green > 180 (stronger colour for more extreme values). Net = units ordered − units returned, all countries served by the warehouse. Blue numbers: Amazon data. Totals and coverage: formulas. Empty coverage = no net sales in the period.' : 'Coverage traffic light: red < 90 days, orange 90–180, green > 180 (stronger colour for more extreme values). Countries: net units (ordered − returned). Blue numbers: Amazon data. Net, totals and coverage: formulas. Empty coverage = no net sales in the period.', ...sel.filter((a) => !a.ventas).map((a) => `${a.empresa} ${a.nombre}: country sales still to be downloaded.`)].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
     ws.getColumn(1).width = 20; for (let c = 2; c <= lastCol; c++) ws.getColumn(c).width = L.some((o) => o.c === c) ? 12 : 10;
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
     const buf = await wb.xlsx.writeBuffer();
-    const name = `Amazon_stock_coverage_${per}d_${usada}.xlsx`;
+    const name = `${CMP ? 'Amazon_stock_and_warehouses' : 'Amazon_stock_coverage'}_${per}d_${usada}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -1162,9 +1163,9 @@ const AFTER = {
       document.querySelectorAll('[data-remp]').forEach((b) => b.addEventListener('click', () => keep(() => { const e = b.dataset.remp; const rid = b.dataset.rid; const all = b.dataset.rall.split(','); state.repEmpsBy = Object.assign({}, state.repEmpsBy); const cur = state.repEmpsBy[rid] || all; if (cur.includes(e)) { if (cur.length > 1) state.repEmpsBy[rid] = cur.filter((x) => x !== e); } else state.repEmpsBy[rid] = all.filter((x) => cur.includes(x) || x === e); })));
       document.querySelectorAll('[data-rday]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repFecha = b.dataset.rday; })));
       document.querySelectorAll('[data-rmes]').forEach((b) => b.addEventListener('click', () => keep(() => { const R = D.informes[b.dataset.rid]; const f = Object.keys(R.fotos).sort(); const cur = state.repMes || (state.repFecha || f[f.length - 1]).slice(0, 7); const d = new Date(Date.UTC(+cur.slice(0, 4), +cur.slice(5, 7) - 1 + (+b.dataset.rmes), 1)); state.repMes = d.toISOString().slice(0, 7); })));
-      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'stock_amazon' && D.informes.stock_amazon.almacenes ? downloadCob : downloadRep)(x.dataset.rxls)));
-      document.querySelectorAll('[data-awh]').forEach((b) => b.addEventListener('click', () => keep(() => { const all = D.informes.stock_amazon.almacenes.map((a) => a.id); const cur = state.amzWh || all; const k = b.dataset.awh; state.amzWh = cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : all.filter((x) => cur.includes(x) || x === k); })));
-      document.querySelectorAll('[data-aper]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repPer = b.dataset.aper; })));
+      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => ((D.informes[x.dataset.rxls] || {}).almacenes ? downloadCob : downloadRep)(x.dataset.rxls)));
+      document.querySelectorAll('[data-awh]').forEach((b) => b.addEventListener('click', () => keep(() => { const rid = b.dataset.rid; const all = D.informes[rid].almacenes.map((a) => a.id); state.amzWhBy = Object.assign({}, state.amzWhBy); const cur = state.amzWhBy[rid] || all; const k = b.dataset.awh; state.amzWhBy[rid] = cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : all.filter((x) => cur.includes(x) || x === k); })));
+      document.querySelectorAll('[data-aper]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repPerBy = Object.assign({}, state.repPerBy, { [b.dataset.rid]: b.dataset.aper }); })));
       return;
     }
     document.querySelectorAll('[data-ie]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invEmp = b.dataset.ie; state.invPais = ''; })));
