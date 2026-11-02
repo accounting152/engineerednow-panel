@@ -1011,8 +1011,8 @@ const PAG_ST = { 'Confirmed in bank': 'var(--ok)', 'Amazon deposit date': 'var(-
 function pagRows(R) { const acc = state.pagAcc || 'All'; return R.filas.filter((r) => acc === 'All' || r.cuenta === acc); }
 function pagosBody(id) {
   const R = D.informes[id]; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
-  const tab = state.pagTab || 'transfers'; const acc = state.pagAcc || 'All';
-  const tabs = `<div class="seg" role="tablist" aria-label="Report tabs" style="margin:4px 0 8px"><button aria-pressed="${tab === 'transfers'}" data-ptab="transfers">Transfers</button><button aria-pressed="${tab === 'breakdown'}" data-ptab="breakdown">Payment breakdown</button><button aria-pressed="${tab === 'detail'}" data-ptab="detail">Line detail</button></div>`;
+  const tab = state.pagTab === 'detail' ? 'detail' : 'transfers'; const acc = state.pagAcc || 'All';
+  const tabs = `<div class="seg" role="tablist" aria-label="Report tabs" style="margin:4px 0 8px"><button aria-pressed="${tab === 'transfers'}" data-ptab="transfers">Transfers</button><button aria-pressed="${tab === 'detail'}" data-ptab="detail">Line detail</button></div>`;
   const accs = ['All', 'Standard orders', 'Invoiced orders (Amazon Business)'];
   const accSeg = `<div class="seg wrap" role="group" aria-label="Amazon payment account" style="margin:0 0 10px">${accs.map((k) => `<button aria-pressed="${k === acc}" data-pacc="${k}">${k === 'All' ? 'Both accounts' : k}</button>`).join('')}</div>`;
   const rows = pagRows(R).slice().reverse();
@@ -1059,7 +1059,7 @@ function pagosBody(id) {
   }
   return `<section class="card"><h3>${esc(R.titulo)}</h3>${tabs}${accSeg}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>${main}
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">One file with the transfers, the breakdown and one sheet per payment with every line.</span></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">One file with two sheets: Transfers and Line detail (one row per transaction, ready to filter).</span></div>
   </section>`;
 }
 async function downloadPagos(id) {
@@ -1081,48 +1081,33 @@ async function downloadPagos(id) {
     for (let k = 6; k <= 10; k++) { const col = String.fromCharCode(64 + k); const c = ws.getCell(r, k); c.value = { formula: `SUM(${col}${first}:${col}${r - 1})`, result: closed.reduce((a, x) => a + [x.ventas, x.reembolsos, x.gastos, x.otros, x.importe][k - 6], 0) }; c.numFmt = MF; c.font = F({ bold: true }); c.border = { top: { style: 'medium', color: { argb: 'FF11181D' } } }; }
     [16, 11, 30, 14, 14, 14, 13, 14, 15, 18].forEach((w, k) => { ws.getColumn(k + 1).width = w; });
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-    // Sheet 2: breakdown
-    const w2 = wb.addWorksheet('Payment breakdown', { views: [{ state: 'frozen', ySplit: 4 }] });
-    w2.getCell('A1').value = 'Payment breakdown · Amazon US (Hunter) · 2026'; w2.getCell('A1').font = F({ bold: true, size: 14 }); w2.getCell('A2').value = R.nota_desglose; w2.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
-    hdr(w2, 4, ['Date in Wells Fargo', 'Account', 'Settlement start', 'Settlement end', 'Group', 'Concept', 'Amount', 'Status']);
-    r = 5;
-    rows.forEach((x) => { const hr = r; const vals = [D8(x.fecha_banco || x.fecha_estimada), x.cuenta, D8(x.periodo[0]), D8(x.periodo[1]), 'PAYMENT', x.estado === 'Open' ? 'Open settlement (not paid yet)' : 'Payment to Wells Fargo 2309', null, x.estado];
-      vals.forEach((v, k) => { const c = w2.getCell(hr, k + 1); c.value = v; c.font = F({ bold: true }); c.fill = fill('FFE8ECEF'); if ([0, 2, 3].includes(k)) c.numFmt = 'dd-mmm-yyyy'; });
-      r++; const s0 = r;
-      x.lineas.forEach((l) => { w2.getCell(r, 5).value = l.grupo; w2.getCell(r, 6).value = l.concepto; const c = w2.getCell(r, 7); c.value = l.importe; c.numFmt = MF; c.font = F({ color: { argb: 'FF0000FF' } }); for (let k = 1; k <= 8; k++) { w2.getCell(r, k).border = thin; if (k !== 7) w2.getCell(r, k).font = F(); } r++; });
-      const t = w2.getCell(hr, 7); t.value = { formula: `SUM(G${s0}:G${r - 1})`, result: x.importe }; t.numFmt = MF; t.font = F({ bold: true }); t.fill = fill('FFE8ECEF');
-      r++; });
-    [16, 30, 14, 14, 16, 52, 16, 16].forEach((w, k) => { w2.getColumn(k + 1).width = w; });
-    w2.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-    // Sheets 3+: line detail per payment
+    // Sheet 2: line detail as one database table (one row per transaction line, all 2026 payments)
     const GX = { PAYMENT: 'FF11181D', Sales: 'FF2E7D5B', Refunds: 'FFC9402F', Expenses: 'FFB8692F', Reserve: 'FF3A6E9E', 'Sales tax': 'FF5F6E79' };
     const CLx = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-    const used = new Set();
-    rows.filter((x) => x.detalle).slice().sort((a, b) => a.detalle.deposito.localeCompare(b.detalle.deposito)).forEach((x) => {
-      const Dd = x.detalle; const C = Dd.cols; let nm = `${Dd.deposito} ${x.cuenta.startsWith('Standard') ? 'Std' : 'Business'} ${Dd.total.toFixed(2)}`.slice(0, 31); while (used.has(nm)) nm = nm.slice(0, 29) + '_2'; used.add(nm);
-      const w = wb.addWorksheet(nm, { views: [{ state: 'frozen', xSplit: 7, ySplit: 4 }] }); const C0 = 8; const n = C.length; const uc = C0 + n, mc = uc + 1, dc = uc + 2;
-      w.getCell(1, 7).value = 'PAYMENT'; w.getCell(1, 7).fill = fill(GX.PAYMENT); w.getCell(1, 7).font = F({ bold: true, size: 9, color: { argb: 'FFFFFFFF' } });
-      C.forEach((c, i) => { const h = w.getCell(1, C0 + i); h.value = c[0]; h.fill = fill(GX[c[0]] || 'FF5F6E79'); h.font = F({ bold: true, size: 9, color: { argb: 'FFFFFFFF' } }); h.alignment = { horizontal: 'center' }; });
-      ['Date in Wells Fargo', 'Account', 'Settlement start', 'Settlement end', 'Group', 'Concept', 'Payment to Wells Fargo 2309'].concat(C.map((c) => c[1]), ['Units (sold + / returned −)', 'Own order no. (MCF)', 'Amazon description']).forEach((h, k) => { const c = w.getCell(2, k + 1); c.value = h; c.font = F({ bold: true, size: 9 }); c.fill = fill('FFE8ECEF'); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
-      w.getRow(2).height = 54;
-      ['Posted date', 'Channel', 'Order ID', 'SKU', 'Transaction type', 'Model', 'Line total'].forEach((h, k) => { const c = w.getCell(4, k + 1); c.value = h; c.font = F({ bold: true, size: 9, color: { argb: 'FFFFFFFF' } }); });
-      for (let c = 1; c <= dc; c++) w.getCell(4, c).fill = fill('FF5F6E79');
-      let rr = 5; const tot = new Array(n).fill(0); let un = 0;
-      Dd.lineas.forEach((l) => { [D8(l[0]), l[2], l[3], l[4], l[1], l[5]].forEach((v, k) => { const c = w.getCell(rr, k + 1); c.value = v; c.font = F({ size: 9 }); if (k === 0) c.numFmt = 'dd-mmm-yyyy'; });
-        const lt = l[9].reduce((a, b) => a + b, 0); const g = w.getCell(rr, 7); g.value = { formula: `SUM(${CLx(C0)}${rr}:${CLx(C0 + n - 1)}${rr})`, result: lt }; g.numFmt = MF; g.font = F({ size: 9, bold: true });
-        l[9].forEach((v, i) => { tot[i] += v; if (v) { const c = w.getCell(rr, C0 + i); c.value = v; c.numFmt = MF; c.font = F({ size: 9, color: { argb: 'FF0000FF' } }); } });
-        if (l[6]) { const c = w.getCell(rr, uc); c.value = l[6]; c.numFmt = '0;[Red]-0;;@'; c.font = F({ size: 9 }); un += l[6]; }
-        if (l[7]) w.getCell(rr, mc).value = l[7]; if (l[8]) { w.getCell(rr, dc).value = l[8]; w.getCell(rr, dc).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); }
-        for (let c = 1; c <= dc; c++) w.getCell(rr, c).border = thin; rr++; });
-      const last = rr - 1;
-      [D8(x.fecha_banco || x.fecha_estimada || Dd.deposito), x.cuenta, D8(x.periodo[0]), D8(x.periodo[1]), 'PAYMENT', 'Payment to Wells Fargo 2309'].forEach((v, k) => { const c = w.getCell(3, k + 1); c.value = v; c.font = F({ bold: true }); c.fill = fill('FFFFF2CC'); if ([0, 2, 3].includes(k)) c.numFmt = 'dd-mmm-yyyy'; });
-      for (let c = 7; c < C0 + n; c++) { const cl = CLx(c); const cell = w.getCell(3, c); cell.value = { formula: `SUM(${cl}5:${cl}${last})`, result: c === 7 ? tot.reduce((a, b) => a + b, 0) : tot[c - C0] }; cell.numFmt = MF; cell.font = F({ bold: true }); cell.fill = fill('FFFFF2CC'); }
-      const uu = w.getCell(3, uc); uu.value = { formula: `SUM(${CLx(uc)}5:${CLx(uc)}${last})`, result: un }; uu.font = F({ bold: true }); uu.fill = fill('FFFFF2CC');
-      rr = last + 2; w.getCell(rr, 1).value = 'Amount paid by Amazon'; w.getCell(rr, 7).value = Dd.total; w.getCell(rr, 7).numFmt = MF; rr++;
-      w.getCell(rr, 1).value = 'Difference'; w.getCell(rr, 7).value = { formula: `G3-G${rr - 1}`, result: 0 }; w.getCell(rr, 7).numFmt = MF; w.getCell(rr, 7).font = F({ bold: true }); rr += 2;
-      w.getCell(rr, 1).value = `Source: Amazon V2 settlement report ${Dd.id}. Each line is in the same column as the payment row; every column of the payment row is the sum of the lines. Sales tax columns cancel out (Amazon collects and remits it). Units: + sold, − returned.`; w.getCell(rr, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } });
-      [12, 16, 21, 15, 24, 9, 13].forEach((wd, k) => { w.getColumn(k + 1).width = wd; }); for (let c = C0; c < C0 + n; c++) w.getColumn(c).width = 12.5; w.getColumn(uc).width = 10; w.getColumn(dc).width = 40;
-    });
+    const DR = rows.filter((x) => x.detalle).slice().sort((a, b) => (a.detalle.deposito + a.cuenta).localeCompare(b.detalle.deposito + b.cuenta));
+    const GO = ['Sales', 'Refunds', 'Expenses', 'Reserve', 'Sales tax']; const keyOf = (c) => c[0] + '|' + c[1]; const allC = []; const seen = new Set();
+    GO.forEach((gname) => DR.forEach((x) => x.detalle.cols.forEach((c) => { if (c[0] === gname && !seen.has(keyOf(c))) { seen.add(keyOf(c)); allC.push(c); } })));
+    DR.forEach((x) => x.detalle.cols.forEach((c) => { if (!seen.has(keyOf(c))) { seen.add(keyOf(c)); allC.push(c); } }));
+    const lbl = (c) => (c[0] === 'Sales tax' || c[0] === 'Reserve' || c[1].startsWith('Other') ? c[0] + ': ' + c[1] : c[1]);
+    const w2 = wb.addWorksheet('Line detail', { views: [{ state: 'frozen', xSplit: 12, ySplit: 1 }] });
+    const pre = ['Payment date (Wells Fargo)', 'Account', 'Settlement start', 'Settlement end', 'Settlement ID', 'Posted date', 'Channel', 'Order ID', 'SKU', 'Transaction type', 'Model', 'Line total'];
+    const post = ['Units (sold + / returned −)', 'Own order no. (MCF)', 'Amazon description', 'Total Sales', 'Total Refunds', 'Total Expenses'];
+    const HH = pre.concat(allC.map(lbl), post); const C0 = pre.length + 1, CN = C0 + allC.length - 1, uc = CN + 1, ts = CN + 4;
+    HH.forEach((h, k) => { const c = w2.getCell(1, k + 1); c.value = h; const g = k + 1 >= C0 && k + 1 <= CN ? allC[k + 1 - C0][0] : h === 'Total Sales' ? 'Sales' : h === 'Total Refunds' ? 'Refunds' : h === 'Total Expenses' ? 'Expenses' : 'PAYMENT'; c.fill = fill(GX[g] || 'FF5F6E79'); c.font = F({ bold: true, size: 9, color: { argb: 'FFFFFFFF' } }); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
+    w2.getRow(1).height = 66;
+    const gcols = (gname) => allC.map((c, i) => (c[0] === gname ? C0 + i : 0)).filter(Boolean);
+    let rr = 2;
+    DR.forEach((x) => { const Dd = x.detalle; const pos = Dd.cols.map((c) => allC.findIndex((a) => keyOf(a) === keyOf(c)));
+      Dd.lineas.forEach((l) => { [D8(x.fecha_banco || x.fecha_estimada || Dd.deposito), x.cuenta, D8(x.periodo[0]), D8(x.periodo[1]), Dd.id, D8(l[0]), l[2], l[3], l[4], l[1], l[5]].forEach((v, k) => { const c = w2.getCell(rr, k + 1); c.value = v; c.font = F({ size: 9 }); if ([0, 2, 3, 5].includes(k)) c.numFmt = 'dd-mmm-yyyy'; });
+        const lt = l[9].reduce((a, b) => a + b, 0); const g = w2.getCell(rr, 12); g.value = { formula: `SUM(${CLx(C0)}${rr}:${CLx(CN)}${rr})`, result: lt }; g.numFmt = MF; g.font = F({ size: 9, bold: true });
+        const sums = { Sales: 0, Refunds: 0, Expenses: 0 };
+        l[9].forEach((v, i) => { if (v) { const c = w2.getCell(rr, C0 + pos[i]); c.value = v; c.numFmt = MF; c.font = F({ size: 9, color: { argb: 'FF0000FF' } }); if (sums[Dd.cols[i][0]] !== undefined) sums[Dd.cols[i][0]] += v; } });
+        if (l[6]) { const c = w2.getCell(rr, uc); c.value = l[6]; c.numFmt = '0;[Red]-0;;@'; c.font = F({ size: 9 }); }
+        if (l[7]) w2.getCell(rr, uc + 1).value = l[7]; if (l[8]) { w2.getCell(rr, uc + 2).value = l[8]; w2.getCell(rr, uc + 2).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); }
+        ['Sales', 'Refunds', 'Expenses'].forEach((gname, j) => { const cs = gcols(gname); const c = w2.getCell(rr, ts + j); c.value = cs.length ? { formula: cs.map((k) => CLx(k) + rr).join('+'), result: sums[gname] } : 0; c.numFmt = MF; c.font = F({ size: 9, bold: true }); });
+        rr++; }); });
+    [12, 28, 12, 12, 13, 12, 20, 21, 15, 24, 8, 12].forEach((wd, k) => { w2.getColumn(k + 1).width = wd; }); for (let c = C0; c <= ts + 2; c++) w2.getColumn(c).width = 13; w2.getColumn(uc + 2).width = 40;
+    if (rr > 2) w2.autoFilter = { from: { row: 1, column: 1 }, to: { row: rr - 1, column: HH.length } };
     const buf = await wb.xlsx.writeBuffer(); const name = 'Amazon_US_transfers_Wells_Fargo_2026.xlsx';
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
