@@ -756,11 +756,12 @@ function repFoto(R, f) {
 }
 function informesView() {
   const RS = D.informes || {};
-  const list = [{ id: 'stock_modelo', body: () => stockModeloBody('stock_modelo') }, { id: 'stock_amazon', body: () => amzCobBody('stock_amazon') }, { id: 'amazon_cobertura', body: () => amzCobBody('amazon_cobertura') }].filter((x) => RS[x.id]);
+  const list = [{ id: 'stock_modelo', body: () => stockModeloBody('stock_modelo') }, { id: 'stock_amazon', body: () => amzCobBody('stock_amazon') }, { id: 'amazon_cobertura', body: () => amzCobBody('amazon_cobertura') }, { id: 'plan_produccion', body: () => planBody('plan_produccion') }].filter((x) => RS[x.id]);
   if (!list.length) return '<div class="card mut">No reports yet.</div>';
   return list.map(({ id, body }) => {
     const R = RS[id]; const fechas = Object.keys(R.fotos || {}).sort(); const last = fechas[fechas.length - 1];
     let sub = '';
+    if (R.filas && !R.fotos) { const n = R.filas.filter((f) => f.fecha_producir).sort((x, y) => x.fecha_producir.localeCompare(y.fecha_producir))[0]; sub = n ? `Next production: ${n.codigo} (${n.fabrica}) by ${fdEN(n.fecha_producir).d} ${fdEN(n.fecha_producir).m} ${n.fecha_producir.slice(0, 4)}` : ''; }
     if (last) { const S = R.fotos[last]; const u = S.filas.reduce((a, f) => a + f.valores.reduce((b, v) => b + v, 0), 0); const val = R.precios ? S.filas.reduce((a, f) => a + (R.precios[f.codigo] || 0) * f.valores.reduce((b, v) => b + v, 0), 0) : null;
       sub = `Latest snapshot: ${fdEN(last).d} ${fdEN(last).m} ${last.slice(0, 4)} · ${nfE(0).format(u)} units${val != null ? ' · ' + moneyE(val, R.moneda_precio || 'USD', 0) : ''}`; }
     const open = !!(state.repOpen || {})[id];
@@ -917,6 +918,77 @@ async function downloadCob(id) {
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }; ws.pageSetup.printTitlesRow = '5:6';
     const buf = await wb.xlsx.writeBuffer();
     const name = `${CMP ? 'Amazon_stock_and_warehouses' : 'Amazon_stock_coverage'}_${per}d_${usada}.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
+}
+const PLST = { 'Produce now': { c: 'var(--bad)', a: 'FFEF8A80' }, 'Within 30 days': { c: 'var(--warn)', a: 'FFFBC27A' }, 'Within 90 days': { c: 'var(--info)', a: 'FFFDDAA6' }, OK: { c: 'var(--ok)', a: 'FFD3EDD4' }, 'No sales': { c: 'var(--muted)', a: 'FFE8ECEF' } };
+function planBody(id) {
+  const R = D.informes[id]; const fab = (state.planFab || {})[id] || 'All';
+  const rows = R.filas.filter((f) => fab === 'All' || f.fabrica === fab);
+  const fmt = (v) => (v ? nfE(0).format(v) : '');
+  const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
+  const seg = `<div class="seg" role="group" aria-label="Factory" style="margin:4px 0 8px">${['All', 'China', 'Taiwan'].map((k) => `<button aria-pressed="${k === fab}" data-pfab="${k}" data-rid="${id}">${k === 'All' ? 'All factories' : k}</button>`).join('')}</div>`;
+  const cnt = (st) => rows.filter((f) => f.estado === st).length;
+  const kp = ['Produce now', 'Within 30 days', 'Within 90 days', 'OK'].map((st) => `<div class="kpi"><span class="l">${st}</span><span class="v" style="color:${PLST[st].c}">${cnt(st)}</span><span class="l">models${st === 'OK' ? ' (more than 90 days to go)' : ' · ' + nfE(0).format(rows.filter((f) => f.estado === st).reduce((a, f) => a + f.cantidad, 0)) + ' units to produce'}</span></div>`).join('');
+  const nextBy = (fb) => R.filas.filter((f) => f.fecha_producir && f.fabrica === fb).sort((x, y) => x.fecha_producir.localeCompare(y.fecha_producir))[0];
+  const nx = ['China', 'Taiwan'].filter((fb) => fab === 'All' || fab === fb).map((fb) => { const n = nextBy(fb); return n ? `<div class="kpi"><span class="l">Next production · ${fb}</span><span class="v" style="font-size:20px">${fd(n.fecha_producir)}</span><span class="l">${esc(n.codigo)} · ${nfE(0).format(n.cantidad)} units suggested</span></div>` : ''; }).join('');
+  const shipNow = rows.flatMap((f) => f.regiones.filter((r) => r.enviar_ya).map((r) => `${f.codigo} → ${r.id}`));
+  const regs = R.regiones;
+  const g1 = `<tr><th class="l" rowspan="2">Code</th><th rowspan="2">Factory</th><th rowspan="2" class="te">Net sold 2026</th><th rowspan="2">Units / day</th>${regs.map((r) => `<th colspan="2" class="grp gs">${esc(r.nombre)}</th>`).join('')}<th colspan="2" class="grp gs">Asia stock</th><th rowspan="2" class="te gs">Total cover (days)</th><th rowspan="2" class="cbh">Start production by</th><th rowspan="2">Status</th><th rowspan="2" class="te" title="Next production batch: 180 days of sales (+ any shortfall), full cartons">Next batch (units)</th></tr>`;
+  const g2 = `<tr>${regs.map(() => '<th class="gs">Stock</th><th>Cover (days)</th>').join('')}<th class="gs">China</th><th>Taiwan</th></tr>`;
+  const body = rows.map((f) => { const st = PLST[f.estado] || PLST['No sales'];
+    const rc = f.regiones.map((r) => { const warn = r.rotura_antes_envio ? ' style="background:hsla(4,78%,52%,.45)" title="Runs out before a shipment from Asia can arrive"' : r.enviar_ya ? ' style="background:hsla(32,92%,52%,.35)" title="Runs out before new production can arrive: ship from Asia stock"' : '';
+      return `<td class="gs">${fmt(r.stock)}</td><td${warn}>${r.cobertura == null ? (r.stock ? 'No sales' : '') : nfE(0).format(r.cobertura)}</td>`; }).join('');
+    return `<tr class="${f.codigo === 'CASTER' ? 'cast' : ''}"><td class="l">${esc(f.codigo)}</td><td>${f.fabrica}</td><td class="te">${fmt(f.netas_2026)}</td><td>${f.diarias ? nfE(2).format(f.diarias) : ''}</td>${rc}<td class="gs"${f.stock_china < 0 ? ' style="color:var(--bad)"' : ''}>${fmt(f.stock_china)}</td><td>${fmt(f.stock_taiwan)}</td><td class="te gs">${f.cobertura_total == null ? '' : nfE(0).format(f.cobertura_total)}</td><td class="cb" style="${f.fecha_producir ? `background:${st.c === 'var(--muted)' ? 'transparent' : st.c};color:#fff` : ''}">${fd(f.fecha_producir)}</td><td style="color:${st.c};font-weight:700">${f.estado}</td><td class="te">${fmt(f.cantidad)}</td></tr>`; }).join('');
+  return `<section class="card">
+    <h3>${esc(R.titulo)} · stock at ${fd(R.fecha_stock)}</h3>
+    ${seg}
+    <p class="hint" style="margin:0 0 10px">Demand: net units sold on Amazon, ${fd(R.periodo_ventas[0])} – ${fd(R.periodo_ventas[1])} (${R.dias_ventas} days). Lead time: 6 weeks production + 5 weeks shipping to US, UK and Europe (77 days) or 2 weeks to Japan (56 days).</p>
+    <section class="kpis" style="margin:6px 0 12px">${nx}${kp}</section>
+    ${shipNow.length ? `<p class="hint" style="color:var(--warn)"><b>Ship from Asia stock now</b> (region runs out before new production could arrive): ${esc(shipNow.join(' · '))}.</p>` : ''}
+    <div class="rtbl-wrap"><table class="rtbl cobt"><thead>${g1}${g2}</thead><tbody>${body}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">Regional cover: <span class="cb sem" style="background:hsla(4,78%,52%,.45)">red</span> = runs out before a shipment from Asia can arrive (5 weeks; 2 weeks to Japan); <span class="cb sem" style="background:hsla(32,92%,52%,.35)">orange</span> = runs out before new production can arrive, so ship from Asia stock now. ${esc(R.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>
+  </section>`;
+}
+async function downloadPlan(id) {
+  const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS();
+    const R = D.informes[id]; const fab = (state.planFab || {})[id] || 'All'; const rows = R.filas.filter((f) => fab === 'All' || f.fabrica === fab);
+    const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const NF = '#,##0;[Red]-#,##0;;@'; const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } };
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now'; const ws = wb.addWorksheet('Production plan', { views: [{ state: 'frozen', xSplit: 1, ySplit: 5 }] });
+    ws.getCell('A1').value = `${R.titulo} · stock at ${R.fecha_stock}${fab !== 'All' ? ' · ' + fab : ''}`; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = `Demand: net units sold on Amazon ${R.periodo_ventas[0]} to ${R.periodo_ventas[1]} (${R.dias_ventas} days). Lead time: 6 weeks production + 5 weeks shipping to US/UK/Europe (77 days), 2 weeks to Japan (56 days).`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const regs = R.regiones; const h1 = 4, h2 = 5; let col = 1;
+    const single = (t) => { ws.mergeCells(h1, col, h2, col); const c = ws.getCell(h1, col); c.value = t; col++; return col - 1; };
+    const cCode = single('Code'), cFab = single('Factory'), cNet = single('Net sold 2026'), cDay = single('Units / day');
+    const RC = regs.map((r) => { const s = col; ws.mergeCells(h1, s, h1, s + 1); ws.getCell(h1, s).value = r.nombre; ws.getCell(h2, s).value = 'Stock'; ws.getCell(h2, s + 1).value = 'Cover (days)'; col += 2; return s; });
+    const cA = col; ws.mergeCells(h1, cA, h1, cA + 1); ws.getCell(h1, cA).value = 'Asia stock'; ws.getCell(h2, cA).value = 'China'; ws.getCell(h2, cA + 1).value = 'Taiwan'; col += 2;
+    const cTot = single('Total cover (days)'), cDate = single('Start production by'), cSt = single('Status'), cQty = single('Next batch (units)'); const last = col - 1;
+    for (const r of [h1, h2]) for (let c = 1; c <= last; c++) { const x = ws.getCell(r, c); x.font = F({ bold: true, size: 9, color: { argb: r === h1 ? 'FFFFFFFF' : 'FF11181D' } }); x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; x.fill = fill(r === h1 ? 'FF11181D' : 'FFE8ECEF'); }
+    ws.getRow(h1).height = 30; ws.getRow(h2).height = 28;
+    let r = h2 + 1;
+    rows.forEach((f) => {
+      const set = (c, v, o) => { const x = ws.getCell(r, c); x.value = v; x.font = F(o && o.font); if (o && o.fmt) x.numFmt = o.fmt; if (o && o.fill) x.fill = fill(o.fill); return x; };
+      set(cCode, f.codigo, { font: { bold: true } }); set(cFab, f.fabrica); set(cNet, f.netas_2026, { fmt: NF, font: { color: { argb: 'FF0000FF' } } });
+      set(cDay, { formula: `${ws.getCell(r, cNet).address}/${R.dias_ventas}`, result: f.netas_2026 / R.dias_ventas }, { fmt: '0.00' });
+      f.regiones.forEach((g, k) => { set(RC[k], g.stock, { fmt: NF, font: { color: { argb: 'FF0000FF' } } }); set(RC[k] + 1, g.cobertura == null ? (g.stock ? 'No sales' : '') : g.cobertura, { fmt: NF, fill: g.rotura_antes_envio ? 'FFEF8A80' : g.enviar_ya ? 'FFFDDAA6' : undefined }); });
+      set(cA, f.stock_china, { fmt: NF, font: { color: { argb: 'FF0000FF' } } }); set(cA + 1, f.stock_taiwan, { fmt: NF, font: { color: { argb: 'FF0000FF' } } });
+      set(cTot, f.cobertura_total == null ? '' : f.cobertura_total, { fmt: NF, font: { bold: true } });
+      const st = PLST[f.estado] || PLST['No sales'];
+      set(cDate, f.fecha_producir ? new Date(f.fecha_producir + 'T00:00:00Z') : '', { fmt: 'dd-mmm-yyyy', font: { bold: true }, fill: f.fecha_producir ? st.a : undefined });
+      set(cSt, f.estado, { font: { bold: true }, fill: st.a }); set(cQty, f.cantidad || '', { fmt: NF, font: { bold: true } });
+      for (let c = 1; c <= last; c++) ws.getCell(r, c).border = thin; r++; });
+    r++; ws.getCell(r, 1).value = 'Notes'; ws.getCell(r, 1).font = F({ bold: true }); r++;
+    [R.nota, 'Regional cover in red = runs out before a shipment from Asia can arrive; orange = runs out before new production can arrive (ship from Asia stock now). Blue numbers: data from the panel.'].forEach((n) => { ws.getCell(r, 1).value = n; ws.getCell(r, 1).font = F({ size: 9, color: { argb: 'FF5F6E79' } }); r++; });
+    ws.getColumn(1).width = 10; for (let c = 2; c <= last; c++) ws.getColumn(c).width = c === cDate ? 14 : c === cSt ? 15 : 10;
+    ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 }; ws.pageSetup.printTitlesRow = '4:5';
+    const buf = await wb.xlsx.writeBuffer(); const name = `Production_plan_${R.fecha_stock}${fab !== 'All' ? '_' + fab : ''}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -1166,8 +1238,9 @@ const AFTER = {
       document.querySelectorAll('[data-remp]').forEach((b) => b.addEventListener('click', () => keep(() => { const e = b.dataset.remp; const rid = b.dataset.rid; const all = b.dataset.rall.split(','); state.repEmpsBy = Object.assign({}, state.repEmpsBy); const cur = state.repEmpsBy[rid] || all; if (cur.includes(e)) { if (cur.length > 1) state.repEmpsBy[rid] = cur.filter((x) => x !== e); } else state.repEmpsBy[rid] = all.filter((x) => cur.includes(x) || x === e); })));
       document.querySelectorAll('[data-rday]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repFecha = b.dataset.rday; })));
       document.querySelectorAll('[data-rmes]').forEach((b) => b.addEventListener('click', () => keep(() => { const R = D.informes[b.dataset.rid]; const f = Object.keys(R.fotos).sort(); const cur = state.repMes || (state.repFecha || f[f.length - 1]).slice(0, 7); const d = new Date(Date.UTC(+cur.slice(0, 4), +cur.slice(5, 7) - 1 + (+b.dataset.rmes), 1)); state.repMes = d.toISOString().slice(0, 7); })));
-      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => ((D.informes[x.dataset.rxls] || {}).almacenes ? downloadCob : downloadRep)(x.dataset.rxls)));
+      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'plan_produccion' ? downloadPlan : (D.informes[x.dataset.rxls] || {}).almacenes ? downloadCob : downloadRep)(x.dataset.rxls)));
       document.querySelectorAll('[data-awh]').forEach((b) => b.addEventListener('click', () => keep(() => { const rid = b.dataset.rid; const all = D.informes[rid].almacenes.map((a) => a.id); state.amzWhBy = Object.assign({}, state.amzWhBy); const cur = state.amzWhBy[rid] || all; const k = b.dataset.awh; state.amzWhBy[rid] = cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : all.filter((x) => cur.includes(x) || x === k); })));
+      document.querySelectorAll('[data-pfab]').forEach((b) => b.addEventListener('click', () => keep(() => { state.planFab = Object.assign({}, state.planFab, { [b.dataset.rid]: b.dataset.pfab }); })));
       document.querySelectorAll('[data-aper]').forEach((b) => b.addEventListener('click', () => keep(() => { state.repPerBy = Object.assign({}, state.repPerBy, { [b.dataset.rid]: b.dataset.aper }); })));
       return;
     }
