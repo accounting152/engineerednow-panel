@@ -321,7 +321,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
       <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
       <button data-tab="resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resultados</button>
-      <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Amazon</button>
+      <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
       <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
     </div>
   </nav>
@@ -393,7 +393,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Amazon', inventario: 'Inventario' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Sales', inventario: 'Inventario' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -532,6 +532,13 @@ resultados() {
 },
 
 amazon() {
+  const ss = ['wholesalers', 'shopify'].includes(state.salesSub) ? state.salesSub : 'amazon';
+  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}">${t}</button>`).join('')}</div>`;
+  if (ss === 'wholesalers') return salesNav + `<section class="card"><h3>Wholesalers</h3><p class="mut">Sales to distributors and wholesalers will be shown here.</p><p class="hint">No data loaded yet. Send me the invoices or sales files of each company (for example the IPAI invoices to ABC in Dubai) and I will build the reports.</p></section>`;
+  if (ss === 'shopify') return salesNav + `<section class="card"><h3>Shopify</h3><p class="mut">Sales from the own website (www.engineerednow.com) will be shown here, including orders shipped by Amazon (MCF).</p><p class="hint">Pending: the Shopify connection needs a staff account on the store (requested from Amir), or a CSV export of the orders for 2025 and 2026.</p></section>`;
+  return salesNav + VIEWS._amazonInner();
+},
+_amazonInner() {
   const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:12px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Resumen</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Informes</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
   return amzNav + VIEWS._amazonMain();
@@ -1478,6 +1485,7 @@ const AFTER = {
     $('#xlsBtn').addEventListener('click', downloadStock);
   },
   amazon() {
+    document.querySelectorAll('[data-ssub]').forEach((b) => b.addEventListener('click', () => { state.salesSub = b.dataset.ssub; render(); scrollTo({ top: 0 }); }));
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
