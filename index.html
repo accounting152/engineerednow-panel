@@ -1045,6 +1045,32 @@ function umChart2(title, A, Bv, fmt, sub) {
     <span style="display:block;font-weight:400;font-size:12px;margin-top:4px">${sw(CA, 0.55, '2025 · ' + fmt(ta, true))}${sw(CB, 1, '2026 · ' + fmt(tb, true))}</span></figcaption>
     <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(title)}" style="display:block;margin-top:6px;color:inherit"><line x1="${L}" x2="${W - L}" y1="${H - B}" y2="${H - B}" stroke="var(--line, #ccd)" stroke-width="1"></line>${g}</svg></figure>`;
 }
+function umByCountry(R, e, m1, m2) { const C = {};
+  R.recs.forEach((x) => { if (x[2] === 'CASTER' || x[1] < m1 || x[1] > m2 || (e !== 'All' && x[3] !== e)) return; const o = (C[x[4]] = C[x[4]] || { u: { 2025: 0, 2026: 0 }, d: { 2025: 0, 2026: 0 } }); o.u[x[0]] += x[5]; o.d[x[0]] += x[6]; });
+  return C; }
+function umHChart(title, sub, rows, fmt) {
+  const W = 600, LW = 118, RW = 8, bh = 11, gap = 12, T = 6; const H = T + rows.length * (bh * 2 + gap) + 4; const mx = Math.max(1, ...rows.flatMap((r) => [r[1], r[2]]));
+  const CA = 'var(--muted)', CB = 'var(--accent)'; const sc = (v) => (W - LW - RW - 58) * Math.max(v, 0) / mx;
+  const g = rows.map((r, i) => { const y = T + i * (bh * 2 + gap); const one = (v, yy, col, yr) => `<g><title>${esc(r[0])} ${yr}: ${fmt(v, true)}</title><rect x="${LW}" y="${yy}" width="${sc(v).toFixed(1)}" height="${bh}" rx="2" fill="${col}"${col === CA ? ' fill-opacity="0.55"' : ''}></rect><text x="${(LW + sc(v) + 5).toFixed(1)}" y="${yy + bh - 2}" font-size="10" fill="currentColor">${fmt(v)}</text></g>`;
+    const pct = r[1] ? Math.round((r[2] / r[1] - 1) * 100) : null;
+    return `<text x="${LW - 8}" y="${y + bh + 4}" text-anchor="end" font-size="11.5" fill="currentColor">${esc(r[0])}</text>${pct !== null ? `<text x="${LW - 8}" y="${y + bh * 2 + 6}" text-anchor="end" font-size="9.5" fill="${pct >= 0 ? 'var(--ok)' : 'var(--bad)'}">${pct >= 0 ? '+' : ''}${pct}%</text>` : ''}${one(r[1], y, CA, '2025')}${one(r[2], y + bh, CB, '2026')}`; }).join('');
+  const ta = rows.reduce((a, r) => a + r[1], 0), tb = rows.reduce((a, r) => a + r[2], 0);
+  const sw = (col, op, t) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:10px;height:10px;border-radius:2px;background:${col};opacity:${op}"></span>${t}</span>`;
+  return `<figure class="card" style="margin:0;padding:12px 14px;flex:1 1 340px;min-width:0"><figcaption style="font-weight:700;font-size:14px">${esc(title)}<span class="mut" style="display:block;font-weight:400;font-size:12px">${esc(sub)}</span>
+    <span style="display:block;font-weight:400;font-size:12px;margin-top:4px">${sw(CA, 0.55, '2025 · ' + fmt(ta, true))}${sw(CB, 1, '2026 · ' + fmt(tb, true))}${ta ? `<b style="color:${tb >= ta ? 'var(--ok)' : 'var(--bad)'}">${tb >= ta ? '+' : ''}${Math.round((tb / ta - 1) * 100)}%</b>` : ''}</span></figcaption>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(title)}" style="display:block;margin-top:8px">${g}</svg></figure>`;
+}
+function umCountrySection(R) {
+  const e = state.umCEmp || 'All', m1 = state.umM1 != null ? +state.umM1 : 0, m2 = state.umM2 != null ? +state.umM2 : 9; const a = Math.min(m1, m2), b = Math.max(m1, m2);
+  const C = umByCountry(R, e, a, b); const cs = Object.keys(C).sort((x, y) => C[y].d[2026] + C[y].d[2025] - C[x].d[2026] - C[x].d[2025]);
+  const sel = (k, v) => `<select data-${k} class="inp" style="height:40px" aria-label="${k === 'umm1' ? 'From month' : 'To month'}">${UM_MES.map((m, i) => `<option value="${i}"${i === v ? ' selected' : ''}>${m}</option>`).join('')}</select>`;
+  const scope = `${UM_MES[a]}–${UM_MES[b]} · 2025 vs 2026 · ${e === 'All' ? 'all companies' : e} · casters excluded`;
+  const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
+  return `<h3 style="margin:18px 0 8px">By country</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><span class="mut">From</span>${sel('umm1', a)}<span class="mut">to</span>${sel('umm2', b)}
+      ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((x) => `<button aria-pressed="${x === e}" data-umce="${esc(x)}">${x === 'All' ? 'All companies' : esc(x)}</button>`).join('')}</div>` : ''}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umHChart('Headrest sales by country (net, USD)', scope, cs.map((c) => [c, C[c].d[2025], C[c].d[2026]]), k)}${umHChart('Headrests sold by country (net units)', scope, cs.map((c) => [c, C[c].u[2025], C[c].u[2026]]), (v) => nfE(0).format(v))}</div>`;
+}
 function umBody(id) {
   const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
@@ -1056,7 +1082,7 @@ function umBody(id) {
   return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}
     ${(() => { const A = umSeries(R, '2025', U.e, U.c), Bs = umSeries(R, '2026', U.e, U.c); const scope = `2025 vs 2026 · ${U.e === 'All' ? 'all companies' : U.e} · ${U.c === 'All' ? 'all countries' : U.c} · casters excluded`;
       const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
-      return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umChart2('Headrests sold per month (net units)', A.u, Bs.u, (v) => nfE(0).format(v), scope)}${umChart2('Headrest sales per month (net, USD)', A.d, Bs.d, k, scope)}</div>`; })()}
+      return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umChart2('Headrests sold per month (net units)', A.u, Bs.u, (v) => nfE(0).format(v), scope)}${umChart2('Headrest sales per month (net, USD)', A.d, Bs.d, k, scope)}</div>` + umCountrySection(R); })()}
     <section class="kpis" style="margin:6px 0 12px"><div class="kpi"><span class="l">${usd ? 'Net sales' : 'Net units'} ${U.y}</span><span class="v">${usd ? moneyE(tot, 'USD', 0) : nfE(0).format(tot)}</span><span class="l">${U.e === 'All' ? 'all companies' : esc(U.e)} · ${U.c === 'All' ? 'all countries' : esc(U.c)} · ${U.mods.length} models</span></div></section>${table}
     <p class="hint" style="margin-top:8px">Net units = units sold − units returned (one unit per refund). Net sales (USD) = product price + shipping charged to customers − product price and shipping refunded, before Amazon fees and without sales tax/VAT, converted to USD with the rate of each payout. Both by the month the order or refund was posted, from the line detail of the Amazon payouts report (V2 settlement reports). Orders from your own website shipped by Amazon (MCF) are not included. Sales in the settlement still open (last ~2 weeks) appear once Amazon closes it.</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">Table as shown, with the current filters.</span></div></section>`;
@@ -1457,6 +1483,9 @@ const AFTER = {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'unidades_modelo' ? downloadUM : downloadPagos)(x.dataset.rxls)));
       document.querySelectorAll('[data-umm]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umMet = b.dataset.umm; render(); scrollTo({ top: y }); }));
+      document.querySelectorAll('[data-umce]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umCEmp = b.dataset.umce; render(); scrollTo({ top: y }); }));
+      document.querySelectorAll('[data-umm1]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umM1 = b.value; render(); scrollTo({ top: y }); }));
+      document.querySelectorAll('[data-umm2]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umM2 = b.value; render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-umy]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umYear = b.dataset.umy; render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-ume]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umEmp = b.dataset.ume; render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-umc]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umCty = b.value; render(); scrollTo({ top: y }); }));
