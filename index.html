@@ -535,7 +535,7 @@ amazon() {
   const ss = ['wholesalers', 'shopify'].includes(state.salesSub) ? state.salesSub : 'amazon';
   const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + `<section class="card"><h3>Wholesalers</h3><p class="mut">Sales to distributors and wholesalers will be shown here.</p><p class="hint">No data loaded yet. Send me the invoices or sales files of each company (for example the IPAI invoices to ABC in Dubai) and I will build the reports.</p></section>`;
-  if (ss === 'shopify') return salesNav + `<section class="card"><h3>Shopify</h3><p class="mut">Sales from the own website (www.engineerednow.com) will be shown here, including orders shipped by Amazon (MCF).</p><p class="hint">Pending: the Shopify connection needs a staff account on the store (requested from Amir), or a CSV export of the orders for 2025 and 2026.</p></section>`;
+  if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
 _amazonInner() {
@@ -1034,6 +1034,55 @@ function umData(R) {
   const mods = Object.keys(M).sort((a, b) => (a === 'No model') - (b === 'No model') || a.localeCompare(b));
   return { y, e, c, m, mods, M, col: UM_MES.map((_, i) => mods.reduce((a, m) => a + M[m][i], 0)) };
 }
+// ---- Shopify: line detail of orders and refunds (from the orders export)
+function shRows(R) { const y = state.shYear || '2026', t = state.shType || 'All', f = state.shFul || 'All', q = (state.shQ || '').toLowerCase();
+  return R.filas.filter((x) => x.anio === y && (t === 'All' || (t === 'Orders' ? x.tipo === 'Order' : x.tipo !== 'Order')) && (f === 'All' || x.envio_por === f) && (!q || (x.pedido + ' ' + x.sku + ' ' + x.modelo + ' ' + x.pais + ' ' + x.codigo + ' ' + x.producto).toLowerCase().includes(q))); }
+const SH_NUM = [['uds', 'Units (+ sold / − returned)'], ['bruto', 'Product price'], ['descuento', 'Discount'], ['envio', 'Shipping charged'], ['reembolso', 'Refunds'], ['neto', 'Net revenue'], ['fee_mcf', 'Amazon MCF fulfilment fee'], ['neto_fee', 'Net after MCF fee'], ['impuesto', 'Sales tax collected']];
+function shopifyInformes() {
+  const R = (D.informes || {}).shopify_lineas; if (!R) return '<div class="card mut">No Shopify data loaded yet.</div>';
+  const open = !!(state.repOpen || {}).shopify_lineas; const tot = (y, k) => R.filas.filter((x) => x.anio === y).reduce((a, x) => a + x[k], 0);
+  const sub = R.anios.map((y) => `${y}: ${nfE(0).format(tot(y, 'uds'))} net units · ${moneyE(tot(y, 'neto'), 'USD', 0)} net revenue`).join(' · ');
+  return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}`;
+}
+function shBody(R) {
+  const y = state.shYear || '2026', t = state.shType || 'All', f = state.shFul || 'All'; const rows = shRows(R); const fm = (v) => (Math.abs(v) >= 0.005 ? nfE(2).format(v) : '');
+  const fuls = ['All'].concat([...new Set(R.filas.map((x) => x.envio_por))].sort());
+  const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Year">${R.anios.map((v) => `<button aria-pressed="${v === y}" data-shy="${v}">${v}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="Type">${['All', 'Orders', 'Refunds'].map((v) => `<button aria-pressed="${v === t}" data-sht="${v}">${v}</button>`).join('')}</div>
+    <select data-shf class="inp" style="height:40px" aria-label="Fulfilled by">${fuls.map((v) => `<option value="${esc(v)}"${v === f ? ' selected' : ''}>${v === 'All' ? 'All fulfilment' : esc(v)}</option>`).join('')}</select>
+    <input data-shq class="inp" placeholder="Search order, SKU, model, country, code" value="${esc(state.shQ || '')}" style="height:40px;min-width:220px"></div>`;
+  const S = Object.fromEntries(SH_NUM.map(([k]) => [k, rows.reduce((a, x) => a + x[k], 0)])); const nOrd = new Set(rows.filter((x) => x.tipo === 'Order').map((x) => x.pedido)).size;
+  const kp = `<div class="kpi"><span class="l">Net revenue ${y}</span><span class="v">${moneyE(S.neto, 'USD', 0)}</span><span class="l">${nOrd} orders · ${nfE(0).format(S.uds)} net units</span></div>
+    <div class="kpi"><span class="l">Refunds</span><span class="v" style="color:var(--bad)">${moneyE(S.reembolso, 'USD', 0)}</span><span class="l">discounts ${moneyE(S.descuento, 'USD', 0)}</span></div>
+    <div class="kpi"><span class="l">Amazon MCF fees</span><span class="v" style="color:var(--warn)">${moneyE(S.fee_mcf, 'USD', 0)}</span><span class="l">net after MCF fee ${moneyE(S.neto_fee, 'USD', 0)}</span></div>`;
+  const head = `<tr><th class="l">Date</th><th style="text-align:left">Order</th><th style="text-align:left">Type</th><th style="text-align:left">Status</th><th>Country</th><th>State</th><th style="text-align:left">Channel</th><th style="text-align:left">Fulfilled by</th><th style="text-align:left">SKU</th><th>Model</th>${SH_NUM.map(([, l]) => `<th class="gs" style="min-width:92px">${l}</th>`).join('')}<th style="text-align:left">Discount code</th></tr>`;
+  const tr = `<tr class="tot"><td class="l" colspan="10">Total (${rows.length} lines)</td>${SH_NUM.map(([k]) => `<td class="gs">${k === 'uds' ? nfE(0).format(S[k]) : fm(S[k])}</td>`).join('')}<td></td></tr>`;
+  const body = rows.map((x) => `<tr class="sub"><td class="l">${esc(x.fecha)}</td><td style="text-align:left">${esc(x.pedido)}</td><td style="text-align:left">${esc(x.tipo)}${x.extra ? ' <span class="mut">' + esc(x.extra) + '</span>' : ''}</td><td style="text-align:left">${esc(x.estado)}</td><td>${esc(x.pais)}</td><td>${esc(x.region)}</td><td style="text-align:left">${esc(x.canal)}</td><td style="text-align:left">${esc(x.envio_por)}</td><td style="text-align:left">${esc(x.sku)}</td><td>${esc(x.modelo)}</td>${SH_NUM.map(([k]) => `<td class="gs"${x[k] < 0 ? ' style="color:var(--bad)"' : ''}>${k === 'uds' ? (x[k] || '') : fm(x[k])}</td>`).join('')}<td style="text-align:left">${esc(x.codigo)}</td></tr>`).join('');
+  return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}<section class="kpis" style="margin:6px 0 12px">${kp}</section>
+    <div class="rtbl-wrap"><table class="rtbl cobt" style="min-width:1900px"><thead>${head}</thead><tbody>${tr}${body}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(R.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-shxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-shopify" style="font-size:13px"></span><span class="hint">All lines of 2025 and 2026 in one sheet, ready to filter.</span></div></section>`;
+}
+async function downloadShopify() {
+  const msg = $('#repMsg-shopify'); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS(); const R = D.informes.shopify_lineas; const F = (o) => Object.assign({ name: 'Arial', size: 9 }, o || {}); const MF = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@';
+    const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Shopify line detail', { views: [{ state: 'frozen', xSplit: 3, ySplit: 1 }] });
+    const pre = [['anio', 'Year'], ['fecha', 'Date'], ['pedido', 'Order'], ['tipo', 'Type'], ['extra', 'Note'], ['estado', 'Status'], ['pais', 'Country'], ['region', 'State'], ['canal', 'Channel'], ['envio_por', 'Fulfilled by'], ['mcf_cuenta', 'MCF Amazon account'], ['sku', 'SKU'], ['modelo', 'Model'], ['producto', 'Product name']];
+    const post = [['codigo', 'Discount code']]; const H = pre.concat(SH_NUM, post);
+    H.forEach(([, h], k) => { const c = ws.getCell(1, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
+    ws.getRow(1).height = 40; const rows = R.filas.slice().sort((a, b) => (a.fecha + a.pedido).localeCompare(b.fecha + b.pedido));
+    rows.forEach((x, i) => { const r = i + 2; H.forEach(([k], j) => { const c = ws.getCell(r, j + 1); let v = x[k]; if (k === 'fecha') v = new Date(v + 'T00:00:00Z'); c.value = v === '' ? null : v; c.font = F();
+      if (k === 'fecha') c.numFmt = 'dd-mmm-yyyy'; if (SH_NUM.some(([kk]) => kk === k) && k !== 'uds') c.numFmt = MF; if (k === 'uds') c.numFmt = '0;[Red]-0;;@'; }); });
+    [6, 11, 8, 13, 16, 18, 7, 7, 11, 16, 12, 16, 8, 40].forEach((w, k) => { ws.getColumn(k + 1).width = w; }); for (let k = pre.length + 1; k <= H.length; k++) ws.getColumn(k).width = 13;
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: H.length } };
+    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_orders_line_detail_2025-2026.xlsx';
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
+}
 function umSeries(R, y, e, c) { const u = Array(12).fill(0), d = Array(12).fill(0);
   R.recs.forEach((x) => { if (x[0] !== y || x[2] === 'CASTER' || (e !== 'All' && x[3] !== e) || (c !== 'All' && x[4] !== c)) return; u[x[1]] += x[5]; d[x[1]] += x[6]; }); return { u, d }; }
 function umChart(title, vals, fmt, color, sub) {
@@ -1486,6 +1535,14 @@ const AFTER = {
   },
   amazon() {
     document.querySelectorAll('[data-ssub]').forEach((b) => b.addEventListener('click', () => { state.salesSub = b.dataset.ssub; render(); scrollTo({ top: 0 }); }));
+    const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-shtoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_lineas: !(state.repOpen || {}).shopify_lineas }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-shy]').forEach((b) => b.addEventListener('click', kp(() => { state.shYear = b.dataset.shy; })));
+    document.querySelectorAll('[data-sht]').forEach((b) => b.addEventListener('click', kp(() => { state.shType = b.dataset.sht; })));
+    document.querySelectorAll('[data-shf]').forEach((b) => b.addEventListener('change', kp(() => { state.shFul = b.value; })));
+    document.querySelectorAll('[data-shq]').forEach((b) => b.addEventListener('change', kp(() => { state.shQ = b.value; })));
+    document.querySelectorAll('[data-shxls]').forEach((b) => b.addEventListener('click', () => downloadShopify()));
+    if (['wholesalers', 'shopify'].includes(state.salesSub)) return;
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
