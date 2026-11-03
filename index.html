@@ -1016,6 +1016,22 @@ function amzInformesView() {
     const sub = id === 'unidades_modelo' ? R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} net units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)} net sales`).join(' · ') : (R.anios || ['2026']).map((y) => `${y}: ${(R.n_anio || {})[y] || 0} transfers · ${moneyE((R.total_anio || {})[y] || 0, 'USD', 0)}`).join(' · ');
     return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${body()}</div>` : ''}`; }).join('') + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
 }
+let US = {}; function umUse(id) { state.umst = state.umst || {}; US = state.umst[id] = state.umst[id] || {}; return US; }
+function shUMBuild(S) { const recs = [], tot = {}, totS = {};
+  S.filas.forEach((x) => { const y = x.fecha.slice(0, 4); if (!['2025', '2026'].includes(y)) return; if (!x.uds && Math.abs(x.neto) < 0.005) return;
+    recs.push([y, +x.fecha.slice(5, 7) - 1, x.modelo || 'No model', 'Shopify', x.pais || '—', x.uds, x.neto]); tot[y] = (tot[y] || 0) + x.uds; totS[y] = (totS[y] || 0) + x.neto; });
+  return { titulo: 'Net units and sales by model and month (Shopify)', fuente: 'Shopify', anios: ['2026', '2025'], tot_anio: tot, tot_usd: totS, recs, empresas: ['Shopify'], paises: [...new Set(recs.map((r) => r[4]))].sort(),
+    nota_um: 'Source: Shopify orders export (line detail report). Net units = units sold − units returned (full refunds, and partial refunds of 60% or more of the order). Net sales (USD) = net revenue of the line detail: product price − discount + shipping charged − refunds, before Amazon MCF fees and payment fees, without sales tax. By order date (refunds by cancellation date when there is one, otherwise the order date). Country = shipping country.' }; }
+umBind = function () {
+  document.querySelectorAll('[data-umm]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; US.umMet = b.dataset.umm; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-umce]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; US.umCEmp = b.dataset.umce; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-umm1]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; US.umM1 = b.value; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-umm2]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; US.umM2 = b.value; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-umy]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; US.umYear = b.dataset.umy; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-ume]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; US.umEmp = b.dataset.ume; render(); scrollTo({ top: y }); }));
+  document.querySelectorAll('[data-umc]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; US.umCty = b.value; render(); scrollTo({ top: y }); }));
+};
+var umBind;
 // ---- Net units by model and month, built from the line detail of the Amazon payouts report
 const UM_MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function umBuild(P) {
@@ -1028,7 +1044,7 @@ function umBuild(P) {
   return { titulo: 'Net units and sales by model and month (Amazon)', anios: ['2026', '2025'], tot_anio: tot, tot_usd: totS, recs, empresas: P.empresas || ['Hunter'], paises: P.paises || ['USA'] };
 }
 function umData(R) {
-  const y = state.umYear || '2026', e = state.umEmp || 'All', c = state.umCty || 'All', m = state.umMet === 'usd' ? 'usd' : 'units'; const M = {}; const vi = m === 'usd' ? 6 : 5;
+  const y = US.umYear || '2026', e = US.umEmp || 'All', c = US.umCty || 'All', m = US.umMet === 'usd' ? 'usd' : 'units'; const M = {}; const vi = m === 'usd' ? 6 : 5;
   R.recs.forEach((x) => { if (x[0] !== y || (e !== 'All' && x[3] !== e) || (c !== 'All' && x[4] !== c)) return; (M[x[2]] = M[x[2]] || Array(12).fill(0))[x[1]] += x[vi]; });
   Object.keys(M).forEach((k) => { if (M[k].every((v) => Math.abs(v) < 0.5)) delete M[k]; });
   const mods = Object.keys(M).sort((a, b) => (a === 'No model') - (b === 'No model') || a.localeCompare(b));
@@ -1042,7 +1058,10 @@ function shopifyInformes() {
   const R = (D.informes || {}).shopify_lineas; if (!R) return '<div class="card mut">No Shopify data loaded yet.</div>';
   const open = !!(state.repOpen || {}).shopify_lineas; const tot = (y, k) => R.filas.filter((x) => x.anio === y).reduce((a, x) => a + x[k], 0);
   const sub = R.anios.map((y) => `${y}: ${nfE(0).format(tot(y, 'uds'))} net units · ${moneyE(tot(y, 'neto'), 'USD', 0)} net revenue`).join(' · ');
-  return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}`;
+  if (!D.informes.shopify_um) D.informes.shopify_um = shUMBuild(R); const R2 = D.informes.shopify_um; const open2 = !!(state.repOpen || {}).shopify_um;
+  const sub2 = R2.anios.map((y) => `${y}: ${nfE(0).format(R2.tot_anio[y] || 0)} net units · ${moneyE(R2.tot_usd[y] || 0, 'USD', 0)} net sales`).join(' · ');
+  const second = `<section class="card rep-item${open2 ? ' open' : ''}"><button class="rep-head" data-shtoggle2 aria-expanded="${open2}"><span class="rep-pm" aria-hidden="true">${open2 ? '−' : '+'}</span><span class="rep-t"><b>${esc(R2.titulo)}</b><span class="mut">${esc(sub2)}</span></span></button></section>${open2 ? `<div class="rep-body">${umBody('shopify_um')}</div>` : ''}`;
+  return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}` + second;
 }
 function shBody(R) {
   const y = state.shYear || '2026', t = state.shType || 'All', f = state.shFul || 'All'; const rows = shRows(R); const fm = (v) => (Math.abs(v) >= 0.005 ? nfE(2).format(v) : '');
@@ -1117,7 +1136,7 @@ function umHChart(title, sub, rows, fmt) {
     <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(title)}" style="display:block;margin-top:8px">${g}</svg></figure>`;
 }
 function umCountrySection(R) {
-  const e = state.umCEmp || 'All', m1 = state.umM1 != null ? +state.umM1 : 0, m2 = state.umM2 != null ? +state.umM2 : 9; const a = Math.min(m1, m2), b = Math.max(m1, m2);
+  const e = US.umCEmp || 'All', m1 = US.umM1 != null ? +US.umM1 : 0, m2 = US.umM2 != null ? +US.umM2 : 9; const a = Math.min(m1, m2), b = Math.max(m1, m2);
   const C = umByCountry(R, e, a, b); const cs = Object.keys(C).sort((x, y) => C[y].d[2026] + C[y].d[2025] - C[x].d[2026] - C[x].d[2025]);
   const sel = (k, v) => `<select data-${k} class="inp" style="height:40px" aria-label="${k === 'umm1' ? 'From month' : 'To month'}">${UM_MES.map((m, i) => `<option value="${i}"${i === v ? ' selected' : ''}>${m}</option>`).join('')}</select>`;
   const scope = `${UM_MES[a]}–${UM_MES[b]} · 2025 vs 2026 · ${e === 'All' ? 'all companies' : e} · casters excluded`;
@@ -1128,7 +1147,7 @@ function umCountrySection(R) {
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umHChart('Headrest sales by country (net, USD)', scope, cs.map((c) => [c, C[c].d[2025], C[c].d[2026]]), k)}${umHChart('Headrests sold by country (net units)', scope, cs.map((c) => [c, C[c].u[2025], C[c].u[2026]]), (v) => nfE(0).format(v))}</div>`;
 }
 function umBody(id) {
-  const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
+  umUse(id); const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
     ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
     <select data-umc class="inp" aria-label="Country" style="height:40px">${['All'].concat(R.paises).map((c) => `<option value="${esc(c)}"${c === U.c ? ' selected' : ''}>${c === 'All' ? 'All countries' : esc(c)}</option>`).join('')}</select></div>`;
@@ -1140,15 +1159,15 @@ function umBody(id) {
       const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
       return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umChart2('Headrests sold per month (net units)', A.u, Bs.u, (v) => nfE(0).format(v), scope)}${umChart2('Headrest sales per month (net, USD)', A.d, Bs.d, k, scope)}</div>` + umCountrySection(R); })()}
     <section class="kpis" style="margin:6px 0 12px"><div class="kpi"><span class="l">${usd ? 'Net sales' : 'Net units'} ${U.y}</span><span class="v">${usd ? moneyE(tot, 'USD', 0) : nfE(0).format(tot)}</span><span class="l">${U.e === 'All' ? 'all companies' : esc(U.e)} · ${U.c === 'All' ? 'all countries' : esc(U.c)} · ${U.mods.length} models</span></div></section>${table}
-    <p class="hint" style="margin-top:8px">Net units = units sold − units returned (one unit per refund). Net sales (USD) = product price + shipping charged to customers − product price and shipping refunded, before Amazon fees and without sales tax/VAT, converted to USD with the rate of each payout. Both by the month the order or refund was posted, from the line detail of the Amazon payouts report (V2 settlement reports). Orders from your own website shipped by Amazon (MCF) are not included. Sales in the settlement still open (last ~2 weeks) appear once Amazon closes it.</p>
+    <p class="hint" style="margin-top:8px">${R.nota_um ? esc(R.nota_um) : `Net units = units sold − units returned (one unit per refund). Net sales (USD) = product price + shipping charged to customers − product price and shipping refunded, before Amazon fees and without sales tax/VAT, converted to USD with the rate of each payout. Both by the month the order or refund was posted, from the line detail of the Amazon payouts report (V2 settlement reports). Orders from your own website shipped by Amazon (MCF) are not included. Sales in the settlement still open (last ~2 weeks) appear once Amazon closes it.`}</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">Table as shown, with the current filters.</span></div></section>`;
 }
 async function downloadUM(id) {
-  const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
+  umUse(id); const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS(); const R = D.informes[id]; const U = umData(R); const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
     const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet((U.m === 'usd' ? 'Net sales USD ' : 'Net units ') + U.y, { views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }] });
-    ws.getCell('A1').value = (U.m === 'usd' ? 'Net sales (USD)' : 'Net units') + ' by model and month (Amazon) · ' + U.y; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A1').value = (U.m === 'usd' ? 'Net sales (USD)' : 'Net units') + ' by model and month (' + (R.fuente || 'Amazon') + ') · ' + U.y; ws.getCell('A1').font = F({ bold: true, size: 14 });
     ws.getCell('A2').value = `Company: ${U.e === 'All' ? 'all' : U.e} · Country: ${U.c === 'All' ? 'all' : U.c} · ${U.m === 'usd' ? 'Net sales = product + shipping charged − refunded, before fees, without tax, in USD' : 'Net units = sold − returned'}, by posted month; own-website (MCF) orders excluded.`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const H = ['Model'].concat(UM_MES, ['Total']); H.forEach((h, k) => { const c = ws.getCell(4, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center' }; });
     let r = 5; U.mods.forEach((m) => { ws.getCell(r, 1).value = m; ws.getCell(r, 1).font = F({ bold: true }); U.M[m].forEach((v, i) => { const c = ws.getCell(r, i + 2); c.value = v; c.value = U.m === 'usd' ? Math.round(v * 100) / 100 : v; c.numFmt = U.m === 'usd' ? '#,##0 "US$";[Red]-#,##0 "US$";""' : '#,##0;[Red]-#,##0;""'; c.font = F({ color: { argb: 'FF0000FF' } }); });
@@ -1156,7 +1175,7 @@ async function downloadUM(id) {
     ws.getCell(r, 1).value = 'Total'; ws.getCell(r, 1).font = F({ bold: true });
     for (let k = 2; k <= 14; k++) { const col = String.fromCharCode(64 + k); const c = ws.getCell(r, k); c.value = { formula: `SUM(${col}5:${col}${r - 1})`, result: k < 14 ? U.col[k - 2] : U.col.reduce((a, b) => a + b, 0) }; c.numFmt = U.m === 'usd' ? '#,##0 "US$";[Red]-#,##0 "US$"' : '#,##0;[Red]-#,##0'; c.font = F({ bold: true }); c.border = { top: { style: 'medium' } }; }
     ws.getColumn(1).width = 14; for (let k = 2; k <= 14; k++) ws.getColumn(k).width = 9;
-    const buf = await wb.xlsx.writeBuffer(); const name = `Amazon_${U.m === 'usd' ? 'net_sales_USD' : 'net_units'}_by_model_${U.y}_${U.e}_${U.c}.xlsx`.replace(/ /g, '_');
+    const buf = await wb.xlsx.writeBuffer(); const name = `${R.fuente || 'Amazon'}_${U.m === 'usd' ? 'net_sales_USD' : 'net_units'}_by_model_${U.y}_${U.e}_${U.c}.xlsx`.replace(/ /g, '_');
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -1542,18 +1561,13 @@ const AFTER = {
     document.querySelectorAll('[data-shf]').forEach((b) => b.addEventListener('change', kp(() => { state.shFul = b.value; })));
     document.querySelectorAll('[data-shq]').forEach((b) => b.addEventListener('change', kp(() => { state.shQ = b.value; })));
     document.querySelectorAll('[data-shxls]').forEach((b) => b.addEventListener('click', () => downloadShopify()));
+    document.querySelectorAll('[data-shtoggle2]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_um: !(state.repOpen || {}).shopify_um }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    if (state.salesSub === 'shopify') { document.querySelectorAll('[data-rxls="shopify_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('shopify_um'))); umBind(); }
     if (['wholesalers', 'shopify'].includes(state.salesSub)) return;
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'unidades_modelo' ? downloadUM : downloadPagos)(x.dataset.rxls)));
-      document.querySelectorAll('[data-umm]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umMet = b.dataset.umm; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-umce]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umCEmp = b.dataset.umce; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-umm1]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umM1 = b.value; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-umm2]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umM2 = b.value; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-umy]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umYear = b.dataset.umy; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-ume]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.umEmp = b.dataset.ume; render(); scrollTo({ top: y }); }));
-      document.querySelectorAll('[data-umc]').forEach((b) => b.addEventListener('change', () => { const y = scrollY; state.umCty = b.value; render(); scrollTo({ top: y }); }));
+      document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => (x.dataset.rxls === 'unidades_modelo' ? downloadUM : downloadPagos)(x.dataset.rxls))); umBind();
       document.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.pagTab = b.dataset.ptab; render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-pyear]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.pagYear = b.dataset.pyear; state.pagSel = ''; render(); scrollTo({ top: y }); }));
       document.querySelectorAll('[data-pemp]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.pagEmp = b.dataset.pemp; state.pagSel = ''; render(); scrollTo({ top: y }); }));
