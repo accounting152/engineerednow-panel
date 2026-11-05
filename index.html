@@ -532,10 +532,11 @@ resultados() {
 },
 
 amazon() {
-  const ss = ['wholesalers', 'shopify', 'innovad'].includes(state.salesSub) ? state.salesSub : 'amazon';
-  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
+  const ss = ['wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub) ? state.salesSub : 'amazon';
+  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + wsPage('Wholesalers');
   if (ss === 'innovad') return salesNav + wsPage('INNOVAD');
+  if (ss === 'engineered') return salesNav + enPage();
   if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
@@ -1108,6 +1109,21 @@ function wsUMBuild(W, src, title) { const recs = [], tot = {}, totS = {};
     recs.push([y, +x.fecha.slice(5, 7) - 1, x.modelo || 'No model', x.empresa, x.cliente, x.uds, x.usd]); tot[y] = (tot[y] || 0) + x.uds; totS[y] = (totS[y] || 0) + x.usd; });
   return { titulo: title, fuente: src === 'INNOVAD' ? 'Innovad' : 'Wholesalers', anios: ['2026', '2025'], tot_anio: tot, tot_usd: totS, recs, empresas: [...new Set(recs.map((r) => r[3]))].sort(), paises: [...new Set(recs.map((r) => r[4]))].sort(),
     dim: 'client', dims: 'clients', dimT: 'Client', nota_um: W.nota + (src === 'INNOVAD' ? ' Only Innovad Inc. invoices.' : ' All wholesalers except Innovad (shown in its own menu).'), nota_xl: 'Net units = units invoiced; net sales = revenue invoiced in USD (product + shipping), by invoice month.' }; }
+function enBuild() { const I = D.informes; const recs = [], tot = {}, totS = {};
+  if (I.pagos_amazon_us && !I.unidades_modelo) I.unidades_modelo = umBuild(I.pagos_amazon_us);
+  if (I.shopify_lineas && !I.shopify_um) I.shopify_um = shUMBuild(I.shopify_lineas);
+  if (I.ws_lineas) { if (!I.wholesalers_um) I.wholesalers_um = wsUMBuild(I.ws_lineas, 'Wholesalers', 'Wholesalers · units and sales by model and month'); if (!I.innovad_um) I.innovad_um = wsUMBuild(I.ws_lineas, 'INNOVAD', 'Innovad · units and sales by model and month'); }
+  [['unidades_modelo', 'Amazon'], ['wholesalers_um', 'Wholesalers'], ['shopify_um', 'Shopify'], ['innovad_um', 'Innovad']].forEach(([k, ch]) => { const S = I[k]; if (!S) return;
+    S.recs.forEach((x) => { const emp = ch === 'Shopify' ? 'Hunter' : x[3]; recs.push([x[0], x[1], x[2], emp, ch, x[5], x[6]]); tot[x[0]] = (tot[x[0]] || 0) + x[5]; totS[x[0]] = (totS[x[0]] || 0) + x[6]; }); });
+  const chs = ['Amazon', 'Innovad', 'Wholesalers', 'Shopify'].filter((c) => recs.some((r) => r[4] === c));
+  return { titulo: 'Engineered Now · units and sales by model and month (all channels)', fuente: 'Engineered_Now', anios: ['2026', '2025'], tot_anio: tot, tot_usd: totS, recs, empresas: [...new Set(recs.map((r) => r[3]))].sort(), paises: chs,
+    dim: 'channel', dims: 'channels', dimT: 'Channel', nota_xl: 'All channels: Amazon (net units and net sales from the payouts report), Wholesalers and Innovad (invoices), Shopify (orders export).',
+    nota_um: 'Consolidated view of all sales channels, in USD. Amazon: net units (sold − returned) and net sales (product + shipping − refunds, before Amazon fees, without tax) from the V2 settlement reports, all countries. Shopify: net units and net revenue from the orders export (shown under Hunter). Wholesalers and Innovad: units and revenue invoiced. Each channel by its own date (Amazon posted date, Shopify order date, invoice date). Use the company and channel filters to separate.' }; }
+function enPage() {
+  const I = D.informes || {}; if (!I.engineered_um) I.engineered_um = enBuild(); const id = 'engineered_um'; const R = I[id]; const open = !!(state.repOpen || {})[id];
+  const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
+  return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div><section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
+}
 function wsPage(src) {
   const W = (D.informes || {}).ws_lineas; if (!W) return '<div class="card mut">No data loaded yet.</div>';
   const id = src === 'INNOVAD' ? 'innovad_um' : 'wholesalers_um'; if (!D.informes[id]) D.informes[id] = wsUMBuild(W, src, src === 'INNOVAD' ? 'Innovad · units and sales by model and month' : 'Wholesalers · units and sales by model and month');
@@ -1156,13 +1172,13 @@ function umCountrySection(R) {
   const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
   return `<h3 style="margin:18px 0 8px">By ${R.dim || 'country'}</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><span class="mut">From</span>${sel('umm1', a)}<span class="mut">to</span>${sel('umm2', b)}
-      ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((x) => `<button aria-pressed="${x === e}" data-umce="${esc(x)}">${x === 'All' ? 'All companies' : esc(x)}</button>`).join('')}</div>` : ''}</div>
+      ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%">${['All'].concat(R.empresas).map((x) => `<button aria-pressed="${x === e}" data-umce="${esc(x)}">${x === 'All' ? 'All companies' : esc(x)}</button>`).join('')}</div>` : ''}</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umHChart('Headrest sales by ' + (R.dim || 'country') + ' (net, USD)', scope, cs.map((c) => [c, C[c].d[2025], C[c].d[2026]]), k)}${umHChart('Headrests sold by ' + (R.dim || 'country') + ' (net units)', scope, cs.map((c) => [c, C[c].u[2025], C[c].u[2026]]), (v) => nfE(0).format(v))}</div>`;
 }
 function umBody(id) {
   umUse(id); const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
-    ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
+    ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
     <select data-umc class="inp" aria-label="${R.dimT || 'Country'}" style="height:40px">${['All'].concat(R.paises).map((c) => `<option value="${esc(c)}"${c === U.c ? ' selected' : ''}>${c === 'All' ? 'All ' + (R.dims || 'countries') : esc(c)}</option>`).join('')}</select></div>`;
   const tot = U.col.reduce((a, b) => a + b, 0);
   const body = U.mods.map((m) => { const t = U.M[m].reduce((a, b) => a + b, 0); return `<tr><td class="l"><b>${esc(m)}</b></td>${U.M[m].map((v) => `<td${v < 0 ? ' style="color:var(--bad)"' : ''}>${f(v)}</td>`).join('')}<td class="te"><b>${f(t)}</b></td></tr>`; }).join('');
@@ -1207,7 +1223,7 @@ function pagosBody(id) {
   const yr = state.pagYear || (R.anios || ['2026'])[0];
   const emps = R.empresas || ['Hunter']; const emp = state.pagEmp || 'All'; const cty = state.pagCty || 'All';
   const accSeg = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Year" style="max-width:320px">${(R.anios || ['2026']).map((y) => `<button aria-pressed="${y === yr}" data-pyear="${y}">${y}</button>`).join('')}</div>
-    ${emps.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(emps).map((e) => `<button aria-pressed="${e === emp}" data-pemp="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
+    ${emps.length > 1 ? `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%">${['All'].concat(emps).map((e) => `<button aria-pressed="${e === emp}" data-pemp="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
     <select data-pcty class="inp" aria-label="Country" style="height:40px">${['All'].concat(R.paises || ['USA']).map((c) => `<option value="${esc(c)}"${c === cty ? ' selected' : ''}>${c === 'All' ? 'All countries' : esc(c)}</option>`).join('')}</select></div>`;
   const rows = pagRows(R).slice().reverse();
   const paid = rows.filter((r) => PAID_ST.includes(r.estado));
@@ -1577,8 +1593,8 @@ const AFTER = {
     document.querySelectorAll('[data-shtoggle2]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_um: !(state.repOpen || {}).shopify_um }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     if (state.salesSub === 'shopify') { document.querySelectorAll('[data-rxls="shopify_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('shopify_um'))); umBind(); }
     document.querySelectorAll('[data-wstoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.wstoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
-    if (['wholesalers', 'innovad'].includes(state.salesSub)) { const id = state.salesSub === 'innovad' ? 'innovad_um' : 'wholesalers_um'; document.querySelectorAll('[data-rxls="' + id + '"]').forEach((x) => x.addEventListener('click', () => downloadUM(id))); umBind(); }
-    if (['wholesalers', 'shopify', 'innovad'].includes(state.salesSub)) return;
+    if (['wholesalers', 'innovad', 'engineered'].includes(state.salesSub)) { const id = state.salesSub === 'innovad' ? 'innovad_um' : state.salesSub === 'engineered' ? 'engineered_um' : 'wholesalers_um'; document.querySelectorAll('[data-rxls="' + id + '"]').forEach((x) => x.addEventListener('click', () => downloadUM(id))); umBind(); }
+    if (['wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub)) return;
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
