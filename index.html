@@ -532,9 +532,10 @@ resultados() {
 },
 
 amazon() {
-  const ss = ['wholesalers', 'shopify'].includes(state.salesSub) ? state.salesSub : 'amazon';
-  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}">${t}</button>`).join('')}</div>`;
+  const ss = ['wholesalers', 'shopify', 'innovad'].includes(state.salesSub) ? state.salesSub : 'amazon';
+  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + `<section class="card"><h3>Wholesalers</h3><p class="mut">Sales to distributors and wholesalers will be shown here.</p><p class="hint">No data loaded yet. Send me the invoices or sales files of each company (for example the IPAI invoices to ABC in Dubai) and I will build the reports.</p></section>`;
+  if (ss === 'innovad') return salesNav + `<section class="card"><h3>Innovad</h3><p class="mut">Sales through Innovad will be shown here.</p><p class="hint">No data loaded yet. Send me the Innovad sales or invoice files and I will build the reports.</p></section>`;
   if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
@@ -1563,7 +1564,7 @@ const AFTER = {
     document.querySelectorAll('[data-shxls]').forEach((b) => b.addEventListener('click', () => downloadShopify()));
     document.querySelectorAll('[data-shtoggle2]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_um: !(state.repOpen || {}).shopify_um }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     if (state.salesSub === 'shopify') { document.querySelectorAll('[data-rxls="shopify_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('shopify_um'))); umBind(); }
-    if (['wholesalers', 'shopify'].includes(state.salesSub)) return;
+    if (['wholesalers', 'shopify', 'innovad'].includes(state.salesSub)) return;
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
       document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} render(); scrollTo({ top: y }); }));
