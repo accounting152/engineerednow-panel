@@ -246,8 +246,9 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 /* tab bar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);
   border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
-.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
-.tabs button{font-size:10.5px}
+.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.tabs button{font-size:10.5px;min-width:0}
+@media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.2px}}
 .amzsel{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .amzbtn{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;text-align:left}
 .amzbtn[aria-pressed="true"]{border-color:var(--cc);box-shadow:0 0 0 2px color-mix(in srgb,var(--cc) 35%,transparent),var(--shadow)}
@@ -321,6 +322,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
       <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
       <button data-tab="resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resultados</button>
+      <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
       <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
     </div>
@@ -382,7 +384,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','amazon','inventario'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','finances','amazon','inventario'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -393,7 +395,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', amazon: 'Sales', inventario: 'Inventario' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -498,6 +500,12 @@ pendientes() {
     <div id="mvlist" style="display:grid;gap:8px"></div>`;
 },
 
+finances() {
+  const cos = ['HUNTER TRADING GROUP, INC.', 'Hunter Trading Group, Inc. DBA Luna Claire', 'IPAI PTE. LTD.', 'JEER TRADING LLC', 'Venandi Trading Group (USD)'];
+  return `<section class="card"><h3>Finances</h3><p class="mut">Financial reports from QuickBooks Online for each company will be shown here.</p>
+    <p class="hint" style="margin-top:8px">Companies available in QuickBooks: ${cos.map(esc).join(' · ')}.</p>
+    <p class="hint" style="margin-top:6px">No reports loaded yet.</p></section>`;
+},
 resultados() {
   const seg = companyRows().map((e) => `<button aria-pressed="${state.plEmp === e}" data-pl="${e}">${e}</button>`).join('');
   const p = D.pyg.find((x) => x.empresa === state.plEmp);
