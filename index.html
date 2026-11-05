@@ -534,8 +534,8 @@ resultados() {
 amazon() {
   const ss = ['wholesalers', 'shopify', 'innovad'].includes(state.salesSub) ? state.salesSub : 'amazon';
   const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">${[['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
-  if (ss === 'wholesalers') return salesNav + `<section class="card"><h3>Wholesalers</h3><p class="mut">Sales to distributors and wholesalers will be shown here.</p><p class="hint">No data loaded yet. Send me the invoices or sales files of each company (for example the IPAI invoices to ABC in Dubai) and I will build the reports.</p></section>`;
-  if (ss === 'innovad') return salesNav + `<section class="card"><h3>Innovad</h3><p class="mut">Sales through Innovad will be shown here.</p><p class="hint">No data loaded yet. Send me the Innovad sales or invoice files and I will build the reports.</p></section>`;
+  if (ss === 'wholesalers') return salesNav + wsPage('Wholesalers');
+  if (ss === 'innovad') return salesNav + wsPage('INNOVAD');
   if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
@@ -1103,6 +1103,18 @@ async function downloadShopify() {
     msg.textContent = 'Downloaded: ' + name;
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
+function wsUMBuild(W, src, title) { const recs = [], tot = {}, totS = {};
+  W.filas.filter((x) => x.fuente === src).forEach((x) => { const y = x.fecha.slice(0, 4); if (!['2025', '2026'].includes(y)) return;
+    recs.push([y, +x.fecha.slice(5, 7) - 1, x.modelo || 'No model', x.empresa, x.cliente, x.uds, x.usd]); tot[y] = (tot[y] || 0) + x.uds; totS[y] = (totS[y] || 0) + x.usd; });
+  return { titulo: title, fuente: src === 'INNOVAD' ? 'Innovad' : 'Wholesalers', anios: ['2026', '2025'], tot_anio: tot, tot_usd: totS, recs, empresas: [...new Set(recs.map((r) => r[3]))].sort(), paises: [...new Set(recs.map((r) => r[4]))].sort(),
+    dim: 'client', dims: 'clients', dimT: 'Client', nota_um: W.nota + (src === 'INNOVAD' ? ' Only Innovad Inc. invoices.' : ' All wholesalers except Innovad (shown in its own menu).'), nota_xl: 'Net units = units invoiced; net sales = revenue invoiced in USD (product + shipping), by invoice month.' }; }
+function wsPage(src) {
+  const W = (D.informes || {}).ws_lineas; if (!W) return '<div class="card mut">No data loaded yet.</div>';
+  const id = src === 'INNOVAD' ? 'innovad_um' : 'wholesalers_um'; if (!D.informes[id]) D.informes[id] = wsUMBuild(W, src, src === 'INNOVAD' ? 'Innovad · units and sales by model and month' : 'Wholesalers · units and sales by model and month');
+  const R = D.informes[id]; const open = !!(state.repOpen || {})[id];
+  const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
+  return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div><section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
+}
 function umSeries(R, y, e, c) { const u = Array(12).fill(0), d = Array(12).fill(0);
   R.recs.forEach((x) => { if (x[0] !== y || x[2] === 'CASTER' || (e !== 'All' && x[3] !== e) || (c !== 'All' && x[4] !== c)) return; u[x[1]] += x[5]; d[x[1]] += x[6]; }); return { u, d }; }
 function umChart(title, vals, fmt, color, sub) {
@@ -1129,7 +1141,7 @@ function umHChart(title, sub, rows, fmt) {
   const CA = 'var(--muted)', CB = 'var(--accent)'; const sc = (v) => (W - LW - RW - 58) * Math.max(v, 0) / mx;
   const g = rows.map((r, i) => { const y = T + i * (bh * 2 + gap); const one = (v, yy, col, yr) => `<g><title>${esc(r[0])} ${yr}: ${fmt(v, true)}</title><rect x="${LW}" y="${yy}" width="${sc(v).toFixed(1)}" height="${bh}" rx="2" fill="${col}"${col === CA ? ' fill-opacity="0.55"' : ''}></rect><text x="${(LW + sc(v) + 5).toFixed(1)}" y="${yy + bh - 2}" font-size="10" fill="currentColor">${fmt(v)}</text></g>`;
     const pct = r[1] ? Math.round((r[2] / r[1] - 1) * 100) : null;
-    return `<text x="${LW - 8}" y="${y + bh + 4}" text-anchor="end" font-size="11.5" fill="currentColor">${esc(r[0])}</text>${pct !== null ? `<text x="${LW - 8}" y="${y + bh * 2 + 6}" text-anchor="end" font-size="9.5" fill="${pct >= 0 ? 'var(--ok)' : 'var(--bad)'}">${pct >= 0 ? '+' : ''}${pct}%</text>` : ''}${one(r[1], y, CA, '2025')}${one(r[2], y + bh, CB, '2026')}`; }).join('');
+    return `<text x="${LW - 8}" y="${y + bh + 4}" text-anchor="end" font-size="11.5" fill="currentColor"><title>${esc(r[0])}</title>${esc(r[0].length > 19 ? r[0].slice(0, 18) + '…' : r[0])}</text>${pct !== null ? `<text x="${LW - 8}" y="${y + bh * 2 + 6}" text-anchor="end" font-size="9.5" fill="${pct >= 0 ? 'var(--ok)' : 'var(--bad)'}">${pct >= 0 ? '+' : ''}${pct}%</text>` : ''}${one(r[1], y, CA, '2025')}${one(r[2], y + bh, CB, '2026')}`; }).join('');
   const ta = rows.reduce((a, r) => a + r[1], 0), tb = rows.reduce((a, r) => a + r[2], 0);
   const sw = (col, op, t) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:10px;height:10px;border-radius:2px;background:${col};opacity:${op}"></span>${t}</span>`;
   return `<figure class="card" style="margin:0;padding:12px 14px;flex:1 1 340px;min-width:0"><figcaption style="font-weight:700;font-size:14px">${esc(title)}<span class="mut" style="display:block;font-weight:400;font-size:12px">${esc(sub)}</span>
@@ -1142,24 +1154,24 @@ function umCountrySection(R) {
   const sel = (k, v) => `<select data-${k} class="inp" style="height:40px" aria-label="${k === 'umm1' ? 'From month' : 'To month'}">${UM_MES.map((m, i) => `<option value="${i}"${i === v ? ' selected' : ''}>${m}</option>`).join('')}</select>`;
   const scope = `${UM_MES[a]}–${UM_MES[b]} · 2025 vs 2026 · ${e === 'All' ? 'all companies' : e} · casters excluded`;
   const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
-  return `<h3 style="margin:18px 0 8px">By country</h3>
+  return `<h3 style="margin:18px 0 8px">By ${R.dim || 'country'}</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><span class="mut">From</span>${sel('umm1', a)}<span class="mut">to</span>${sel('umm2', b)}
       ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((x) => `<button aria-pressed="${x === e}" data-umce="${esc(x)}">${x === 'All' ? 'All companies' : esc(x)}</button>`).join('')}</div>` : ''}</div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umHChart('Headrest sales by country (net, USD)', scope, cs.map((c) => [c, C[c].d[2025], C[c].d[2026]]), k)}${umHChart('Headrests sold by country (net units)', scope, cs.map((c) => [c, C[c].u[2025], C[c].u[2026]]), (v) => nfE(0).format(v))}</div>`;
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umHChart('Headrest sales by ' + (R.dim || 'country') + ' (net, USD)', scope, cs.map((c) => [c, C[c].d[2025], C[c].d[2026]]), k)}${umHChart('Headrests sold by ' + (R.dim || 'country') + ' (net units)', scope, cs.map((c) => [c, C[c].u[2025], C[c].u[2026]]), (v) => nfE(0).format(v))}</div>`;
 }
 function umBody(id) {
   umUse(id); const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
     ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
-    <select data-umc class="inp" aria-label="Country" style="height:40px">${['All'].concat(R.paises).map((c) => `<option value="${esc(c)}"${c === U.c ? ' selected' : ''}>${c === 'All' ? 'All countries' : esc(c)}</option>`).join('')}</select></div>`;
+    <select data-umc class="inp" aria-label="${R.dimT || 'Country'}" style="height:40px">${['All'].concat(R.paises).map((c) => `<option value="${esc(c)}"${c === U.c ? ' selected' : ''}>${c === 'All' ? 'All ' + (R.dims || 'countries') : esc(c)}</option>`).join('')}</select></div>`;
   const tot = U.col.reduce((a, b) => a + b, 0);
   const body = U.mods.map((m) => { const t = U.M[m].reduce((a, b) => a + b, 0); return `<tr><td class="l"><b>${esc(m)}</b></td>${U.M[m].map((v) => `<td${v < 0 ? ' style="color:var(--bad)"' : ''}>${f(v)}</td>`).join('')}<td class="te"><b>${f(t)}</b></td></tr>`; }).join('');
   const table = U.mods.length ? `<div class="rtbl-wrap"><table class="rtbl" style="min-width:900px"><thead><tr><th class="l">Model${usd ? ' · USD' : ' · units'}</th>${UM_MES.map((m) => `<th>${m}</th>`).join('')}<th class="te">Total</th></tr></thead><tbody>${body}<tr class="tot"><td class="l">Total</td>${U.col.map((v) => `<td>${f(v)}</td>`).join('')}<td class="te">${f(tot)}</td></tr></tbody></table></div>` : '<p class="mut">No units for this selection.</p>';
   return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}
-    ${(() => { const A = umSeries(R, '2025', U.e, U.c), Bs = umSeries(R, '2026', U.e, U.c); const scope = `2025 vs 2026 · ${U.e === 'All' ? 'all companies' : U.e} · ${U.c === 'All' ? 'all countries' : U.c} · casters excluded`;
+    ${(() => { const A = umSeries(R, '2025', U.e, U.c), Bs = umSeries(R, '2026', U.e, U.c); const scope = `2025 vs 2026 · ${U.e === 'All' ? 'all companies' : U.e} · ${U.c === 'All' ? 'all ' + (R.dims || 'countries') : U.c} · casters excluded`;
       const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
       return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umChart2('Headrests sold per month (net units)', A.u, Bs.u, (v) => nfE(0).format(v), scope)}${umChart2('Headrest sales per month (net, USD)', A.d, Bs.d, k, scope)}</div>` + umCountrySection(R); })()}
-    <section class="kpis" style="margin:6px 0 12px"><div class="kpi"><span class="l">${usd ? 'Net sales' : 'Net units'} ${U.y}</span><span class="v">${usd ? moneyE(tot, 'USD', 0) : nfE(0).format(tot)}</span><span class="l">${U.e === 'All' ? 'all companies' : esc(U.e)} · ${U.c === 'All' ? 'all countries' : esc(U.c)} · ${U.mods.length} models</span></div></section>${table}
+    <section class="kpis" style="margin:6px 0 12px"><div class="kpi"><span class="l">${usd ? 'Net sales' : 'Net units'} ${U.y}</span><span class="v">${usd ? moneyE(tot, 'USD', 0) : nfE(0).format(tot)}</span><span class="l">${U.e === 'All' ? 'all companies' : esc(U.e)} · ${U.c === 'All' ? 'all ' + (R.dims || 'countries') : esc(U.c)} · ${U.mods.length} models</span></div></section>${table}
     <p class="hint" style="margin-top:8px">${R.nota_um ? esc(R.nota_um) : `Net units = units sold − units returned (one unit per refund). Net sales (USD) = product price + shipping charged to customers − product price and shipping refunded, before Amazon fees and without sales tax/VAT, converted to USD with the rate of each payout. Both by the month the order or refund was posted, from the line detail of the Amazon payouts report (V2 settlement reports). Orders from your own website shipped by Amazon (MCF) are not included. Sales in the settlement still open (last ~2 weeks) appear once Amazon closes it.`}</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">Table as shown, with the current filters.</span></div></section>`;
 }
@@ -1169,7 +1181,7 @@ async function downloadUM(id) {
     await loadExcelJS(); const R = D.informes[id]; const U = umData(R); const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
     const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet((U.m === 'usd' ? 'Net sales USD ' : 'Net units ') + U.y, { views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }] });
     ws.getCell('A1').value = (U.m === 'usd' ? 'Net sales (USD)' : 'Net units') + ' by model and month (' + (R.fuente || 'Amazon') + ') · ' + U.y; ws.getCell('A1').font = F({ bold: true, size: 14 });
-    ws.getCell('A2').value = `Company: ${U.e === 'All' ? 'all' : U.e} · Country: ${U.c === 'All' ? 'all' : U.c} · ${U.m === 'usd' ? 'Net sales = product + shipping charged − refunded, before fees, without tax, in USD' : 'Net units = sold − returned'}, by posted month; own-website (MCF) orders excluded.`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    ws.getCell('A2').value = `Company: ${U.e === 'All' ? 'all' : U.e} · ${R.dimT || 'Country'}: ${U.c === 'All' ? 'all' : U.c} · ${R.nota_xl || ((U.m === 'usd' ? 'Net sales = product + shipping charged − refunded, before fees, without tax, in USD' : 'Net units = sold − returned') + ', by posted month; own-website (MCF) orders excluded.')}`; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const H = ['Model'].concat(UM_MES, ['Total']); H.forEach((h, k) => { const c = ws.getCell(4, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center' }; });
     let r = 5; U.mods.forEach((m) => { ws.getCell(r, 1).value = m; ws.getCell(r, 1).font = F({ bold: true }); U.M[m].forEach((v, i) => { const c = ws.getCell(r, i + 2); c.value = v; c.value = U.m === 'usd' ? Math.round(v * 100) / 100 : v; c.numFmt = U.m === 'usd' ? '#,##0 "US$";[Red]-#,##0 "US$";""' : '#,##0;[Red]-#,##0;""'; c.font = F({ color: { argb: 'FF0000FF' } }); });
       const t = ws.getCell(r, 14); t.value = { formula: `SUM(B${r}:M${r})`, result: U.M[m].reduce((a, b) => a + b, 0) }; t.numFmt = U.m === 'usd' ? '#,##0 "US$";[Red]-#,##0 "US$"' : '#,##0;[Red]-#,##0'; t.font = F({ bold: true }); r++; });
@@ -1564,6 +1576,8 @@ const AFTER = {
     document.querySelectorAll('[data-shxls]').forEach((b) => b.addEventListener('click', () => downloadShopify()));
     document.querySelectorAll('[data-shtoggle2]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_um: !(state.repOpen || {}).shopify_um }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     if (state.salesSub === 'shopify') { document.querySelectorAll('[data-rxls="shopify_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('shopify_um'))); umBind(); }
+    document.querySelectorAll('[data-wstoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.wstoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    if (['wholesalers', 'innovad'].includes(state.salesSub)) { const id = state.salesSub === 'innovad' ? 'innovad_um' : 'wholesalers_um'; document.querySelectorAll('[data-rxls="' + id + '"]').forEach((x) => x.addEventListener('click', () => downloadUM(id))); umBind(); }
     if (['wholesalers', 'shopify', 'innovad'].includes(state.salesSub)) return;
     document.querySelectorAll('[data-asub]').forEach((b) => b.addEventListener('click', () => { state.amzSub = b.dataset.asub; render(); scrollTo({ top: 0 }); }));
     if (state.amzSub === 'informes') {
