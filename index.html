@@ -501,10 +501,12 @@ pendientes() {
 },
 
 finances() {
-  const cos = ['HUNTER TRADING GROUP, INC.', 'Hunter Trading Group, Inc. DBA Luna Claire', 'IPAI PTE. LTD.', 'JEER TRADING LLC', 'Venandi Trading Group (USD)'];
-  return `<section class="card"><h3>Finances</h3><p class="mut">Financial reports from QuickBooks Online for each company will be shown here.</p>
-    <p class="hint" style="margin-top:8px">Companies available in QuickBooks: ${cos.map(esc).join(' · ')}.</p>
-    <p class="hint" style="margin-top:6px">No reports loaded yet.</p></section>`;
+  const R = (D.informes || {}).pl_2025;
+  const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>`;
+  if (!R) return nav + '<div class="card mut">No reports loaded yet.</div>';
+  const open = !!(state.repOpen || {}).pl_2025; const ni = R.consolidado.find((r) => r.n === 'NET INCOME');
+  const sub = `Consolidated 2025 · net income ${moneyE(ni.v[4], 'USD', 0)} · Hunter, IPAI, JEER, Venandi`;
+  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-pltoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plBody(R)}</div>` : ''}`;
 },
 resultados() {
   const seg = companyRows().map((e) => `<button aria-pressed="${state.plEmp === e}" data-pl="${e}">${e}</button>`).join('');
@@ -1139,6 +1141,47 @@ function wsPage(src) {
   const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
   return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div><section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
 }
+// ---- Finances: P&L 2025 by quarter (QuickBooks)
+function plRowsOf(R, e) { return e === 'Consolidated' ? R.consolidado : R.entidades[e].filas; }
+function plBody(R) {
+  const ents = ['Consolidated'].concat(Object.keys(R.entidades)); const e = ents.includes(state.plEnt) ? state.plEnt : 'Consolidated';
+  const rows = plRowsOf(R, e); const fm = (v) => (v === null || v === undefined ? '' : nfE(2).format(v));
+  const inc = (rows.find((r) => /^(Total income|Total Income|Total Revenue)$/.test(r.n)) || { v: [] }).v[4] || 0;
+  const seg = `<div class="seg" role="group" aria-label="Entity" style="flex-wrap:wrap;max-width:100%;margin:0 0 10px">${ents.map((x) => `<button aria-pressed="${x === e}" data-plent="${esc(x)}">${x === 'Consolidated' ? 'Consolidated' : esc(x)}</button>`).join('')}</div>`;
+  const tr = (r) => { const strong = r.k === 't' || r.k === 'k'; const pct = inc && r.v[4] != null && r.k !== 'h' ? nfE(1).format(r.v[4] / inc * 100) + '%' : '';
+    return `<tr${r.k === 'k' ? ' class="tot"' : ''}><td class="l" style="padding-left:${8 + r.l * 16}px;${strong ? 'font-weight:700;' : ''}${r.k === 'h' ? 'font-weight:700;color:var(--muted)' : ''}">${esc(r.n)}</td>${r.v.map((v, i) => `<td${i === 4 ? ' class="te"' : ''} style="${strong ? 'font-weight:700;' : ''}${v < 0 ? 'color:var(--bad)' : ''}">${fm(v)}</td>`).join('')}<td class="mut">${pct}</td></tr>`; };
+  const info = e === 'Consolidated' ? 'Sum of the four companies (no intercompany eliminations).' : `${esc(R.entidades[e].nombre)}${R.entidades[e].moneda !== 'USD' ? ' · converted from ' + esc(R.entidades[e].moneda) + ' at the average rate of each quarter' : ''}`;
+  return `<section class="card"><h3>${esc(R.titulo)}</h3>${seg}<p class="hint" style="margin:0 0 8px">${info}</p>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:860px"><thead><tr><th class="l">Account</th>${R.cols.map((c, i) => `<th${i === 4 ? ' class="te"' : ''}>${esc(c)}</th>`).join('')}<th>% of income</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(R.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-plxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-pl" style="font-size:13px"></span><span class="hint">One sheet for the consolidated P&amp;L and one per company.</span></div></section>`;
+}
+async function downloadPL() {
+  const msg = $('#repMsg-pl'); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS(); const R = D.informes.pl_2025; const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const MF = '#,##0.00;[Red]-#,##0.00;"–"';
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
+    ['Consolidated'].concat(Object.keys(R.entidades)).forEach((e) => {
+      const rows = plRowsOf(R, e); const ws = wb.addWorksheet(e, { views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }] });
+      ws.getCell('A1').value = (e === 'Consolidated' ? 'Engineered Now · consolidated' : R.entidades[e].nombre) + ' · Profit and Loss 2025 (USD)'; ws.getCell('A1').font = F({ bold: true, size: 14 });
+      ws.getCell('A2').value = e === 'Consolidated' ? 'Sum of Hunter Trading Group, IPAI, JEER and Venandi; no intercompany eliminations. Accrual basis, from QuickBooks Online.' : (R.entidades[e].moneda !== 'USD' ? 'Converted from ' + R.entidades[e].moneda + ' at the average ECB rate of each quarter: ' + R.entidades[e].fx.map((x, i) => 'Q' + (i + 1) + ' ' + x.toFixed(4)).join(', ') + ' USD per SGD.' : 'Accrual basis, from QuickBooks Online.');
+      ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+      ['Account'].concat(R.cols, ['% of income']).forEach((h, k) => { const c = ws.getCell(4, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: k ? 'center' : 'left' }; });
+      const inc = (rows.find((r) => /^(Total income|Total Income|Total Revenue)$/.test(r.n)) || { v: [] }).v[4] || 0;
+      rows.forEach((r, i) => { const rr = i + 5; const strong = r.k !== 'a'; const a = ws.getCell(rr, 1); a.value = r.n; a.alignment = { indent: r.l * 2 }; a.font = F({ bold: strong, color: r.k === 'h' ? { argb: 'FF5F6E79' } : undefined });
+        if (r.k !== 'h') { r.v.forEach((v, k) => { const c = ws.getCell(rr, k + 2); c.value = v == null ? null : v; c.numFmt = MF; c.font = F({ bold: strong }); });
+          if (inc && r.v[4] != null) { const c = ws.getCell(rr, 7); c.value = r.v[4] / inc; c.numFmt = '0.0%'; c.font = F({ color: { argb: 'FF5F6E79' } }); } }
+        if (r.k === 'k') for (let k = 1; k <= 7; k++) { ws.getCell(rr, k).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8ECEF' } }; ws.getCell(rr, k).border = { top: { style: 'thin' } }; } });
+      ws.getColumn(1).width = 46; for (let k = 2; k <= 6; k++) ws.getColumn(k).width = 15; ws.getColumn(7).width = 12;
+      ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    });
+    const buf = await wb.xlsx.writeBuffer(); const name = 'PL_2025_by_quarter_Engineered_Now.xlsx';
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
+}
 function umSeries(R, y, e, c) { const u = Array(12).fill(0), d = Array(12).fill(0);
   R.recs.forEach((x) => { if (x[0] !== y || x[2] === 'CASTER' || (e !== 'All' && x[3] !== e) || (c !== 'All' && x[4] !== c)) return; u[x[1]] += x[5]; d[x[1]] += x[6]; }); return { u, d }; }
 function umChart(title, vals, fmt, color, sub) {
@@ -1569,6 +1612,12 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
+  finances() {
+    const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-pltoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_2025: !(state.repOpen || {}).pl_2025 }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-plent]').forEach((b) => b.addEventListener('click', kp(() => { state.plEnt = b.dataset.plent; })));
+    document.querySelectorAll('[data-plxls]').forEach((b) => b.addEventListener('click', () => downloadPL()));
+  },
   inventario() {
     const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-isub]').forEach((b) => b.addEventListener('click', () => keep(() => { state.invSub = b.dataset.isub; })));
