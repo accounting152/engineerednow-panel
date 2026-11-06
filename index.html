@@ -1341,7 +1341,7 @@ async function downloadBS() {
     await loadExcelJS(); const B = D.informes.bs; const p = bsDate(B); const keep = state.bsClosed; state.bsClosed = {}; const rows = bsRows(B, p); state.bsClosed = keep;
     const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const MF = '"$"#,##0.0;-"$"#,##0.0;"–"';
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
-    const ws = wb.addWorksheet('Balance', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }], properties: { outlineProperties: { summaryBelow: true } } });
+    const maxLvl = Math.max(1, ...rows.map((r) => r.d)); const ws = wb.addWorksheet('Balance', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }], properties: { outlineLevelRow: maxLvl, outlineProperties: { summaryBelow: true, summaryRight: true } } });
     ws.getCell('A1').value = `Engineered Now · Balance Sheet · ${B.labels[B.base]} and ${B.labels[p]} · cash basis · thousands of USD`; ws.getCell('A1').font = F({ bold: true, size: 14 });
     ws.getCell('A2').value = B.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const dark = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1E21' } }, sand = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E1D8' } };
@@ -1359,6 +1359,7 @@ async function downloadBS() {
         if (r.t === 'grand') { a.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); for (let k = 1; k <= 12; k++) if (k !== 7) row.getCell(k).fill = dark; }
         if (r.t === 'tot') for (let k = 1; k <= 12; k++) if (k !== 7) row.getCell(k).border = { top: { style: 'thin', color: { argb: 'FF9AA0A6' } } };
       }
+      Object.defineProperty(row, 'collapsed', { get: () => false }); // ExcelJS would mark every grouped row as collapsed, which Excel reports as damaged
       rr++; if (r.t === 'grand' && r.n.startsWith('TOTAL ') && r.n !== 'TOTAL LIABILITIES AND EQUITY') rr++;
     });
     ws.getColumn(1).width = 50; for (let k = 2; k <= 12; k++) ws.getColumn(k).width = k === 7 ? 3 : 13;
