@@ -1235,7 +1235,7 @@ function plqBody(Q) {
     if (isOpen) h += acc.map((a) => `<tr class="bs-chk"><td class="l" style="padding-left:${pad + 30}px;font-weight:400">${esc(a.n)}${e === 'Consolidated' ? ` <span class="mut">· ${esc(a.e)}</span>` : ''}</td>${YS.map((y) => blk(y, a.v[y] || [0, 0, 0, 0, 0], false, false)).join(gap)}</tr>`).join('');
     return h;
   }).join('');
-  const head = `<tr><th class="l" rowspan="2" style="vertical-align:bottom">P&amp;L line</th>${YS.map((y) => `<th class="grp" colspan="6">${esc(y)}${ytdN(y) < 4 ? ' · to 30 Sep' : ''}</th>`).join('<th class="bs-gap" rowspan="2"></th>')}</tr><tr>${YS.map((y) => Q.cols[y].map((c, i) => `<th${i === 4 ? ' class="te"' : ''}>${esc(c)}</th>`).join('') + '<th>%</th>').join('')}</tr>`;
+  const head = `<tr><th class="l" rowspan="2" style="vertical-align:bottom">P&amp;L line</th>${YS.map((y) => `<th class="grp" colspan="6">${esc(y)}${ytdN(y) < 4 ? ' · to 30 Sep' : ''}${(Q.forecast || {})[y] ? ' · Q4 forecast' : ''}</th>`).join('<th class="bs-gap" rowspan="2"></th>')}</tr><tr>${YS.map((y) => Q.cols[y].map((c, i) => `<th${i === 4 ? ' class="te"' : ''}>${esc(c)}</th>`).join('') + '<th>%</th>').join('')}</tr>`;
   // reconciliation
   const C = (y) => Q.y[y].conc; const nat = (y) => Q.y[y].filas.find((r) => r.n === 'Net Income after Tax').v[e];
   const itemsAll = {}; YS.forEach((y) => C(y).items.filter((x) => e === 'Consolidated' || x.e === e).forEach((x) => { const k = x.e + '|' + x.n; itemsAll[k] = itemsAll[k] || { n: x.n, e: x.e, why: x.why, v: {} }; itemsAll[k].v[y] = x.v; }));
@@ -1247,7 +1247,7 @@ function plqBody(Q) {
     + items.map((x) => rr(`${esc(x.n)} <span class="mut">· ${esc(x.e)} · ${esc(x.why)}</span>`, (y) => x.v[y] || Z, '', true)).join('')
     + rr('Total items left out', sumI, 'bs-tot') + rr('Check (difference − items = 0)', (y) => nat(y).map((x, i) => x - C(y).qb[e][i] - sumI(y)[i]), 'bs-chk');
   return `<section class="card"><h3>P&amp;L · ${esc(e)} · thousands of USD</h3>${seg}
-    <p class="hint" style="margin:0 0 8px">Click + on a line to see the QuickBooks accounts grouped in it. 2026 up to 30 September; Q4 2026 left empty.</p>
+    <p class="hint" style="margin:0 0 8px">Click + on a line to see the QuickBooks accounts grouped in it. 2026: Q1–Q3 actuals to 30 September; <b>Q4 F = forecast</b>, to be replaced by QuickBooks actuals at year-end.</p>
     <div class="rtbl-wrap"><table class="rtbl bs-tbl plq-tbl"><thead>${head}</thead><tbody>${rowsHtml}</tbody></table></div>
     <h3 style="margin-top:16px">Reconciliation with QuickBooks</h3>
     <div class="rtbl-wrap"><table class="rtbl bs-tbl plq-tbl"><thead>${head}</thead><tbody>${recon}</tbody></table></div>
@@ -1261,10 +1261,10 @@ async function downloadPLQ() {
     const dark = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1E21' } }, sand = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E1D8' } }, band = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9C5317' } };
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
     const ws = wb.addWorksheet('P&L', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }] });
-    ws.getCell('A1').value = 'Engineered Now · P&L by quarter · cash basis · thousands of USD · 2026 up to 30-Sep-2026'; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A1').value = 'Engineered Now · P&L by quarter · cash basis · thousands of USD · 2026: Q1–Q3 actuals, Q4 forecast (Q4 F)'; ws.getCell('A1').font = F({ bold: true, size: 14 });
     ws.getCell('A2').value = Q.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const blocks = []; YS.forEach((y) => Q.ents.forEach((en) => blocks.push({ y, en }))); const col0 = (b) => 2 + b * 6 + (b >= Q.ents.length ? 1 : 0);
-    blocks.forEach((bk, b) => { const c0 = col0(b); ws.mergeCells(3, c0, 3, c0 + 4); const c = ws.getCell(3, c0); c.value = (bk.en === 'Consolidated' ? 'TOTAL ' : bk.en.toUpperCase() + ' ') + bk.y + ((Q.ytd || {})[bk.y] ? ' (to 30-Sep)' : ''); c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = band; c.alignment = { horizontal: 'center' };
+    blocks.forEach((bk, b) => { const c0 = col0(b); ws.mergeCells(3, c0, 3, c0 + 4); const c = ws.getCell(3, c0); c.value = (bk.en === 'Consolidated' ? 'TOTAL ' : bk.en.toUpperCase() + ' ') + bk.y + ((Q.forecast || {})[bk.y] ? ' (Q4 forecast)' : ''); c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = band; c.alignment = { horizontal: 'center' };
       Q.cols[bk.y].forEach((h, k) => { const x = ws.getCell(4, c0 + k); x.value = h; x.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); x.fill = dark; x.alignment = { horizontal: 'center' }; }); ws.getColumn(c0 + 5).width = 2; });
     const a4 = ws.getCell(4, 1); a4.value = 'P&L'; a4.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); a4.fill = dark;
     const last = col0(blocks.length - 1) + 4; let r = 5;
