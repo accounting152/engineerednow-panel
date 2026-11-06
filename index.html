@@ -528,7 +528,7 @@ finances() {
   let h = nav;
   const Q = (D.informes || {}).pl_q;
   if (Q) { const open = !!(state.repOpen || {}).pl_q; const ni = Q.filas.find((r) => r.n === 'Net Income after Tax').v.Consolidated[4]; const ti = Q.filas.find((r) => r.n === 'Total Income').v.Consolidated[4];
-    const sub = `2025 by quarter · grouped with Correlaciones · income ${bsK(ti)}k · net income after tax ${bsK(ni)}k · Hunter, Venandi, JEER, IPAI`;
+    const sub = `2025 by quarter · cash basis · grouped with Correlaciones · income ${bsK(ti)}k · net income after tax ${bsK(ni)}k · Hunter, Venandi, JEER, IPAI`;
     h += `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-plqtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L 2025</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plqBody(Q)}</div>` : ''}`; }
   if (B) { const open = !!(state.repOpen || {}).bs; const p = bsDate(B); const ta = (q) => bsSum(B.arbol[0], q);
     const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
