@@ -348,7 +348,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Resumen</button>
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
       <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
-      <button data-tab="resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resultados</button>
+      <button data-tab="marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Marketing</button>
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
       <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
@@ -411,7 +411,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','resultados','finances','amazon','inventario'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -422,7 +422,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', resultados: 'Resultados', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -542,6 +542,9 @@ finances() {
     const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
     h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-bstoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Balance Sheet</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${bsBody(B)}</div>` : ''}`; }
   return h;
+},
+marketing() {
+  return `<section class="card"><h3>Marketing</h3><p class="mut" style="margin:0">No reports here yet. Tell Claude what you want to see in Marketing (for example ad spend, campaigns or traffic) and it will be added.</p></section>`;
 },
 resultados() {
   const seg = companyRows().map((e) => `<button aria-pressed="${state.plEmp === e}" data-pl="${e}">${e}</button>`).join('');
@@ -1995,7 +1998,7 @@ function barChart(box, rows, lab, title, every, hi) {
       tip.show((ml + step * i + step / 2) * k, y(r.v) * k, title(r), [[col, 'Ventas', money(r.v, 'USD', 0)], [null, 'Unidades', nf(0).format(r.u)]]); };
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
-let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => D && (state.tab === 'resultados' || state.tab === 'amazon') && render(), 150); });
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => D && (state.tab === 'amazon') && render(), 150); });
 
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 })();
