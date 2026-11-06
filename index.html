@@ -172,6 +172,8 @@ p .cb{padding:1px 6px;border-radius:6px;background:var(--surface2)}
 .rtbl.plq-tbl th,.rtbl.plq-tbl td{padding:6px 8px}
 .rtbl.plq-tbl th{min-width:0;white-space:nowrap}
 .rtbl.plq-tbl td.l,.rtbl.plq-tbl th.l{white-space:nowrap;padding-right:16px}
+.doc-frame{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.doc-frame iframe{display:block;width:100%;height:min(70vh,720px);border:0}
 .bs-tbl .bs-gap{background:transparent;border-bottom:0;min-width:14px;width:14px;padding:0}
 .bs-tbl tr.bs-sec td{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
 .bs-tbl tr.bs-sec td.l{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
@@ -528,12 +530,14 @@ pendientes() {
 finances() {
   const B = (D.informes || {}).bs;
   const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>`;
-  if (!(D.informes || {}).pl_q && !B) return nav + '<div class="card mut">No reports loaded yet.</div>';
+  if (!(D.informes || {}).pl_q && !B && !((D.informes || {}).docs || []).length) return nav + '<div class="card mut">No reports loaded yet.</div>';
   let h = nav;
   const Q = (D.informes || {}).pl_q;
   if (Q) { const open = !!(state.repOpen || {}).pl_q; const g = (y, n) => Q.y[y].filas.find((r) => r.n === n).v.Consolidated[4];
     const sub = `Cash basis · by quarter · grouped with Correlaciones · net income after tax 2025 ${plqK(g('2025', 'Net Income after Tax'))}k · 2026 to Sep ${plqK(g('2026', 'Net Income after Tax'))}k`;
     h += `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-plqtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L 2025–2026</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plqBody(Q)}</div>` : ''}`; }
+  ((D.informes || {}).docs || []).forEach((d) => { const open = !!(state.repOpen || {})[d.id];
+    h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-doctoggle="${esc(d.id)}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(d.titulo)}</b><span class="mut">${esc(d.sub)} · PDF · ${esc(d.fecha)}</span></span></button></section>${open ? `<div class="rep-body">${docBody(d)}</div>` : ''}`; });
   if (B) { const open = !!(state.repOpen || {}).bs; const p = bsDate(B); const ta = (q) => bsSum(B.arbol[0], q);
     const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
     h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-bstoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Balance Sheet</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${bsBody(B)}</div>` : ''}`; }
@@ -1213,6 +1217,20 @@ async function downloadPL() {
     msg.textContent = 'Downloaded: ' + name;
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
+// ---- Finances: stored documents (PDF inside the encrypted bundle)
+const DOC_URL = {};
+function docUrl(d) { if (DOC_URL[d.id]) return DOC_URL[d.id]; const bin = atob(d.b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); DOC_URL[d.id] = URL.createObjectURL(new Blob([u], { type: 'application/pdf' })); return DOC_URL[d.id]; }
+function docBody(d) {
+  return `<section class="card"><h3>${esc(d.titulo)}</h3><p class="hint" style="margin:0 0 10px">${esc(d.sub)}. Saved ${esc(d.fecha)} · ${Math.round(d.bytes / 1024)} KB.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 12px"><button class="btn" data-docopen="${esc(d.id)}" style="height:44px;padding:0 16px">Open PDF</button><button class="bs-sec" data-docdl="${esc(d.id)}">Download PDF</button><span class="mut" id="docMsg-${esc(d.id)}" style="font-size:13px"></span></div>
+    <div class="doc-frame"><iframe title="${esc(d.titulo)}" src="${docUrl(d)}#view=FitH" loading="lazy"></iframe></div></section>`;
+}
+async function docDownload(d) {
+  const msg = $('#docMsg-' + d.id); const bin = atob(d.b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+  if (dl) { try { await dl.save({ filename: d.file, data: u.buffer }); msg.textContent = 'Downloaded: ' + d.file; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+  const a = document.createElement('a'); a.href = docUrl(d); a.download = d.file; document.body.appendChild(a); a.click(); a.remove(); msg.textContent = 'Downloaded: ' + d.file;
+}
 // ---- Finances: P&L 2025 grouped with the partners' Correlaciones (QuickBooks, accrual, by quarter) — amounts in thousands of USD
 function plqK(v) { if (v == null || Math.abs(v) < 500) return '–'; return (v < 0 ? '-$' : '$') + nfE(0).format(Math.abs(v) / 1000); }
 function plqBody(Q) {
@@ -1821,6 +1839,9 @@ const AFTER = {
     document.querySelectorAll('[data-pltoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_2025: !(state.repOpen || {}).pl_2025 }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-plent]').forEach((b) => b.addEventListener('click', kp(() => { state.plEnt = b.dataset.plent; })));
     document.querySelectorAll('[data-plxls]').forEach((b) => b.addEventListener('click', () => downloadPL()));
+    document.querySelectorAll('[data-doctoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.doctoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-docopen]').forEach((b) => b.addEventListener('click', () => { const d = D.informes.docs.find((x) => x.id === b.dataset.docopen); const w = window.open(docUrl(d), '_blank'); if (!w) { const m = $('#docMsg-' + d.id); if (m) m.textContent = 'Your browser blocked the new tab — use Download PDF.'; } }));
+    document.querySelectorAll('[data-docdl]').forEach((b) => b.addEventListener('click', () => docDownload(D.informes.docs.find((x) => x.id === b.dataset.docdl))));
     document.querySelectorAll('[data-plqtoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_q: !(state.repOpen || {}).pl_q }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-plqent]').forEach((b) => b.addEventListener('click', kp(() => { state.plqEnt = b.dataset.plqent; })));
     document.querySelectorAll('[data-plqacc]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.plqacc; state.plqAcc = Object.assign({}, state.plqAcc, { [k]: !(state.plqAcc || {})[k] }); })));
