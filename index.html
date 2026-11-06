@@ -168,6 +168,27 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .cb{font-weight:700}.cb.sem{padding:2px 8px;border-radius:6px;color:var(--fg)}.cb-bad{color:var(--bad)}.cb-warn{color:var(--warn)}.cb-ok{color:var(--ok)}.cb-hi{color:var(--info)}
 p .cb{padding:1px 6px;border-radius:6px;background:var(--surface2)}
 .seg.wrap{flex-wrap:wrap;overflow:visible}
+.bs-tbl .bs-gap{background:transparent;border-bottom:0;min-width:14px;width:14px;padding:0}
+.bs-tbl tr.bs-sec td{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.bs-tbl tr.bs-sec td.l{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.bs-tbl tr.bs-tot td{font-weight:700;border-top:1px solid var(--muted)}
+.bs-tbl tr.bs-grand td{background:var(--fg);color:var(--bg);font-weight:800}
+.bs-tbl tr.bs-grand td.l{background:var(--fg);color:var(--bg)}
+.bs-tbl tr.bs-grand td.bs-gap,.bs-tbl tr.bs-sec td.bs-gap{background:transparent}
+.bs-tbl tr.bs-chk td{color:var(--muted);font-size:12px}
+.bs-tg{all:unset;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.bs-tg span{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:13px;line-height:1}
+.bs-tg:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.bs-sec{height:44px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);font:inherit;font-weight:650;font-size:14px;cursor:pointer}
+.bs-sec:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bs-cal{border:1px solid var(--line);border-radius:12px;padding:10px;margin:0 0 12px;max-width:520px}
+.bs-cal-h{font-weight:700;font-size:13px;margin:0 0 8px}
+.bs-cal-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.bs-m{display:grid;gap:2px;padding:8px 6px;min-height:52px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--fg);cursor:pointer;font:inherit;text-align:center}
+.bs-m span{font-size:11.5px;color:var(--muted)}
+.bs-m.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.bs-m.on span{color:#fff}
+.bs-m:disabled{opacity:.45;cursor:not-allowed}
 .rtbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
 .rtbl{border-collapse:separate;border-spacing:0;font-size:13px;min-width:1100px;width:100%}
 .rtbl th,.rtbl td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -376,7 +397,7 @@ async function decrypt(pw) {
 
 let D = null;
 let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
-const state = { tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
+const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -501,12 +522,17 @@ pendientes() {
 },
 
 finances() {
-  const R = (D.informes || {}).pl_2025;
+  const R = (D.informes || {}).pl_2025; const B = (D.informes || {}).bs;
   const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>`;
-  if (!R) return nav + '<div class="card mut">No reports loaded yet.</div>';
-  const open = !!(state.repOpen || {}).pl_2025; const ni = R.consolidado.find((r) => r.n === 'NET INCOME');
-  const sub = `Consolidated 2025 · net income ${moneyE(ni.v[4], 'USD', 0)} · Hunter, IPAI, JEER, Venandi`;
-  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-pltoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plBody(R)}</div>` : ''}`;
+  if (!R && !B) return nav + '<div class="card mut">No reports loaded yet.</div>';
+  let h = nav;
+  if (R) { const open = !!(state.repOpen || {}).pl_2025; const ni = R.consolidado.find((r) => r.n === 'NET INCOME');
+    const sub = `Consolidated 2025 · net income ${moneyE(ni.v[4], 'USD', 0)} · Hunter, IPAI, JEER, Venandi`;
+    h += `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-pltoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plBody(R)}</div>` : ''}`; }
+  if (B) { const open = !!(state.repOpen || {}).bs; const p = bsDate(B); const ta = (q) => bsSum(B.arbol[0], q);
+    const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
+    h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-bstoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Balance Sheet</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${bsBody(B)}</div>` : ''}`; }
+  return h;
 },
 resultados() {
   const seg = companyRows().map((e) => `<button aria-pressed="${state.plEmp === e}" data-pl="${e}">${e}</button>`).join('');
@@ -1182,6 +1208,94 @@ async function downloadPL() {
     msg.textContent = 'Downloaded: ' + name;
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
+// ---- Finances: Balance Sheet (QuickBooks, cash basis) · 31-Dec-2025 vs a 2026 month-end picked in the calendar
+const BS_CO = ['Hunter', 'Venandi', 'JEER', 'IPAI'];
+const BS_MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function bsDate(B) { const f = B.fechas; if (f.includes(state.bsFecha)) return state.bsFecha; const full = f.filter((d) => +d.slice(8) >= 28); return full[full.length - 1] || f[f.length - 1]; }
+function bsSum(nd, p, co) { if (!nd.k) { const o = (nd.v || {})[p] || {}; return co ? (o[co] || 0) : BS_CO.reduce((a, c) => a + (o[c] || 0), 0); } return nd.k.reduce((a, c) => a + bsSum(c, p, co), 0); }
+function bsK(v) { if (v == null || Math.abs(v) < 50) return '–'; return (v < 0 ? '-$' : '$') + nfE(1).format(Math.abs(v) / 1000); }
+function bsNz(nd, ps) { if (!nd.k) return ps.some((p) => BS_CO.some((c) => Math.abs((((nd.v || {})[p]) || {})[c] || 0) >= 0.5)); return nd.k.some((c) => bsNz(c, ps)); }
+function bsRows(B, p) {
+  const ps = [B.base, p]; const out = []; const closed = state.bsClosed || {};
+  const vals = (nd) => ps.map((q) => [bsSum(nd, q)].concat(BS_CO.map((c) => bsSum(nd, q, c))));
+  const walk = (nd, depth, path) => {
+    if (!bsNz(nd, ps)) return;
+    if (!nd.k) { out.push({ t: 'a', n: nd.n, d: depth, v: vals(nd) }); return; }
+    const id = path + '/' + nd.n; const shut = !!closed[id];
+    out.push({ t: depth === 0 ? 'sec' : 'hdr', n: depth === 0 ? nd.n.toUpperCase() : nd.n, d: depth, id, shut });
+    if (!shut) nd.k.forEach((c) => walk(c, depth + 1, id));
+    out.push({ t: depth === 0 ? 'grand' : 'tot', n: (depth === 0 ? 'TOTAL ' + nd.n.toUpperCase() : 'Total ' + nd.n), d: depth, v: vals(nd) });
+  };
+  B.arbol.forEach((s) => walk(s, 0, ''));
+  const L = B.arbol.find((s) => s.n === 'Liabilities'), E = B.arbol.find((s) => s.n === 'Equity'), A = B.arbol.find((s) => s.n === 'Assets');
+  const le = ps.map((q) => [bsSum(L, q) + bsSum(E, q)].concat(BS_CO.map((c) => bsSum(L, q, c) + bsSum(E, q, c))));
+  out.push({ t: 'grand', n: 'TOTAL LIABILITIES AND EQUITY', d: 0, v: le });
+  out.push({ t: 'chk', n: 'Check: assets − liabilities and equity', d: 0, v: ps.map((q, i) => [bsSum(A, q) - le[i][0]].concat(BS_CO.map((c, j) => bsSum(A, q, c) - le[i][j + 1]))) });
+  return out;
+}
+function bsCal(B, p) {
+  const have = {}; B.fechas.forEach((d) => { have[+d.slice(5, 7) - 1] = d; });
+  const cells = BS_MES.map((m, i) => { const d = have[i]; const on = d === p;
+    return d ? `<button class="bs-m${on ? ' on' : ''}" data-bsdate="${d}" aria-pressed="${on}"><b>${m}</b><span>${+d.slice(8)} ${m}</span></button>` : `<button class="bs-m" disabled aria-disabled="true"><b>${m}</b><span>no data</span></button>`; }).join('');
+  return `<div class="bs-cal" role="group" aria-label="Pick the 2026 date"><div class="bs-cal-h">2026 · close of month</div><div class="bs-cal-g">${cells}</div></div>`;
+}
+function bsBody(B) {
+  const p = bsDate(B); const rows = bsRows(B, p); const open = !!state.bsCal;
+  const head1 = `<tr><th class="l" rowspan="2" style="vertical-align:bottom">Account · thousands of USD</th><th class="grp" colspan="5">${esc(B.labels[B.base])}</th><th class="bs-gap" rowspan="2"></th><th class="grp" colspan="5">${esc(B.labels[p])}</th></tr>`;
+  const head2 = `<tr>${[0, 1].map(() => ['Total'].concat(BS_CO).map((c, i) => `<th${i === 0 ? ' class="te"' : ''}>${c}</th>`).join('')).join('')}</tr>`;
+  const cell = (v, i, strong) => `<td${i === 0 ? ' class="te"' : ''} style="${strong ? 'font-weight:700;' : ''}${v < -0.5 ? 'color:var(--bad)' : ''}">${bsK(v)}</td>`;
+  const tr = (r) => {
+    const pad = 8 + r.d * 14;
+    if (r.t === 'sec' || r.t === 'hdr') return `<tr class="bs-${r.t}"><td class="l" style="padding-left:${pad}px" colspan="1"><button class="bs-tg" data-bsgrp="${esc(r.id)}" aria-expanded="${!r.shut}"><span aria-hidden="true">${r.shut ? '+' : '−'}</span> ${esc(r.n)}</button></td><td colspan="11"></td></tr>`;
+    const strong = r.t !== 'a';
+    const cls = r.t === 'grand' ? ' class="tot bs-grand"' : r.t === 'tot' ? ' class="bs-tot"' : r.t === 'chk' ? ' class="bs-chk"' : '';
+    return `<tr${cls}><td class="l" style="padding-left:${pad}px;${r.t === 'a' ? 'font-weight:500' : ''}">${esc(r.n)}</td>${r.v[0].map((v, i) => cell(v, i, strong)).join('')}<td class="bs-gap"></td>${r.v[1].map((v, i) => cell(v, i, strong)).join('')}</tr>`;
+  };
+  const fx = B.fx[p];
+  return `<section class="card"><h3>Balance Sheet · ${esc(B.labels[B.base])} vs ${esc(B.labels[p])}</h3>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><span class="mut" style="font-size:13px">2026 date (same for the four companies)</span>
+      <button class="btn bs-datebtn" data-bscal aria-expanded="${open}" style="height:44px;padding:0 14px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> ${esc(B.labels[p])}</button>
+      <button class="bs-sec" data-bsall="close">Collapse all</button><button class="bs-sec" data-bsall="open">Expand all</button></div>
+    ${open ? bsCal(B, p) : ''}
+    <div class="rtbl-wrap"><table class="rtbl bs-tbl" style="min-width:1040px"><thead>${head1}${head2}</thead><tbody>${rows.map(tr).join('')}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(B.nota)} IPAI rate used: ${B.fx[B.base].usd_per_sgd.toFixed(4)} USD per SGD at ${esc(B.labels[B.base])}, ${fx.usd_per_sgd.toFixed(4)} at ${esc(B.labels[p])}${fx.ecb_date !== p ? ' (ECB rate of ' + esc(fx.ecb_date) + ', latest available)' : ''}. Accounts with no balance on either date are hidden. From August 2026 IPAI's balance sheet in QuickBooks is out of balance by about S$264 (see the check row).</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-bsxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-bs" style="font-size:13px"></span><span class="hint">Same view, with +/− groups in Excel.</span></div></section>`;
+}
+async function downloadBS() {
+  const msg = $('#repMsg-bs'); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS(); const B = D.informes.bs; const p = bsDate(B); const keep = state.bsClosed; state.bsClosed = {}; const rows = bsRows(B, p); state.bsClosed = keep;
+    const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const MF = '"$"#,##0.0;-"$"#,##0.0;"–"';
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
+    const ws = wb.addWorksheet('Balance', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }], properties: { outlineProperties: { summaryBelow: true } } });
+    ws.getCell('A1').value = `Engineered Now · Balance Sheet · ${B.labels[B.base]} and ${B.labels[p]} · cash basis · thousands of USD`; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = B.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const dark = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1E21' } }, sand = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E1D8' } };
+    [[2, B.labels[B.base]], [8, B.labels[p]]].forEach(([c0, t]) => { ws.mergeCells(3, c0, 3, c0 + 4); const c = ws.getCell(3, c0); c.value = t; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9C5317' } }; c.alignment = { horizontal: 'center' }; });
+    ['Account'].concat(['Total'].concat(BS_CO), [''], ['Total'].concat(BS_CO)).forEach((h, k) => { if (k === 6) return; const c = ws.getCell(4, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = dark; c.alignment = { horizontal: k ? 'center' : 'left' }; });
+    let rr = 5; let lvl = 0;
+    rows.forEach((r) => {
+      if (r.t === 'grand' && r.n === 'TOTAL LIABILITIES AND EQUITY') rr++;
+      const row = ws.getRow(rr); const a = row.getCell(1); a.value = r.n; a.alignment = { indent: r.d * 2 };
+      const strong = r.t !== 'a'; a.font = F({ bold: strong });
+      if (r.t === 'sec' || r.t === 'hdr') { row.outlineLevel = r.d; if (r.t === 'sec') for (let k = 1; k <= 12; k++) if (k !== 7) row.getCell(k).fill = sand; }
+      else {
+        row.outlineLevel = r.t === 'a' ? r.d : (r.t === 'chk' ? 0 : r.d);
+        [0, 1].forEach((j) => r.v[j].forEach((v, i) => { const c = row.getCell(2 + j * 6 + i); c.value = Math.abs(v) < 0.5 ? 0 : Math.round(v) / 1000; c.numFmt = MF; c.font = F({ bold: strong, color: r.t === 'grand' ? { argb: 'FFFFFFFF' } : undefined }); }));
+        if (r.t === 'grand') { a.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); for (let k = 1; k <= 12; k++) if (k !== 7) row.getCell(k).fill = dark; }
+        if (r.t === 'tot') for (let k = 1; k <= 12; k++) if (k !== 7) row.getCell(k).border = { top: { style: 'thin', color: { argb: 'FF9AA0A6' } } };
+      }
+      rr++; if (r.t === 'grand' && r.n.startsWith('TOTAL ') && r.n !== 'TOTAL LIABILITIES AND EQUITY') rr++;
+    });
+    ws.getColumn(1).width = 50; for (let k = 2; k <= 12; k++) ws.getColumn(k).width = k === 7 ? 3 : 13;
+    ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const buf = await wb.xlsx.writeBuffer(); const name = `Balance_${B.base}_${p}_Engineered_Now.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
+}
 function umSeries(R, y, e, c) { const u = Array(12).fill(0), d = Array(12).fill(0);
   R.recs.forEach((x) => { if (x[0] !== y || x[2] === 'CASTER' || (e !== 'All' && x[3] !== e) || (c !== 'All' && x[4] !== c)) return; u[x[1]] += x[5]; d[x[1]] += x[6]; }); return { u, d }; }
 function umChart(title, vals, fmt, color, sub) {
@@ -1617,6 +1731,12 @@ const AFTER = {
     document.querySelectorAll('[data-pltoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_2025: !(state.repOpen || {}).pl_2025 }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-plent]').forEach((b) => b.addEventListener('click', kp(() => { state.plEnt = b.dataset.plent; })));
     document.querySelectorAll('[data-plxls]').forEach((b) => b.addEventListener('click', () => downloadPL()));
+    document.querySelectorAll('[data-bstoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { bs: !(state.repOpen || {}).bs }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-bscal]').forEach((b) => b.addEventListener('click', kp(() => { state.bsCal = !state.bsCal; })));
+    document.querySelectorAll('[data-bsdate]').forEach((b) => b.addEventListener('click', kp(() => { state.bsFecha = b.dataset.bsdate; state.bsCal = false; try { localStorage.setItem('enBsFecha', state.bsFecha); } catch (e) {} })));
+    document.querySelectorAll('[data-bsgrp]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.bsgrp; state.bsClosed = Object.assign({}, state.bsClosed, { [k]: !(state.bsClosed || {})[k] }); })));
+    document.querySelectorAll('[data-bsall]').forEach((b) => b.addEventListener('click', kp(() => { if (b.dataset.bsall === 'open') state.bsClosed = {}; else { const c = {}; const B = D.informes.bs; const w = (nd, path, d) => { if (!nd.k) return; const id = path + '/' + nd.n; if (d > 0) c[id] = true; nd.k.forEach((x) => w(x, id, d + 1)); }; B.arbol.forEach((s) => w(s, '', 0)); state.bsClosed = c; } })));
+    document.querySelectorAll('[data-bsxls]').forEach((b) => b.addEventListener('click', () => downloadBS()));
   },
   inventario() {
     const keep = (fn) => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
