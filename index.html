@@ -522,13 +522,14 @@ pendientes() {
 },
 
 finances() {
-  const R = (D.informes || {}).pl_2025; const B = (D.informes || {}).bs;
+  const B = (D.informes || {}).bs;
   const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>`;
-  if (!R && !B) return nav + '<div class="card mut">No reports loaded yet.</div>';
+  if (!(D.informes || {}).pl_q && !B) return nav + '<div class="card mut">No reports loaded yet.</div>';
   let h = nav;
-  if (R) { const open = !!(state.repOpen || {}).pl_2025; const ni = R.consolidado.find((r) => r.n === 'NET INCOME');
-    const sub = `Consolidated 2025 · net income ${moneyE(ni.v[4], 'USD', 0)} · Hunter, IPAI, JEER, Venandi`;
-    h += `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-pltoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plBody(R)}</div>` : ''}`; }
+  const Q = (D.informes || {}).pl_q;
+  if (Q) { const open = !!(state.repOpen || {}).pl_q; const ni = Q.filas.find((r) => r.n === 'Net Income after Tax').v.Consolidated[4]; const ti = Q.filas.find((r) => r.n === 'Total Income').v.Consolidated[4];
+    const sub = `2025 by quarter · grouped with Correlaciones · income ${bsK(ti)}k · net income after tax ${bsK(ni)}k · Hunter, Venandi, JEER, IPAI`;
+    h += `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-plqtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>P&amp;L 2025</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${plqBody(Q)}</div>` : ''}`; }
   if (B) { const open = !!(state.repOpen || {}).bs; const p = bsDate(B); const ta = (q) => bsSum(B.arbol[0], q);
     const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
     h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-bstoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Balance Sheet</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${bsBody(B)}</div>` : ''}`; }
@@ -1208,6 +1209,79 @@ async function downloadPL() {
     msg.textContent = 'Downloaded: ' + name;
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
+// ---- Finances: P&L 2025 grouped with the partners' Correlaciones (QuickBooks, accrual, by quarter) — amounts in thousands of USD
+function plqBody(Q) {
+  const e = Q.ents.includes(state.plqEnt) ? state.plqEnt : 'Consolidated'; const op = state.plqAcc || {};
+  const inc = Q.filas.find((r) => r.n === 'Total Income').v[e][4];
+  const seg = `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%;margin:0 0 10px">${Q.ents.map((x) => `<button aria-pressed="${x === e}" data-plqent="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
+  const num = (v, strong) => `<td style="${strong ? 'font-weight:700;' : ''}${v < -0.5 ? 'color:var(--bad)' : ''}">${bsK(v)}</td>`;
+  const rowsHtml = Q.filas.map((r, i) => {
+    if (r.k === 'h') return `<tr class="bs-sec"><td class="l">${esc(r.n)}</td><td colspan="6"></td></tr>`;
+    const v = r.v[e]; const strong = r.k !== 'a'; const acc = r.acc.filter((a) => e === 'Consolidated' || a.e === e); const isOpen = !!op[i] && acc.length;
+    const pad = 8 + r.l * 16; const pct = inc && Math.abs(v[4]) >= 0.5 ? nfE(1).format(v[4] / inc * 100) + '%' : '';
+    const name = acc.length ? `<button class="bs-tg" data-plqacc="${i}" aria-expanded="${!!isOpen}"><span aria-hidden="true">${isOpen ? '−' : '+'}</span> ${esc(r.n)}</button>` : esc(r.n);
+    const cls = r.k === 'k' ? ' class="tot bs-grand"' : (r.k === 't' || r.k === 's') ? ' class="bs-tot"' : '';
+    let h = `<tr${cls}><td class="l" style="padding-left:${pad}px;${r.k === 'a' ? 'font-weight:500' : ''}">${name}</td>${v.slice(0, 4).map((x) => num(x, strong)).join('')}<td class="te" style="${v[4] < -0.5 ? 'color:var(--bad)' : ''}">${bsK(v[4])}</td><td class="mut">${pct}</td></tr>`;
+    if (isOpen) h += acc.map((a) => `<tr class="bs-chk"><td class="l" style="padding-left:${pad + 30}px;font-weight:400">${esc(a.n)}${e === 'Consolidated' ? ` <span class="mut">· ${esc(a.e)}</span>` : ''}</td>${a.v.slice(0, 4).map((x) => num(x)).join('')}<td class="te" style="font-weight:400">${bsK(a.v[4])}</td><td></td></tr>`).join('');
+    return h;
+  }).join('');
+  const C = Q.conc; const nat = Q.filas.find((r) => r.n === 'Net Income after Tax').v[e]; const qb = C.qb[e];
+  const items = C.items.filter((x) => e === 'Consolidated' || x.e === e);
+  const sumI = [0, 1, 2, 3, 4].map((i) => items.reduce((a, x) => a + x.v[i], 0));
+  const rr = (n, v, cls, sub) => `<tr${cls ? ` class="${cls}"` : ''}><td class="l" style="padding-left:${sub ? 38 : 8}px;${sub ? 'font-weight:400' : ''}">${n}</td>${v.slice(0, 4).map((x) => num(x, !sub)).join('')}<td class="te">${bsK(v[4])}</td><td></td></tr>`;
+  const recon = rr('Net Income after Tax (this P&amp;L)', nat) + rr('Net Income per QuickBooks', qb) + rr('Difference', nat.map((x, i) => x - qb[i]), 'bs-tot')
+    + `<tr class="bs-sec"><td class="l">Items left out of the P&amp;L (no line in Correlaciones)</td><td colspan="6"></td></tr>`
+    + items.map((x) => rr(`${esc(x.n)} <span class="mut">· ${esc(x.e)} · ${esc(x.why)}</span>`, x.v, '', true)).join('')
+    + rr('Total items left out', sumI, 'bs-tot') + rr('Check (difference − items = 0)', nat.map((x, i) => x - qb[i] - sumI[i]), 'bs-chk');
+  return `<section class="card"><h3>P&amp;L 2025 · ${esc(e)} · thousands of USD</h3>${seg}
+    <p class="hint" style="margin:0 0 8px">Click + on a line to see the QuickBooks accounts grouped in it.</p>
+    <div class="rtbl-wrap"><table class="rtbl bs-tbl" style="min-width:760px"><thead><tr><th class="l">P&amp;L line</th>${Q.cols.map((c, i) => `<th${i === 4 ? ' class="te"' : ''}>${esc(c)}</th>`).join('')}<th>% of income</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <h3 style="margin-top:16px">Reconciliation with QuickBooks</h3>
+    <div class="rtbl-wrap"><table class="rtbl bs-tbl" style="min-width:760px"><thead><tr><th class="l"></th>${Q.cols.map((c, i) => `<th${i === 4 ? ' class="te"' : ''}>${esc(c)}</th>`).join('')}<th></th></tr></thead><tbody>${recon}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">${esc(Q.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-plqxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-plq" style="font-size:13px"></span><span class="hint">Consolidated and the four companies side by side, plus the account detail.</span></div></section>`;
+}
+async function downloadPLQ() {
+  const msg = $('#repMsg-plq'); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS(); const Q = D.informes.pl_q; const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const MF = '"$"#,##0.0;-"$"#,##0.0;"–"';
+    const dark = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1E21' } }, sand = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E1D8' } }, band = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9C5317' } };
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
+    const ws = wb.addWorksheet('P&L 2025', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }] });
+    ws.getCell('A1').value = 'Engineered Now · P&L 2025 by quarter · thousands of USD'; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = Q.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    const col0 = (b) => 2 + b * 6; // 5 columns + 1 gap per block
+    Q.ents.forEach((en, b) => { const c0 = col0(b); ws.mergeCells(3, c0, 3, c0 + 4); const c = ws.getCell(3, c0); c.value = en === 'Consolidated' ? '2025 CLOSE · 4 companies' : en.toUpperCase(); c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = band; c.alignment = { horizontal: 'center' };
+      Q.cols.forEach((h, k) => { const x = ws.getCell(4, c0 + k); x.value = h; x.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); x.fill = dark; x.alignment = { horizontal: 'center' }; }); ws.getColumn(c0 + 5).width = 3; });
+    const a4 = ws.getCell(4, 1); a4.value = 'P&L'; a4.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); a4.fill = dark;
+    let r = 5; const last = col0(Q.ents.length - 1) + 4;
+    const put = (label, vals, kind, lvl) => { const row = ws.getRow(r); const a = row.getCell(1); a.value = label; a.alignment = { indent: (lvl || 0) * 2 }; const strong = kind && kind !== 'a';
+      a.font = F({ bold: strong, color: kind === 'k' ? { argb: 'FFFFFFFF' } : undefined });
+      if (kind === 'h') { for (let k = 1; k <= last; k++) row.getCell(k).fill = sand; }
+      else if (vals) Q.ents.forEach((en, b) => vals[en] && vals[en].forEach((v, k) => { const c = row.getCell(col0(b) + k); c.value = Math.abs(v) < 0.5 ? 0 : Math.round(v) / 1000; c.numFmt = MF; c.font = F({ bold: strong, color: kind === 'k' ? { argb: 'FFFFFFFF' } : undefined }); }));
+      if (kind === 'k') for (let k = 1; k <= last; k++) if ((k - 1) % 6 !== 0 || k === 1) row.getCell(k).fill = dark;
+      if (kind === 't' || kind === 's') for (let k = 1; k <= last; k++) row.getCell(k).border = { top: { style: 'thin', color: { argb: 'FF9AA0A6' } } };
+      r++; };
+    Q.filas.forEach((x) => { put(x.n, x.k === 'h' ? null : x.v, x.k, x.l); if (x.k === 'k' || x.n === 'Total Income') r++; });
+    r++; put('Reconciliation with QuickBooks', null, 'h', 0);
+    const nat = Q.filas.find((x) => x.n === 'Net Income after Tax').v; put('Net Income after Tax (this P&L)', nat, 'a', 0); put('Net Income per QuickBooks', Q.conc.qb, 'a', 0);
+    const dif = {}; Q.ents.forEach((en) => { dif[en] = nat[en].map((v, i) => v - Q.conc.qb[en][i]); }); put('Difference', dif, 't', 0);
+    put('Items left out of the P&L (no line in Correlaciones)', null, 'h', 0);
+    Q.conc.items.forEach((it) => { const v = {}; Q.ents.forEach((en) => { v[en] = (en === 'Consolidated' || en === it.e) ? it.v : [0, 0, 0, 0, 0]; }); put(`${it.n} · ${it.e} · ${it.why}`, v, 'a', 1); });
+    ws.getColumn(1).width = 52; Q.ents.forEach((en, b) => { for (let k = 0; k < 5; k++) ws.getColumn(col0(b) + k).width = 11; });
+    ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const wd = wb.addWorksheet('QuickBooks accounts', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ['Company', 'P&L line', 'QuickBooks account'].concat(Q.cols).forEach((h, k) => { const c = wd.getCell(1, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = dark; });
+    let k2 = 2; Q.filas.forEach((x) => x.acc.forEach((a) => { const row = wd.getRow(k2++); row.getCell(1).value = a.e; row.getCell(2).value = x.n; row.getCell(3).value = a.n; a.v.forEach((v, i) => { const c = row.getCell(4 + i); c.value = Math.round(v) / 1000; c.numFmt = MF; }); }));
+    Q.conc.items.forEach((a) => { const row = wd.getRow(k2++); row.getCell(1).value = a.e; row.getCell(2).value = 'Not in P&L · ' + a.why; row.getCell(3).value = a.n; a.v.forEach((v, i) => { const c = row.getCell(4 + i); c.value = Math.round(v) / 1000; c.numFmt = MF; }); });
+    [12, 30, 44, 11, 11, 11, 11, 11].forEach((w, i) => { wd.getColumn(i + 1).width = w; });
+    const buf = await wb.xlsx.writeBuffer(); const name = 'PL_2025_QuickBooks_Engineered_Now.xlsx';
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (err) { msg.textContent = 'Could not create the Excel file (' + (err && err.message || err) + ').'; }
+}
 // ---- Finances: Balance Sheet (QuickBooks, cash basis) · 31-Dec-2025 vs a 2026 month-end picked in the calendar
 const BS_CO = ['Hunter', 'Venandi', 'JEER', 'IPAI'];
 const BS_MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1731,6 +1805,10 @@ const AFTER = {
     document.querySelectorAll('[data-pltoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_2025: !(state.repOpen || {}).pl_2025 }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-plent]').forEach((b) => b.addEventListener('click', kp(() => { state.plEnt = b.dataset.plent; })));
     document.querySelectorAll('[data-plxls]').forEach((b) => b.addEventListener('click', () => downloadPL()));
+    document.querySelectorAll('[data-plqtoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { pl_q: !(state.repOpen || {}).pl_q }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-plqent]').forEach((b) => b.addEventListener('click', kp(() => { state.plqEnt = b.dataset.plqent; })));
+    document.querySelectorAll('[data-plqacc]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.plqacc; state.plqAcc = Object.assign({}, state.plqAcc, { [k]: !(state.plqAcc || {})[k] }); })));
+    document.querySelectorAll('[data-plqxls]').forEach((b) => b.addEventListener('click', () => downloadPLQ()));
     document.querySelectorAll('[data-bstoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { bs: !(state.repOpen || {}).bs }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-bscal]').forEach((b) => b.addEventListener('click', kp(() => { state.bsCal = !state.bsCal; })));
     document.querySelectorAll('[data-bsdate]').forEach((b) => b.addEventListener('click', kp(() => { state.bsFecha = b.dataset.bsdate; state.bsCal = false; try { localStorage.setItem('enBsFecha', state.bsFecha); } catch (e) {} })));
