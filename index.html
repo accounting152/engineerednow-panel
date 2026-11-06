@@ -1341,7 +1341,7 @@ async function downloadBS() {
     await loadExcelJS(); const B = D.informes.bs; const p = bsDate(B); const keep = state.bsClosed; state.bsClosed = {}; const rows = bsRows(B, p); state.bsClosed = keep;
     const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const MF = '"$"#,##0.0;-"$"#,##0.0;"–"';
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
-    const maxLvl = Math.max(1, ...rows.map((r) => r.d)); const ws = wb.addWorksheet('Balance', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }], properties: { outlineLevelRow: maxLvl, outlineProperties: { summaryBelow: true, summaryRight: true } } });
+    const maxLvl = Math.max(1, ...rows.map((r) => r.d)); const ws = wb.addWorksheet('Balance', { views: [{ state: 'frozen', xSplit: 1, ySplit: 4, showGridLines: false }], properties: { outlineLevelRow: maxLvl } }); // no outlineProperties: ExcelJS writes <outlinePr> after <pageSetUpPr>, which Excel rejects (summary below is Excel's default anyway)
     ws.getCell('A1').value = `Engineered Now · Balance Sheet · ${B.labels[B.base]} and ${B.labels[p]} · cash basis · thousands of USD`; ws.getCell('A1').font = F({ bold: true, size: 14 });
     ws.getCell('A2').value = B.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     const dark = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1E21' } }, sand = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E1D8' } };
