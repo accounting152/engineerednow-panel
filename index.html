@@ -1131,13 +1131,8 @@ function shRows(R) { const y = state.shYear || '2026', t = state.shType || 'All'
   return R.filas.filter((x) => x.anio === y && (t === 'All' || (t === 'Orders' ? x.tipo === 'Order' : x.tipo !== 'Order')) && (f === 'All' || x.envio_por === f) && (!q || (x.pedido + ' ' + x.sku + ' ' + x.modelo + ' ' + x.pais + ' ' + x.codigo + ' ' + x.producto).toLowerCase().includes(q))); }
 const SH_NUM = [['uds', 'Units (+ sold / − returned)'], ['bruto', 'Product price'], ['descuento', 'Discount'], ['envio', 'Shipping charged'], ['reembolso', 'Refunds'], ['neto', 'Net revenue'], ['fee_mcf', 'Amazon MCF fulfilment fee'], ['neto_fee', 'Net after MCF fee'], ['impuesto', 'Sales tax collected']];
 function shopifyInformes() {
-  const R = (D.informes || {}).shopify_lineas; if (!R) return '<div class="card mut">No Shopify data loaded yet.</div>';
-  const open = !!(state.repOpen || {}).shopify_lineas; const tot = (y, k) => R.filas.filter((x) => x.anio === y).reduce((a, x) => a + x[k], 0);
-  const sub = R.anios.map((y) => `${y}: ${nfE(0).format(tot(y, 'uds'))} net units · ${moneyE(tot(y, 'neto'), 'USD', 0)} net revenue`).join(' · ');
-  if (!D.informes.shopify_um) D.informes.shopify_um = shUMBuild(R); const R2 = D.informes.shopify_um; const open2 = !!(state.repOpen || {}).shopify_um;
-  const sub2 = R2.anios.map((y) => `${y}: ${nfE(0).format(R2.tot_anio[y] || 0)} net units · ${moneyE(R2.tot_usd[y] || 0, 'USD', 0)} net sales`).join(' · ');
-  const second = `<section class="card rep-item${open2 ? ' open' : ''}"><button class="rep-head" data-shtoggle2 aria-expanded="${open2}"><span class="rep-pm" aria-hidden="true">${open2 ? '−' : '+'}</span><span class="rep-t"><b>${esc(R2.titulo)}</b><span class="mut">${esc(sub2)}</span></span></button></section>${open2 ? `<div class="rep-body">${umBody('shopify_um')}</div>` : ''}`;
-  return spCard() + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}` + second;
+  const c = spCard(); if (!c) return '<div class="card mut">No Shopify data loaded yet.</div>';
+  return c + '<p class="hint" style="margin-top:6px">Tap (+) to open the report and (−) to close it.</p>';
 }
 // ---- Shopify payouts: sales, refunds and Shopify fees per payout, reconciled with Wells Fargo (Hunter)
 const SP_ST = { 'Confirmed in bank': 'var(--ok)', 'In transit': 'var(--info)', Scheduled: 'var(--info)', Withdrawal: 'var(--warn)', 'Not found in bank': 'var(--bad)' };
