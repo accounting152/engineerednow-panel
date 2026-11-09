@@ -296,6 +296,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .liq .s{font-size:12px;color:var(--muted)}
 
 .tabs button{border:0;background:none;display:grid;justify-items:center;gap:3px;padding:6px 0;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;position:relative}
+@media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current="page"]{color:var(--accent)}
 .tabs button[aria-current="page"]::after{content:"";position:absolute;top:-9px;width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
@@ -347,6 +348,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
     <div class="tabs-in">
       <button data-tab="resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Resumen</button>
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
+      <button data-tab="competitors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14.5 14.6A5 5 0 0 1 21 19"/></svg>Competitors</button>
       <button data-tab="marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Marketing</button>
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
@@ -410,7 +412,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','competitors','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -421,7 +423,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -541,6 +543,9 @@ finances() {
     const sub = `Cash basis · total assets ${bsK(ta(B.base))}k at ${B.labels[B.base]} · ${bsK(ta(p))}k at ${B.labels[p]} · Hunter, Venandi, JEER, IPAI`;
     h += `<section class="card rep-item${open ? ' open' : ''}" style="margin-top:12px"><button class="rep-head" data-bstoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Balance Sheet</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${bsBody(B)}</div>` : ''}`; }
   return h;
+},
+competitors() {
+  return `<section class="card"><h3>Competitors</h3><p class="mut" style="margin:6px 0 0">This section is ready. Tell Claude which competitors to follow (brands, Amazon listings, websites) and what to compare — prices, models, ratings, reviews or sales rank — and the reports will appear here.</p></section>`;
 },
 marketing() {
   const M = (D.informes || {}).mkt;
