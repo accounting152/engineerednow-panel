@@ -545,7 +545,33 @@ finances() {
   return h;
 },
 competitors() {
-  return `<section class="card"><h3>Competitors</h3><p class="mut" style="margin:6px 0 0">This section is ready. Tell Claude which competitors to follow (brands, Amazon listings, websites) and what to compare — prices, models, ratings, reviews or sales rank — and the reports will appear here.</p></section>`;
+  const C = (D.informes || {}).competitors;
+  if (!C) return `<section class="card"><h3>Competitors</h3><p class="mut" style="margin:6px 0 0">No competitor data yet.</p></section>`;
+  const MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const img = (u, alt) => `<img src="${esc(u)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" style="width:96px;height:96px;object-fit:contain;background:#fff;border-radius:12px;border:1px solid var(--line);flex:none" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'${esc(alt).slice(0, 2).toUpperCase()}',style:'width:96px;height:96px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center;font-weight:700;color:var(--muted);flex:none'}))">`;
+  const link = (a) => `<a href="https://www.amazon.com/dp/${a}" target="_blank" rel="noopener">${a}</a>`;
+  const tot = (b) => C.months.reduce((t, r) => t + (r.est[b] || 0), 0);
+  const cards = C.comps.map((c) => `<section class="card" style="display:flex;gap:14px;align-items:flex-start">${img(c.img, c.brand)}<div style="min-width:0;display:grid;gap:4px">
+    <div><span class="mut" style="font-size:12px">#${c.rank} competitor</span><h3 style="margin:2px 0 0">${esc(c.brand)}</h3></div>
+    <div class="mut" style="font-size:13px">${esc(c.title)}</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px"><span><b style="font-family:var(--mono)">${moneyE(c.price, 'USD')}</b></span><span>★ ${nfE(1).format(c.rating)} (${c.reviews} reviews)</span><span>${c.bought ? `<b>${esc(c.bought)}</b> bought in past month` : 'No "bought in past month" badge'}</span></div>
+    <div class="mut" style="font-size:12.5px">BSR ${esc(c.bsr)} · Sold by ${esc(c.seller)} · ASIN ${c.asins.map(link).join(', ')}</div>
+    <div style="font-size:13px">2026 Jan–Oct, est. units on the 2 key searches: <b style="font-family:var(--mono)">${nfE(0).format(tot(c.brand))}</b></div>
+    <div class="hint">${esc(c.note)}</div></div></section>`).join('');
+  const O = C.ours, A = C.alert;
+  const ours = `<section class="card" style="display:flex;gap:14px;align-items:flex-start">${img(O.img, O.brand)}<div style="display:grid;gap:4px"><span class="mut" style="font-size:12px">For comparison</span><h3 style="margin:0">${esc(O.brand)}</h3><div style="font-size:13px"><b style="font-family:var(--mono)">${moneyE(O.price, 'USD')}</b> · <b>${esc(O.bought)}</b> bought in past month (ASIN ${link(O.asin)})</div><div style="font-size:13px">2026 Jan–Oct purchases on the 2 key searches: <b style="font-family:var(--mono)">${nfE(0).format(C.months.reduce((t, r) => t + r.en, 0))}</b> (Amazon actual data)</div></div></section>`;
+  const alert = `<section class="card" style="display:flex;gap:14px;align-items:flex-start;border-color:var(--warn)">${img(A.img, 'Copy')}<div style="display:grid;gap:4px"><span style="font-size:12px;color:var(--warn);font-weight:600">⚠ Possible copycat listing</span><h3 style="margin:0">${esc(A.brand)}</h3><div style="font-size:13px"><b style="font-family:var(--mono)">${moneyE(A.price, 'USD')}</b> · ASIN ${link(A.asin)}</div><div class="hint">${esc(A.note)}</div></div></section>`;
+  const brands = C.comps.map((c) => c.brand);
+  const cell = (v) => (v ? nfE(0).format(v) : '<span class="mut">–</span>');
+  const pct = (a, b) => (b ? nfE(0).format(a / b * 100) + '%' : '');
+  const rows = C.months.map((r) => { const oth = Math.max(0, r.tot - r.en - brands.reduce((t, b) => t + (r.est[b] || 0), 0));
+    return `<tr class="sub"><td class="l">${MES[r.m - 1]} 2026</td><td>${nfE(0).format(r.vol)}</td><td>${r.tot}</td><td class="te"><b>${r.en}</b> <span class="mut">${pct(r.en, r.tot)}</span></td>${brands.map((b) => `<td>${cell(r.est[b])} <span class="mut">${r.est[b] ? pct(r.est[b], r.tot) : ''}</span></td>`).join('')}<td>${cell(oth)}</td></tr>`; }).join('');
+  const T = C.months.reduce((a, r) => { a.vol += r.vol; a.tot += r.tot; a.en += r.en; brands.forEach((b) => { a[b] = (a[b] || 0) + (r.est[b] || 0); }); return a; }, { vol: 0, tot: 0, en: 0 });
+  const toth = `<tr class="tot"><td class="l">Jan–Oct 2026</td><td>${nfE(0).format(T.vol)}</td><td>${T.tot}</td><td class="te"><b>${T.en}</b> <span class="mut">${pct(T.en, T.tot)}</span></td>${brands.map((b) => `<td>${nfE(0).format(T[b])} <span class="mut">${pct(T[b], T.tot)}</span></td>`).join('')}<td>${nfE(0).format(Math.max(0, T.tot - T.en - brands.reduce((t, b) => t + T[b], 0)))}</td></tr>`;
+  const table = `<section class="card"><h3>Units by month 2026 – Amazon USA</h3><p class="mut" style="margin:4px 0 10px;font-size:13px">Purchases on the two main searches for our product ("aeron headrest" and "herman miller aeron headrest"). Engineered Now = Amazon actual data; competitors = estimate.</p>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:820px"><thead><tr><th class="l">Month</th><th>Searches</th><th>Total purchases</th><th class="te">Engineered Now</th>${brands.map((b) => `<th>${esc(b)} (est.)</th>`).join('')}<th>Other sellers</th></tr></thead><tbody>${toth}${rows}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">How it is estimated: Amazon does not publish competitors' sales. Brand Analytics (our Hunter brand account) gives, for each search and month, the total number of purchases and the purchase share (conversion share) of the 3 most clicked products. Estimated units = purchase share × total purchases, added up for the two searches. "–" = the product was not in the top 3 that month, so its units are unknown (not zero). These figures only cover these two searches; total sales of each competitor are higher. The best signal of total current sales is the "bought in past month" badge on each listing (ERGOKING 200+, Engineered Now 100+).</p></section>`;
+  return `<section class="card"><h3>Top 3 competitors – Aeron headrest, Amazon USA</h3><p class="mut" style="margin:6px 0 0;font-size:13px">Search "Headrest Aeron chair" on amazon.com and Brand Analytics data, collected on ${fdEN(C.asof).d} ${fdEN(C.asof).m} ${C.asof.slice(0, 4)}. Brands with most clicks every month: ERGOKING, Engineered Now and MingYi.office.</p></section>${cards}${ours}${alert}${table}`;
 },
 marketing() {
   const M = (D.informes || {}).mkt;
