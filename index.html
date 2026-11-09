@@ -1177,6 +1177,18 @@ function umData(R) {
 function shRows(R) { const y = state.shYear || '2026', t = state.shType || 'All', f = state.shFul || 'All', q = (state.shQ || '').toLowerCase();
   return R.filas.filter((x) => x.anio === y && (t === 'All' || (t === 'Orders' ? x.tipo === 'Order' : x.tipo !== 'Order')) && (f === 'All' || x.envio_por === f) && (!q || (x.pedido + ' ' + x.sku + ' ' + x.modelo + ' ' + x.pais + ' ' + x.codigo + ' ' + x.producto).toLowerCase().includes(q))); }
 const SH_NUM = [['uds', 'Units (+ sold / − returned)'], ['bruto', 'Product price'], ['descuento', 'Discount'], ['envio', 'Shipping charged'], ['reembolso', 'Refunds'], ['neto', 'Net revenue'], ['fee_shop', 'Shopify Payments fee'], ['fee_mcf', 'Amazon MCF fulfilment fee'], ['neto_fee', 'Net after fees'], ['impuesto', 'Sales tax (collected / − refunded)']];
+function shSummary() { const R = (D.informes || {}).shopify_lineas; if (!R) return null; const I = D.informes; const ys = ['2025', '2026'];
+  const L = [['Orders (number)', 'n'], ['Units sold', 'sold'], ['Units returned', 'ret'], ['Net units', 'uds'], ['Product price', 'bruto'], ['Discounts', 'descuento'], ['Shipping charged', 'envio'], ['Refunds', 'reembolso'], ['Net revenue', 'neto'], ['Shopify Payments fees', 'fee_shop'], ['Amazon MCF fees', 'fee_mcf'], ['Net after fees', 'neto_fee'], ['Sales tax (not in net revenue)', 'impuesto'], ['Refund lines', 'refl'], ['Net sales per payouts report (reference)', 'ref1'], ['Difference vs payouts report', 'diff'], ['Shopify Payments fees per payouts report (reference)', 'ref2']];
+  const V = {}; ys.forEach((y) => { const f = R.filas.filter((x) => x.anio === y); const o = V[y] = {}; ['uds', 'bruto', 'descuento', 'envio', 'reembolso', 'neto', 'fee_shop', 'fee_mcf', 'neto_fee', 'impuesto'].forEach((k) => { o[k] = f.reduce((a, x) => a + (x[k] || 0), 0); });
+    o.n = new Set(f.filter((x) => x.tipo === 'Order').map((x) => x.pedido)).size; o.sold = f.filter((x) => x.tipo === 'Order').reduce((a, x) => a + x.uds, 0); o.ret = -f.filter((x) => x.tipo !== 'Order').reduce((a, x) => a + x.uds, 0); o.refl = f.filter((x) => x.tipo !== 'Order').length;
+    o.ref1 = ((I.shopify_um || {}).tot_usd || {})[y]; o.diff = o.ref1 != null ? o.neto - o.ref1 : null; const pt = ((I.shopify_payouts || {}).totales || {})[y]; o.ref2 = pt ? -pt.comisiones : null; });
+  return { ys, L, V }; }
+function shSumBody() { const S = shSummary(); if (!S) return ''; const cnt = ['n', 'sold', 'ret', 'uds', 'refl'];
+  const fmt = (k, v) => (v == null ? '–' : cnt.includes(k) ? nfE(0).format(v) : moneyE(v, 'USD'));
+  const rows = S.L.map(([l, k]) => `<tr class="${['neto', 'neto_fee'].includes(k) ? 'tot' : 'sub'}"><td class="l">${esc(l)}</td>${S.ys.map((y) => `<td${(S.V[y][k] || 0) < 0 ? ' style="color:var(--bad)"' : ''}>${fmt(k, S.V[y][k])}</td>`).join('')}</tr>`).join('');
+  return `<section class="card"><h3>Shopify summary · orders, refunds and fees (USD)</h3><div class="rtbl-wrap"><table class="rtbl" style="min-width:520px"><thead><tr><th class="l">Concept</th>${S.ys.map((y) => `<th>${y}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">Calculated from the "Shopify orders and refunds · line detail" report (Shopify Admin API, by order date). Net revenue = product price − discount + shipping charged − refunds; sales tax is shown apart. Each refund counts on the date it was made. The small difference with the payouts report comes from timing (order date vs payout date); payouts also include fees on refunds and chargebacks ($15 each).</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-shxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-shopify" style="font-size:13px"></span><span class="hint">Two sheets: Summary and Line detail (all orders and refunds).</span></div></section>`; }
 function shopifyInformes() {
   const c = spCard(); if (!c) return '<div class="card mut">No Shopify data loaded yet.</div>';
   const R2 = (D.informes || {}).shopify_um; let um = '';
@@ -1185,7 +1197,9 @@ function shopifyInformes() {
   const R1 = (D.informes || {}).shopify_lineas; let ln = '';
   if (R1) { const op = !!(state.repOpen || {}).shopify_lineas; const sub1 = R1.anios.map((y) => { const f = R1.filas.filter((x) => x.anio === y); return `${y}: ${new Set(f.filter((x) => x.tipo === 'Order').map((x) => x.pedido)).size} orders · ${f.filter((x) => x.tipo !== 'Order').length} refund lines · ${moneyE(f.reduce((a, x) => a + x.neto, 0), 'USD', 0)} net`; }).join(' · ');
     ln = `<section class="card rep-item${op ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${op}"><span class="rep-pm" aria-hidden="true">${op ? '−' : '+'}</span><span class="rep-t"><b>${esc(R1.titulo)}</b><span class="mut">${esc(sub1)}</span></span></button></section>${op ? `<div class="rep-body">${shBody(R1)}</div>` : ''}`; }
-  return c + ln + um + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
+  let sm = ''; const SS = shSummary(); if (SS) { const op3 = !!(state.repOpen || {}).shopify_sum; const sub3 = SS.ys.map((y) => `${y}: ${moneyE(SS.V[y].neto, 'USD', 0)} net revenue · ${moneyE(SS.V[y].neto_fee, 'USD', 0)} after fees`).join(' · ');
+    sm = `<section class="card rep-item${op3 ? ' open' : ''}"><button class="rep-head" data-shtoggle3 aria-expanded="${op3}"><span class="rep-pm" aria-hidden="true">${op3 ? '−' : '+'}</span><span class="rep-t"><b>Shopify summary · orders, refunds and fees</b><span class="mut">${esc(sub3)}</span></span></button></section>${op3 ? `<div class="rep-body">${shSumBody()}</div>` : ''}`; }
+  return c + sm + ln + um + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
 }
 // ---- Shopify payouts: sales, refunds and Shopify fees per payout, reconciled with Wells Fargo (Hunter)
 const SP_ST = { 'Confirmed in bank': 'var(--ok)', 'In transit': 'var(--info)', Scheduled: 'var(--info)', Withdrawal: 'var(--warn)', 'Not found in bank': 'var(--bad)' };
@@ -1289,7 +1303,13 @@ async function downloadShopify() {
   const msg = $('#repMsg-shopify'); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS(); const R = D.informes.shopify_lineas; const F = (o) => Object.assign({ name: 'Arial', size: 9 }, o || {}); const MF = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@';
-    const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Shopify line detail', { views: [{ state: 'frozen', xSplit: 3, ySplit: 1 }] });
+    const wb = new ExcelJS.Workbook(); const SS = shSummary();
+    if (SS) { const w0 = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 3 }] }); w0.getCell(1, 1).value = 'Shopify orders and refunds – summary (USD)'; w0.getCell(1, 1).font = F({ bold: true, size: 14 });
+      ['Concept'].concat(SS.ys).forEach((h, k) => { const c = w0.getCell(3, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; });
+      SS.L.forEach(([l, k], i) => { const r = i + 4; w0.getCell(r, 1).value = l; w0.getCell(r, 1).font = F({ bold: ['neto', 'neto_fee'].includes(k) }); SS.ys.forEach((y, j) => { const c = w0.getCell(r, j + 2); const v = SS.V[y][k]; c.value = v == null ? null : Math.round(v * 100) / 100; c.font = F({ bold: ['neto', 'neto_fee'].includes(k) }); c.numFmt = ['n', 'sold', 'ret', 'uds', 'refl'].includes(k) ? '#,##0' : '#,##0.00;[Red]-#,##0.00;-'; }); });
+      w0.getColumn(1).width = 48; w0.getColumn(2).width = 14; w0.getColumn(3).width = 14;
+      w0.getCell(SS.L.length + 5, 1).value = 'Net revenue = product price − discount + shipping charged − refunds (sales tax apart). Source: Shopify Admin API, by order date; refunds on the date they were made.'; w0.getCell(SS.L.length + 5, 1).font = F({ italic: true }); }
+    const ws = wb.addWorksheet('Line detail', { views: [{ state: 'frozen', xSplit: 3, ySplit: 1 }] });
     const pre = [['anio', 'Year'], ['fecha', 'Date'], ['pedido', 'Order'], ['tipo', 'Type'], ['extra', 'Note / refund reason'], ['estado', 'Status'], ['pais', 'Country'], ['region', 'State'], ['canal', 'Channel'], ['envio_por', 'Fulfilled by'], ['mcf_cuenta', 'MCF Amazon account'], ['sku', 'SKU'], ['modelo', 'Model'], ['producto', 'Product name']];
     const post = [['codigo', 'Discount code'], ['pago', 'Payment gateway']]; const H = pre.concat(SH_NUM, post);
     H.forEach(([, h], k) => { const c = ws.getCell(1, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
@@ -1298,7 +1318,7 @@ async function downloadShopify() {
       if (k === 'fecha') c.numFmt = 'dd-mmm-yyyy'; if (SH_NUM.some(([kk]) => kk === k) && k !== 'uds') c.numFmt = MF; if (k === 'uds') c.numFmt = '0;[Red]-0;;@'; }); });
     [6, 11, 8, 13, 16, 18, 7, 7, 11, 16, 12, 16, 8, 40].forEach((w, k) => { ws.getColumn(k + 1).width = w; }); for (let k = pre.length + 1; k <= H.length; k++) ws.getColumn(k).width = 13;
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: H.length } };
-    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_orders_line_detail_2025-2026.xlsx';
+    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_orders_refunds_line_detail_2025-2026.xlsx';
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -2047,6 +2067,7 @@ const AFTER = {
   amazon() {
     document.querySelectorAll('[data-ssub]').forEach((b) => b.addEventListener('click', () => { state.salesSub = b.dataset.ssub; render(); scrollTo({ top: 0 }); }));
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-shtoggle3]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_sum: !(state.repOpen || {}).shopify_sum }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-shtoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_lineas: !(state.repOpen || {}).shopify_lineas }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     document.querySelectorAll('[data-shy]').forEach((b) => b.addEventListener('click', kp(() => { state.shYear = b.dataset.shy; })));
     document.querySelectorAll('[data-sht]').forEach((b) => b.addEventListener('click', kp(() => { state.shType = b.dataset.sht; })));
