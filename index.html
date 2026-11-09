@@ -347,7 +347,6 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
     <div class="tabs-in">
       <button data-tab="resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Resumen</button>
       <button data-tab="bancos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bancos</button>
-      <button data-tab="pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7h13M7 12h13M7 17h13"/><circle cx="3.5" cy="7" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="17" r="1"/></svg>Pendientes<span class="badge" id="badge" hidden></span></button>
       <button data-tab="marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Marketing</button>
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
@@ -411,7 +410,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','pendientes','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -430,7 +429,7 @@ function go(tab) {
   $('#title').textContent = TITLES[tab];
   const g = fdate(D.corte);
   $('#stamp').textContent = `Datos al ${g.d} ${g.m} ${g.y} · ${D.generado.slice(11)} h`;
-  const badge = $('#badge'); badge.textContent = D.resumen.pendientes_n; badge.hidden = !D.resumen.pendientes_n;
+  const badge = $('#badge'); if (badge) { badge.textContent = D.resumen.pendientes_n; badge.hidden = !D.resumen.pendientes_n; }
   try { history.replaceState(null, '', '#' + tab); } catch (e) {}
   render(); scrollTo({ top: 0 });
 }
@@ -1138,7 +1137,85 @@ function shopifyInformes() {
   if (!D.informes.shopify_um) D.informes.shopify_um = shUMBuild(R); const R2 = D.informes.shopify_um; const open2 = !!(state.repOpen || {}).shopify_um;
   const sub2 = R2.anios.map((y) => `${y}: ${nfE(0).format(R2.tot_anio[y] || 0)} net units · ${moneyE(R2.tot_usd[y] || 0, 'USD', 0)} net sales`).join(' · ');
   const second = `<section class="card rep-item${open2 ? ' open' : ''}"><button class="rep-head" data-shtoggle2 aria-expanded="${open2}"><span class="rep-pm" aria-hidden="true">${open2 ? '−' : '+'}</span><span class="rep-t"><b>${esc(R2.titulo)}</b><span class="mut">${esc(sub2)}</span></span></button></section>${open2 ? `<div class="rep-body">${umBody('shopify_um')}</div>` : ''}`;
-  return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}` + second;
+  return spCard() + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-shtoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${shBody(R)}</div>` : ''}` + second;
+}
+// ---- Shopify payouts: sales, refunds and Shopify fees per payout, reconciled with Wells Fargo (Hunter)
+const SP_ST = { 'Confirmed in bank': 'var(--ok)', 'In transit': 'var(--info)', Scheduled: 'var(--info)', Withdrawal: 'var(--warn)', 'Not found in bank': 'var(--bad)' };
+const SP_ES = { 'Confirmed in bank': 'Confirmed in bank', 'In transit': 'In transit', Scheduled: 'Scheduled', Withdrawal: 'Charged to bank (negative payout)', 'Not found in bank': 'Not found in Wells Fargo' };
+function spRows(R) { const y = state.spYear || '2026', st = state.spSt || 'All'; return R.filas.filter((r) => (y === 'All' || r.anio === y) && (st === 'All' || r.estado === st)); }
+function spCard() {
+  const R = (D.informes || {}).shopify_payouts; if (!R) return ''; const open = !!(state.repOpen || {}).shopify_payouts;
+  const sub = R.anios.map((y) => `${y}: ${R.n_anio[y]} payouts · ${moneyE(R.totales[y].importe, 'USD', 0)} paid`).join(' · ');
+  return `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-sptoggle aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${spBody(R)}</div>` : ''}`;
+}
+function spBody(R) {
+  const y = state.spYear || '2026', st = state.spSt || 'All', v = state.spView === 'payouts' ? 'payouts' : 'months'; const rows = spRows(R);
+  const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : ''); const m2 = (x) => moneyE(x, 'USD'); const sum = (a, k) => a.reduce((t, r) => t + r[k], 0);
+  const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Year">${R.anios.concat(['All']).map((v2) => `<button aria-pressed="${v2 === y}" data-spy="${v2}">${v2 === 'All' ? '2025–2026' : v2}</button>`).join('')}</div>
+    <div class="seg" role="tablist" aria-label="View"><button aria-pressed="${v === 'months'}" data-spv="months">By month</button><button aria-pressed="${v === 'payouts'}" data-spv="payouts">Payouts</button></div>
+    <select data-sps class="inp" style="height:40px" aria-label="Status">${['All'].concat(Object.keys(SP_ST)).map((k) => `<option value="${esc(k)}"${k === st ? ' selected' : ''}>${k === 'All' ? 'All statuses' : esc(SP_ES[k])}</option>`).join('')}</select></div>`;
+  const conf = rows.filter((r) => r.estado === 'Confirmed in bank'); const wd = rows.filter((r) => r.estado === 'Withdrawal'); const nf = rows.filter((r) => r.estado === 'Not found in bank'); const pend = rows.filter((r) => r.estado === 'In transit' || r.estado === 'Scheduled');
+  const kp = `<div class="kpi"><span class="l">Total sales ${y === 'All' ? '2025–2026' : y}</span><span class="v">${moneyE(sum(rows, 'ventas'), 'USD', 0)}</span><span class="l">card charges captured by Shopify Payments</span></div>
+    <div class="kpi"><span class="l">Refunds</span><span class="v" style="color:var(--bad)">${moneyE(sum(rows, 'reembolsos'), 'USD', 0)}</span><span class="l">adjustments / chargebacks ${moneyE(sum(rows, 'ajustes'), 'USD', 0)}</span></div>
+    <div class="kpi"><span class="l">Shopify fees</span><span class="v" style="color:var(--warn)">${moneyE(sum(rows, 'comisiones'), 'USD', 0)}</span><span class="l">${sum(rows, 'ventas') ? nfE(2).format(-sum(rows, 'comisiones') / sum(rows, 'ventas') * 100) : '0'}% of sales</span></div>
+    <div class="kpi"><span class="l">Paid to the bank</span><span class="v">${moneyE(sum(rows, 'importe'), 'USD', 0)}</span><span class="l">${rows.length} payouts · Wells Fargo ••2309 (Hunter)</span></div>
+    <div class="kpi"><span class="l">Confirmed in Wells Fargo</span><span class="v ok">${conf.length}</span><span class="l">${moneyE(sum(conf, 'importe'), 'USD', 0)} · bank feed in QuickBooks</span></div>
+    <div class="kpi"><span class="l">To review</span><span class="v" style="color:${nf.length ? 'var(--bad)' : 'var(--muted)'}">${nf.length + wd.length}</span><span class="l">${nf.length} not found (${moneyE(sum(nf, 'importe'), 'USD', 0)}) · ${wd.length} negative payouts charged (${moneyE(sum(wd, 'importe'), 'USD', 0)}) · ${pend.length} in transit</span></div>`;
+  let main;
+  if (v === 'months') {
+    const M = {}; rows.forEach((r) => { const k = r.fecha.slice(0, 7); const o = M[k] = M[k] || { n: 0, ventas: 0, reembolsos: 0, comisiones: 0, ajustes: 0, importe: 0, banco: 0, nb: 0 }; o.n++; ['ventas', 'reembolsos', 'comisiones', 'ajustes', 'importe'].forEach((q) => { o[q] += r[q]; }); if (r.estado === 'Confirmed in bank') { o.banco += r.importe; o.nb++; } });
+    const ks = Object.keys(M).sort().reverse(); const mn = (k) => { const d = new Date(k + '-01T00:00:00Z'); return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' }); };
+    const T = ks.reduce((a, k) => { Object.keys(M[k]).forEach((q) => { a[q] = (a[q] || 0) + M[k][q]; }); return a; }, {});
+    const tr = (lab, o, cls) => `<tr class="${cls}"><td class="l">${lab}</td><td>${o.n}</td><td>${m2(o.ventas)}</td><td style="color:var(--bad)">${m2(o.reembolsos)}</td><td style="color:var(--warn)">${m2(o.comisiones)}</td><td>${Math.abs(o.ajustes) >= 0.005 ? m2(o.ajustes) : ''}</td><td class="te"><b>${m2(o.importe)}</b></td><td>${m2(o.banco)} <span class="mut">(${o.nb})</span></td><td style="color:${Math.abs(o.importe - o.banco) < 0.01 ? 'var(--ok)' : 'var(--warn)'}">${Math.abs(o.importe - o.banco) < 0.01 ? '✓' : m2(o.importe - o.banco)}</td></tr>`;
+    main = `<div class="rtbl-wrap"><table class="rtbl" style="min-width:1040px"><thead><tr><th class="l">Payout month</th><th>Payouts</th><th>Sales (USD)</th><th>Refunds (USD)</th><th>Shopify fees (USD)</th><th>Adjustments (USD)</th><th class="te">Paid (USD)</th><th>Received in Wells Fargo 2309</th><th>Difference</th></tr></thead><tbody>${tr('Total', T, 'tot')}${ks.map((k) => tr(mn(k), M[k], 'sub')).join('')}</tbody></table></div>
+      <p class="hint" style="margin-top:8px">Difference = paid by Shopify − received in Wells Fargo. It is not zero only where there are negative payouts (charged to the bank), payouts in transit or payouts not found in the bank — see the Payouts view.</p>`;
+  } else {
+    const body = rows.slice().reverse().map((r) => `<tr class="sub"><td class="l">${fd(r.fecha)}</td><td style="text-align:left">${esc(r.id)}</td><td>${m2(r.ventas)}</td><td${r.reembolsos < 0 ? ' style="color:var(--bad)"' : ''}>${Math.abs(r.reembolsos) >= 0.005 ? m2(r.reembolsos) : ''}</td><td style="color:var(--warn)">${Math.abs(r.comisiones) >= 0.005 ? m2(r.comisiones) : ''}</td><td>${Math.abs(r.ajustes) >= 0.005 ? m2(r.ajustes) : ''}</td><td class="te"${r.importe < 0 ? ' style="color:var(--bad)"' : ''}><b>${m2(r.importe)}</b></td><td style="text-align:left">${esc(r.banco)}</td><td>${fd(r.fecha_banco)}</td><td style="text-align:left">${esc(r.ref_banco || '')}</td><td style="color:${SP_ST[r.estado]};font-weight:700;text-align:left">${esc(SP_ES[r.estado])}${r.motivo ? '<br><span class="mut" style="font-weight:400">' + esc(r.motivo) + '</span>' : ''}</td></tr>`).join('');
+    const T = `<tr class="tot"><td class="l" colspan="2">Total (${rows.length} payouts)</td><td>${m2(sum(rows, 'ventas'))}</td><td>${m2(sum(rows, 'reembolsos'))}</td><td>${m2(sum(rows, 'comisiones'))}</td><td>${m2(sum(rows, 'ajustes'))}</td><td class="te"><b>${m2(sum(rows, 'importe'))}</b></td><td colspan="4"></td></tr>`;
+    main = `<div class="rtbl-wrap"><table class="rtbl cobt" style="min-width:1400px"><thead><tr><th class="l">Payout date</th><th style="text-align:left">Payout ID</th><th>Sales (USD)</th><th>Refunds (USD)</th><th>Shopify fees (USD)</th><th>Adjustments (USD)</th><th class="te">Paid (USD)</th><th style="text-align:left">Bank account</th><th>Bank date</th><th style="text-align:left">Bank reference</th><th style="text-align:left">Status</th></tr></thead><tbody>${T}${body}</tbody></table></div>`;
+  }
+  return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}<section class="kpis" style="margin:6px 0 12px">${kp}</section>${main}
+    <p class="hint" style="margin-top:8px">${esc(R.nota)}</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-spxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-shpay" style="font-size:13px"></span><span class="hint">Two sheets: By month and Payouts (2025 and 2026, ready to filter).</span></div></section>`;
+}
+async function downloadShPay() {
+  const msg = $('#repMsg-shpay'); msg.textContent = 'Preparing the Excel file…';
+  try {
+    await loadExcelJS(); const R = D.informes.shopify_payouts; const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {}); const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const MF = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@'; const D8 = (s) => (s ? new Date(s + 'T00:00:00Z') : ''); const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } };
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
+    const hdr = (ws, r, H) => { H.forEach((h, k) => { const c = ws.getCell(r, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = fill('FF11181D'); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; }); ws.getRow(r).height = 30; };
+    const rows = R.filas.slice().sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id.localeCompare(b.id));
+    // Payouts sheet
+    const w2 = wb.addWorksheet('Payouts', { views: [{ state: 'frozen', ySplit: 4 }] });
+    w2.getCell('A1').value = 'Shopify payouts (USD) · Hunter Trading Group, Inc.'; w2.getCell('A1').font = F({ bold: true, size: 14 }); w2.getCell('A2').value = R.nota; w2.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    hdr(w2, 4, ['Year', 'Month', 'Payout date', 'Payout ID', 'Sales (USD)', 'Refunds (USD)', 'Shopify fees (USD)', 'Adjustments (USD)', 'Paid (USD)', 'Check (should be 0)', 'Bank account', 'Bank date', 'Bank reference', 'Status', 'Reason (negative payouts)']);
+    let r = 5; const first = r;
+    rows.forEach((x) => { const vals = [x.anio, x.fecha.slice(0, 7), D8(x.fecha), x.id, x.ventas, x.reembolsos, x.comisiones, x.ajustes, x.importe, null, x.banco, D8(x.fecha_banco), x.ref_banco || '', SP_ES[x.estado], x.motivo || ''];
+      vals.forEach((v, k) => { const c = w2.getCell(r, k + 1); if (k === 9) { c.value = { formula: `ROUND(E${r}+F${r}+G${r}+H${r}-I${r},2)`, result: 0 }; c.numFmt = '0.00'; } else c.value = v; c.font = F({ color: k >= 4 && k <= 8 ? { argb: 'FF0000FF' } : undefined, bold: k === 8 }); if (k === 2 || k === 11) c.numFmt = 'dd-mmm-yyyy'; if (k >= 4 && k <= 8) c.numFmt = MF; c.border = thin; if (k === 13) c.fill = fill(x.estado === 'Confirmed in bank' ? 'FFD3EDD4' : x.estado === 'Not found in bank' ? 'FFF6D5D1' : x.estado === 'Withdrawal' ? 'FFF8E6CF' : 'FFDCEAF5'); }); r++; });
+    w2.getCell(r, 1).value = 'Total'; w2.getCell(r, 1).font = F({ bold: true });
+    ['E', 'F', 'G', 'H', 'I'].forEach((col, j) => { const c = w2.getCell(`${col}${r}`); c.value = { formula: `SUBTOTAL(9,${col}${first}:${col}${r - 1})`, result: rows.reduce((a, x) => a + [x.ventas, x.reembolsos, x.comisiones, x.ajustes, x.importe][j], 0) }; c.numFmt = MF; c.font = F({ bold: true }); c.border = { top: { style: 'medium', color: { argb: 'FF11181D' } } }; });
+    [7, 9, 13, 16, 14, 14, 14, 14, 14, 10, 30, 13, 26, 30, 44].forEach((w, k) => { w2.getColumn(k + 1).width = w; }); w2.autoFilter = { from: { row: 4, column: 1 }, to: { row: r - 1, column: 15 } };
+    // Monthly sheet with formulas over the Payouts sheet
+    const ws = wb.addWorksheet('By month', { views: [{ state: 'frozen', ySplit: 4 }] });
+    ws.getCell('A1').value = 'Shopify payouts by month (USD) · reconciled with Wells Fargo ••2309'; ws.getCell('A1').font = F({ bold: true, size: 14 });
+    ws.getCell('A2').value = 'Each month adds up the Payouts sheet (SUMIFS). Received in bank = payouts with status "Confirmed in bank".'; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    hdr(ws, 4, ['Month', 'Payouts', 'Sales (USD)', 'Refunds (USD)', 'Shopify fees (USD)', 'Adjustments (USD)', 'Paid (USD)', 'Received in Wells Fargo (USD)', 'Difference (USD)']);
+    const months = [...new Set(rows.map((x) => x.fecha.slice(0, 7)))].sort(); let m = 5; const N = r - 1;
+    months.forEach((k) => { const mr = rows.filter((x) => x.fecha.slice(0, 7) === k); const sm = (q) => mr.reduce((a, x) => a + x[q], 0); const bk = mr.filter((x) => x.estado === 'Confirmed in bank').reduce((a, x) => a + x.importe, 0);
+      ws.getCell(m, 1).value = k; ws.getCell(m, 2).value = { formula: `COUNTIF(Payouts!$B$5:$B$${N},A${m})`, result: mr.length };
+      ['E', 'F', 'G', 'H', 'I'].forEach((col, j) => { const c = ws.getCell(m, 3 + j); c.value = { formula: `SUMIFS(Payouts!$${col}$5:$${col}$${N},Payouts!$B$5:$B$${N},$A${m})`, result: sm(['ventas', 'reembolsos', 'comisiones', 'ajustes', 'importe'][j]) }; c.numFmt = MF; });
+      const cb = ws.getCell(m, 8); cb.value = { formula: `SUMIFS(Payouts!$I$5:$I$${N},Payouts!$B$5:$B$${N},$A${m},Payouts!$N$5:$N$${N},"Confirmed in bank")`, result: bk }; cb.numFmt = MF;
+      const cd = ws.getCell(m, 9); cd.value = { formula: `G${m}-H${m}`, result: sm('importe') - bk }; cd.numFmt = MF; for (let k2 = 1; k2 <= 9; k2++) { ws.getCell(m, k2).border = thin; ws.getCell(m, k2).font = F(); } m++; });
+    ws.getCell(m, 1).value = 'Total'; ws.getCell(m, 1).font = F({ bold: true });
+    for (let k2 = 2; k2 <= 9; k2++) { const col = String.fromCharCode(64 + k2); const c = ws.getCell(m, k2); c.value = { formula: `SUM(${col}5:${col}${m - 1})` }; if (k2 > 2) c.numFmt = MF; c.font = F({ bold: true }); c.border = { top: { style: 'medium', color: { argb: 'FF11181D' } } }; }
+    [12, 9, 15, 15, 16, 16, 15, 20, 15].forEach((w, k) => { ws.getColumn(k + 1).width = w; });
+    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_payouts_2025-2026_USD.xlsx';
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
 function shBody(R) {
   const y = state.shYear || '2026', t = state.shType || 'All', f = state.shFul || 'All'; const rows = shRows(R); const fm = (v) => (Math.abs(v) >= 0.005 ? nfE(2).format(v) : '');
@@ -1924,6 +2001,11 @@ const AFTER = {
     document.querySelectorAll('[data-shf]').forEach((b) => b.addEventListener('change', kp(() => { state.shFul = b.value; })));
     document.querySelectorAll('[data-shq]').forEach((b) => b.addEventListener('change', kp(() => { state.shQ = b.value; })));
     document.querySelectorAll('[data-shxls]').forEach((b) => b.addEventListener('click', () => downloadShopify()));
+    document.querySelectorAll('[data-sptoggle]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_payouts: !(state.repOpen || {}).shopify_payouts }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-spy]').forEach((b) => b.addEventListener('click', kp(() => { state.spYear = b.dataset.spy; })));
+    document.querySelectorAll('[data-spv]').forEach((b) => b.addEventListener('click', kp(() => { state.spView = b.dataset.spv; })));
+    document.querySelectorAll('[data-sps]').forEach((b) => b.addEventListener('change', kp(() => { state.spSt = b.value; })));
+    document.querySelectorAll('[data-spxls]').forEach((b) => b.addEventListener('click', () => downloadShPay()));
     document.querySelectorAll('[data-shtoggle2]').forEach((b) => b.addEventListener('click', kp(() => { state.repOpen = Object.assign({}, state.repOpen, { shopify_um: !(state.repOpen || {}).shopify_um }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
     if (state.salesSub === 'shopify') { document.querySelectorAll('[data-rxls="shopify_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('shopify_um'))); umBind(); }
     document.querySelectorAll('[data-wstoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.wstoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
