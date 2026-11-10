@@ -273,7 +273,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 /* tab bar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);
   border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
-.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:2px}
 .tabs button{font-size:10.5px;min-width:0}
 @media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.2px}}
 .amzsel{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -296,7 +296,8 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .liq .s{font-size:12px;color:var(--muted)}
 
 .tabs button{border:0;background:none;display:grid;justify-items:center;gap:3px;padding:6px 0;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;position:relative}
-@media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tabs .tl-full{display:none}}
+@media (min-width:441px){.tabs .tl-short{display:none}}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current="page"]{color:var(--accent)}
 .tabs button[aria-current="page"]::after{content:"";position:absolute;top:-9px;width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
@@ -353,6 +354,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
       <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
+      <button data-tab="questions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.2-2.4 3.8"/><path d="M12 17h.01"/></svg><span class="tl-full">Questions Yohai</span><span class="tl-short">Q. Yohai</span></button>
     </div>
   </nav>
 </div>
@@ -412,7 +414,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','competitors','marketing','finances','amazon','inventario'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','competitors','marketing','finances','amazon','inventario','questions'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -423,7 +425,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario', questions: 'Questions Yohai' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   state.tab = tab;
@@ -443,6 +445,9 @@ const pill = (estado) => { const [c, t] = ST[estado] || ['mut', estado]; return 
 const companyRows = () => ['HUNTER', 'JEER', 'IPAI'];
 
 const VIEWS = {
+  questions() {
+    return `<section class="card"><h3>Questions Yohai</h3><p class="mut" style="margin:6px 0 0">No questions yet. This section is ready for Yohai's questions and their answers.</p></section>`;
+  },
 resumen() {
   const R = D.resumen, total = R.caja_usd;
   const split = companyRows().map((e) => `<i style="width:${(R.caja_empresa[e] || 0) / total * 100}%;background:${COL[e]}"></i>`).join('');
