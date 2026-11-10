@@ -304,6 +304,27 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--bad);color:#fff;font-size:10.5px;font-family:var(--mono);display:grid;place-items:center}
 .foot-note{color:var(--muted);font-size:12px;text-align:center;padding:8px 0 0}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.yq-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 6px}
+.yq-tabs button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:8px 14px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;min-height:40px}
+.yq-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#16110C}
+.yq-tabs .yq-add{width:40px;padding:0;font-size:20px;line-height:1;color:var(--accent)}
+.yq-n{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:color-mix(in srgb,currentColor 18%,transparent);font-size:11.5px}
+.yq-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px}
+.yq-row{display:flex;gap:8px;margin:8px 0}
+.yq-row .inp{flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 12px;font:inherit;font-size:15px;outline:none}
+.yq-row .inp:focus{border-color:var(--accent)}
+.btn.ghost{background:var(--surface2);color:var(--fg);border:1px solid var(--line)}
+.yq-row .btn{height:44px;padding:0 14px;font-size:14px;flex:none}
+.yq-row .yq-plus{width:48px;padding:0;font-size:26px;line-height:1}
+.btn.sm{height:34px;padding:0 10px;font-size:12.5px}
+.yq-list{list-style:none;margin:6px 0 0;padding:0}
+.yq-it{display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid var(--line);padding:8px 2px}
+.yq-it label{display:flex;gap:10px;align-items:flex-start;flex:1;cursor:pointer;line-height:1.4}
+.yq-it input{width:20px;height:20px;margin-top:1px;accent-color:var(--accent);flex:none}
+.yq-it.done span{text-decoration:line-through;color:var(--muted)}
+.yq-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;width:32px;height:32px;border-radius:8px;cursor:pointer;flex:none}
+.yq-x:hover{background:var(--line);color:var(--bad)}
+.yq-done{margin-top:12px}.yq-done summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 </style>
 </head>
 <body>
@@ -444,9 +465,39 @@ function render() { $('#main').innerHTML = `<div class="view">${VIEWS[state.tab]
 const pill = (estado) => { const [c, t] = ST[estado] || ['mut', estado]; return `<span class="pill ${c}">${esc(t)}</span>`; };
 const companyRows = () => ['HUNTER', 'JEER', 'IPAI'];
 
+/* ---------- Questions Yohai: storage (Claude artifact db when available, otherwise this browser) ---------- */
+const YQ = { init: false, mode: 'local', ref: null, data: null, writing: false, again: false };
+const yqId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function yqLocal() { try { const v = JSON.parse(localStorage.getItem('enYohaiQ') || 'null'); return v && Array.isArray(v.topics) ? v : null; } catch (e) { return null; } }
+function yqData() { if (!YQ.data) YQ.data = yqLocal() || { topics: [{ id: 'general', name: 'General', items: [] }] }; if (!YQ.data.topics.length) YQ.data.topics.push({ id: 'general', name: 'General', items: [] }); return YQ.data; }
+async function yqSave() { const d = yqData(); d.updated = new Date().toISOString(); try { localStorage.setItem('enYohaiQ', JSON.stringify(d)); } catch (e) {}
+  if (!YQ.ref) return; if (YQ.writing) { YQ.again = true; return; } YQ.writing = true;
+  try { do { YQ.again = false; await YQ.ref.set(JSON.parse(JSON.stringify(yqData()))); } while (YQ.again); } catch (e) { console.warn('Questions save', e && e.code); } finally { YQ.writing = false; } }
+function yqInit() { if (YQ.init) return; YQ.init = true; yqData();
+  (async () => { try { if (!(window.claude && window.claude.use)) return; const db = await window.claude.use('db'); if (!db) return;
+    YQ.ref = db.doc('yohai/board'); YQ.mode = 'cloud'; let first = true;
+    YQ.ref.onSnapshot((snap) => { if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (snap.exists) { const v = snap.data(); if (v && Array.isArray(v.topics)) { YQ.data = JSON.parse(JSON.stringify(v)); try { localStorage.setItem('enYohaiQ', JSON.stringify(YQ.data)); } catch (e) {} } }
+      else if (first && yqData().topics.some((t) => t.items.length || t.id !== 'general')) yqSave();
+      first = false; const a = document.activeElement; if (state.tab === 'questions' && !(a && a.matches && a.matches('.yq-row input') && a.value)) render(); }, () => { YQ.mode = 'local'; YQ.ref = null; if (state.tab === 'questions') render(); });
+    if (state.tab === 'questions') render(); } catch (e) {} })(); }
 const VIEWS = {
   questions() {
-    return `<section class="card"><h3>Questions Yohai</h3><p class="mut" style="margin:6px 0 0">No questions yet. This section is ready for Yohai's questions and their answers.</p></section>`;
+    yqInit(); const T = yqData().topics; if (!T.find((t) => t.id === state.yqTopic)) state.yqTopic = T[0].id;
+    const cur = T.find((t) => t.id === state.yqTopic); const open = cur.items.filter((x) => !x.done), done = cur.items.filter((x) => x.done);
+    const chips = T.map((t) => { const n = t.items.filter((x) => !x.done).length; return `<button aria-pressed="${t.id === cur.id}" data-yqt="${t.id}">${esc(t.name)}${n ? ` <span class="yq-n">${n}</span>` : ''}</button>`; }).join('');
+    const item = (x) => `<li class="yq-it${x.done ? ' done' : ''}"><label><input type="checkbox" data-yqdone="${x.id}"${x.done ? ' checked' : ''}><span>${esc(x.text)}</span></label><button class="yq-x" data-yqdel="${x.id}" aria-label="Delete question" title="Delete">×</button></li>`;
+    const where = YQ.mode === 'cloud' ? 'Saved in your Claude artifact and synced across your devices.' : 'Saved in this browser only (open the app from your Claude artifact to sync across devices).';
+    return `<section class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Questions Yohai</h3><span class="hint">${esc(where)}</span></div>
+      <div class="yq-tabs" role="tablist" aria-label="Topics">${chips}<button class="yq-add" data-yqnewt aria-label="Add topic" title="Add topic">+</button></div>
+      ${state.yqNewT ? `<form class="yq-row" data-yqformt><input class="inp" name="t" placeholder="New topic name" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add topic</button><button class="btn ghost" type="button" data-yqcancel>Cancel</button></form>` : ''}
+      <div class="yq-head"><b>${esc(cur.name)}</b><span class="mut">${open.length} open · ${done.length} done</span>
+        <span style="margin-left:auto;display:flex;gap:6px">${state.yqRen ? '' : `<button class="btn ghost sm" data-yqren>Rename</button>`}${T.length > 1 ? `<button class="btn ghost sm" data-yqdelt>${state.yqDelT === cur.id ? 'Tap again to delete topic' : 'Delete topic'}</button>` : ''}</span></div>
+      ${state.yqRen ? `<form class="yq-row" data-yqformr><input class="inp" name="t" value="${esc(cur.name)}" maxlength="60" autocomplete="off"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" data-yqcancel>Cancel</button></form>` : ''}
+      <form class="yq-row" data-yqformq><input class="inp" name="q" placeholder="Write a question for Yohai…" maxlength="500" autocomplete="off" data-yqq><button class="btn yq-plus" type="submit" aria-label="Add question" title="Add question">+</button></form>
+      <ul class="yq-list">${open.map(item).join('') || '<li class="mut" style="padding:10px 2px">No open questions in this topic. Write one above and tap +.</li>'}</ul>
+      ${done.length ? `<details class="yq-done"${state.yqShowDone ? ' open' : ''} data-yqdoneblk><summary>Answered / done (${done.length})</summary><ul class="yq-list">${done.map(item).join('')}</ul></details>` : ''}
+    </section>`;
   },
 resumen() {
   const R = D.resumen, total = R.caja_usd;
@@ -2027,6 +2078,21 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
+  questions() {
+    const T = () => yqData().topics, cur = () => T().find((t) => t.id === state.yqTopic);
+    const rerender = (focus) => { render(); if (focus) { const el = document.querySelector(focus); if (el) el.focus(); } };
+    document.querySelectorAll('[data-yqt]').forEach((b) => b.addEventListener('click', () => { state.yqTopic = b.dataset.yqt; state.yqRen = false; state.yqDelT = null; rerender('[data-yqq]'); }));
+    document.querySelectorAll('[data-yqnewt]').forEach((b) => b.addEventListener('click', () => { state.yqNewT = true; rerender('[data-yqformt] input'); }));
+    document.querySelectorAll('[data-yqcancel]').forEach((b) => b.addEventListener('click', () => { state.yqNewT = false; state.yqRen = false; render(); }));
+    document.querySelectorAll('[data-yqformt]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const v = f.t.value.trim(); if (!v) return; const t = { id: yqId(), name: v, items: [] }; T().push(t); state.yqTopic = t.id; state.yqNewT = false; yqSave(); rerender('[data-yqq]'); }));
+    document.querySelectorAll('[data-yqren]').forEach((b) => b.addEventListener('click', () => { state.yqRen = true; rerender('[data-yqformr] input'); }));
+    document.querySelectorAll('[data-yqformr]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const v = f.t.value.trim(); if (v) { cur().name = v; yqSave(); } state.yqRen = false; render(); }));
+    document.querySelectorAll('[data-yqdelt]').forEach((b) => b.addEventListener('click', () => { const c = cur(); if (state.yqDelT !== c.id) { state.yqDelT = c.id; render(); return; } yqData().topics = T().filter((t) => t.id !== c.id); state.yqDelT = null; state.yqTopic = null; yqSave(); render(); }));
+    document.querySelectorAll('[data-yqformq]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const v = f.q.value.trim(); if (!v) return; cur().items.push({ id: yqId(), text: v, done: false, created: new Date().toISOString() }); yqSave(); rerender('[data-yqq]'); }));
+    document.querySelectorAll('[data-yqdone]').forEach((c) => c.addEventListener('change', () => { const it = cur().items.find((x) => x.id === c.dataset.yqdone); if (it) { it.done = c.checked; it.doneAt = c.checked ? new Date().toISOString() : null; yqSave(); render(); } }));
+    document.querySelectorAll('[data-yqdel]').forEach((b) => b.addEventListener('click', () => { const c = cur(); c.items = c.items.filter((x) => x.id !== b.dataset.yqdel); yqSave(); render(); }));
+    document.querySelectorAll('[data-yqdoneblk]').forEach((d) => d.addEventListener('toggle', () => { state.yqShowDone = d.open; }));
+  },
   competitors() {
     document.querySelectorAll('[data-compcat]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.compcat; state.compOpen = Object.assign({}, state.compOpen, { [k]: !(state.compOpen || {})[k] }); render(); scrollTo({ top: y }); }));
   },
