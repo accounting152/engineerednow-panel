@@ -1560,12 +1560,24 @@ function a3Block() {
     <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:6px 0 10px" class="mut"><span><i class="a3key" style="background:#C8692B"></i>Selected</span><span><i class="a3key" style="background:#2E7D4F"></i>Researched</span><span>${A3.mode === 'cloud' ? 'Selection synced with Claude.' : 'Selection saved in this browser only.'}</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="a3add" class="mut" style="font-size:13px">Add country</label><select id="a3add" class="inp" style="max-width:260px"><option value="">Choose…</option>${opts}</select>${sel.length ? '<button class="bs-sec" data-a3clear>Clear selection</button>' : ''}</div>
     <div class="a3chips">${chips || '<span class="mut" style="font-size:13px">No countries selected yet.</span>'}</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 0"><button class="btn" data-a3ask style="height:44px;padding:0 18px"${sel.filter((id) => !(res[id] && res[id].status === 'done')).length ? '' : ' disabled'}>Ask Claude</button><span class="mut" id="a3AskMsg" style="font-size:13px">${A3.req ? esc(A3.req) : 'Sends the selected countries to Claude for research.'}</span></div>
     <h4 style="margin:14px 0 6px">Results <span class="mut" style="font-weight:400;font-size:12px">· ${rows.length} contacts · ${nE} with email</span></h4>
     ${rows.length ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 8px"><button class="btn" data-a3xls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="a3Msg" style="font-size:13px"></span></div>
     <div style="overflow-x:auto"><table class="emt"><thead><tr><th>Country</th><th>Type</th><th>Company</th><th>Email</th><th>Website</th><th>Notes</th></tr></thead><tbody>
     ${rows.map((r) => `<tr><td>${esc(r.c)}</td><td style="white-space:nowrap">${esc(STEP[r.step] || '')}</td><td>${esc(r.name || '')}</td><td style="overflow-wrap:anywhere">${r.email ? `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="mut">—</span>'}</td><td style="overflow-wrap:anywhere">${r.web ? `<a href="${esc(/^https?:/.test(r.web) ? r.web : 'https://' + r.web)}" target="_blank" rel="noopener">${esc(r.web.replace(/^https?:\/\//, ''))}</a>` : ''}</td><td style="font-size:13px">${esc(r.notes || '')}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="mut" style="margin:0;font-size:13px">No results yet. Select countries and ask Claude to research them.</p>'}
   </details>`;
+}
+async function a3Ask() {
+  const A = D.a3; const res = (A.res && A.res.countries) || {}; const name = {}; A.world.forEach((c) => { name[c.id] = c.n; });
+  const todo = a3Sel().filter((id) => !(res[id] && res[id].status === 'done')); if (!todo.length) return;
+  const names = todo.map((id) => name[id] || id).join(', ');
+  const prompt = `Action 3 – research these countries: ${names}. Step 1: official Herman Miller dealers (hermanmiller.com/en_lac/where-to-buy/contact-a-dealer) with name and email. Step 2: other official and non-official dealers and shops that sell the Aeron chair, with email. Step 3: websites in that country selling used or refurbished Aeron chairs, with email.`;
+  let saved = false;
+  if (A3.ref) { try { await A3.ref.set({ selected: a3Sel().slice(), updated: new Date().toISOString(), request: { countries: todo, at: new Date().toISOString(), status: 'requested' } }); saved = true; } catch (e) {} }
+  let copied = false; try { await navigator.clipboard.writeText(prompt); copied = true; } catch (e) {}
+  A3.req = (saved ? 'Request saved for Claude (' + names + '). ' : '') + (copied ? 'The request is copied: paste it in your Claude chat so Claude starts now.' : 'Write in your Claude chat: "Research Action 3 countries: ' + names + '".');
+  const m = $('#a3AskMsg'); if (m) m.textContent = A3.req;
 }
 async function a3Excel() {
   const A = D.a3; const res = A.res.countries; const name = {}; A.world.forEach((c) => { name[c.id] = c.n; }); const msg = $('#a3Msg');
@@ -2371,6 +2383,7 @@ const AFTER = {
     const a3a = $('#a3add'); if (a3a) a3a.addEventListener('change', () => { const v = a3a.value; if (v && !a3Sel().includes(v)) { a3Sel().push(v); a3Save(); } a3r(); });
     const a3c = document.querySelector('[data-a3clear]'); if (a3c) a3c.addEventListener('click', () => { A3.sel = []; a3Save(); a3r(); });
     const a3x = document.querySelector('[data-a3xls]'); if (a3x) a3x.addEventListener('click', a3Excel);
+    const a3k = document.querySelector('[data-a3ask]'); if (a3k) a3k.addEventListener('click', a3Ask);
     document.querySelectorAll('[data-igcopy]').forEach((b) => b.addEventListener('click', async () => { const A = (D.instagram || []).find((x) => x.id === b.dataset.igcopy); const m = $('#igMsg-' + A.id); try { await navigator.clipboard.writeText(A.caption); m.textContent = 'Text copied.'; } catch (e) { m.textContent = 'Could not copy here; select the text and copy it.'; } }));
     document.querySelectorAll('details[data-igact]').forEach((d) => d.addEventListener('toggle', () => { state.igOpen = state.igOpen || {}; state.igOpen[d.dataset.igact] = d.open; }));
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
