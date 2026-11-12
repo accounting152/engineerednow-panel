@@ -327,7 +327,10 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .yq-done{margin-top:12px}.yq-done summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .ig-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}@media (max-width:700px){.ig-grid{grid-template-columns:1fr}}
 details.ig-act>summary::-webkit-details-marker{display:none}
-.emt{width:100%;border-collapse:collapse;font-size:14px;min-width:600px}.emt th{text-align:left;font-size:12px;color:var(--mut);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}.emt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}.emt td:nth-child(4){min-width:240px}
+:root{--a3land:#D9D4CB}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--a3land:#4A4F57}}:root[data-theme="dark"]{--a3land:#4A4F57}
+.a3map{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}.a3map svg{display:block;width:100%;height:auto}.a3map path{stroke:var(--bg,#fff);stroke-width:.4;cursor:pointer;transition:fill .15s}.a3map path:hover{filter:brightness(.88)}
+.a3key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}.a3chips{display:flex;flex-wrap:wrap;gap:6px}.a3chip{display:inline-flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:13px}.a3chip button{border:0;background:none;font-size:18px;line-height:1;width:28px;height:28px;cursor:pointer;color:var(--muted)}
+.emt{width:100%;border-collapse:collapse;font-size:14px;min-width:600px}.emt th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}.emt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}.emt td:nth-child(4){min-width:240px}
 </style>
 </head>
 <body>
@@ -484,6 +487,18 @@ function yqInit() { if (YQ.init) return; YQ.init = true; yqData();
       else if (first && yqData().topics.some((t) => t.items.length || t.id !== 'general')) yqSave();
       first = false; const a = document.activeElement; if (state.tab === 'questions' && !(a && a.matches && a.matches('.yq-row input') && a.value)) render(); }, () => { YQ.mode = 'local'; YQ.ref = null; if (state.tab === 'questions') render(); });
     if (state.tab === 'questions') render(); } catch (e) {} })(); }
+const A3 = { init: false, mode: 'local', ref: null, sel: null };
+function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
+async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
+  if (A3.ref) { try { await A3.ref.set({ selected: a3Sel().slice(), updated: new Date().toISOString() }); } catch (e) { console.warn('a3 save', e && e.code); } } }
+function a3Init() { if (A3.init) return; A3.init = true; a3Sel();
+  (async () => { try { if (!(window.claude && window.claude.use)) return; const db = await window.claude.use('db'); if (!db) return;
+    A3.ref = db.doc('marketing/action3'); A3.mode = 'cloud'; let first = true;
+    A3.ref.onSnapshot((snap) => { if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (snap.exists) { const v = snap.data(); if (v && Array.isArray(v.selected)) { A3.sel = v.selected.slice(); try { localStorage.setItem('enA3sel', JSON.stringify(A3.sel)); } catch (e) {} } }
+      else if (first && a3Sel().length) a3Save();
+      first = false; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } }, () => { A3.mode = 'local'; A3.ref = null; });
+  } catch (e) {} })(); }
 const VIEWS = {
   questions() {
     yqInit(); const T = yqData().topics; if (!T.find((t) => t.id === state.yqTopic)) state.yqTopic = T[0].id;
@@ -1526,6 +1541,45 @@ function igPage() {
       </div></div>
   </details>`).join('');
 }
+function a3Block() {
+  const A = D.a3; if (!A) return '';
+  a3Init(); const sel = a3Sel(); const res = (A.res && A.res.countries) || {}; const name = {}; A.world.forEach((c) => { name[c.id] = c.n; });
+  const op = (state.emOpen || {}).e3 !== false;
+  const fill = (id) => res[id] && res[id].status === 'done' ? '#2E7D4F' : sel.includes(id) ? '#C8692B' : 'var(--a3land)';
+  const paths = A.world.filter((c) => c.d).map((c) => `<path d="${c.d}" data-a3c="${c.id}" fill="${fill(c.id)}" tabindex="-1"><title>${esc(c.n)}${res[c.id] && res[c.id].status === 'done' ? ' · researched' : sel.includes(c.id) ? ' · selected' : ''}</title></path>`).join('');
+  const opts = A.world.slice().sort((a, b) => a.n.localeCompare(b.n)).map((c) => `<option value="${c.id}">${esc(c.n)}</option>`).join('');
+  const chips = sel.map((id) => `<span class="a3chip">${esc(name[id] || id)}<span class="mut" style="font-size:11px">${res[id] && res[id].status === 'done' ? ' · done' : ' · pending'}</span><button data-a3rm="${id}" aria-label="Remove ${esc(name[id] || id)}">×</button></span>`).join('');
+  const ids = [...new Set(sel.concat(Object.keys(res)))].filter((id) => res[id]);
+  const STEP = { 1: 'Official HM dealer', 2: 'Other dealer / shop', 3: 'Used / refurbished' };
+  const rows = ids.flatMap((id) => (res[id].rows || []).map((r) => ({ ...r, c: name[id] || id })));
+  const nE = rows.filter((r) => r.email).length;
+  return `<details class="card ig-act" data-emact="e3"${op ? ' open' : ''} style="margin-top:12px">
+    <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>Action 3 · Dealers by country · 12 Nov 2026</summary>
+    <p class="mut" style="margin:6px 0 10px;font-size:13px">Select one or more countries on the map. For each country Claude collects: 1) official Herman Miller dealers (hermanmiller.com/where-to-buy) with name and email, 2) other official and non-official dealers and shops that sell the Aeron, 3) websites selling used or refurbished Aeron chairs. Ask Claude in the chat to research the selected countries.</p>
+    <div class="a3map"><svg viewBox="0 0 1000 500" role="img" aria-label="World map: click a country to select it">${paths}</svg></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:6px 0 10px" class="mut"><span><i class="a3key" style="background:#C8692B"></i>Selected</span><span><i class="a3key" style="background:#2E7D4F"></i>Researched</span><span>${A3.mode === 'cloud' ? 'Selection synced with Claude.' : 'Selection saved in this browser only.'}</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="a3add" class="mut" style="font-size:13px">Add country</label><select id="a3add" class="inp" style="max-width:260px"><option value="">Choose…</option>${opts}</select>${sel.length ? '<button class="bs-sec" data-a3clear>Clear selection</button>' : ''}</div>
+    <div class="a3chips">${chips || '<span class="mut" style="font-size:13px">No countries selected yet.</span>'}</div>
+    <h4 style="margin:14px 0 6px">Results <span class="mut" style="font-weight:400;font-size:12px">· ${rows.length} contacts · ${nE} with email</span></h4>
+    ${rows.length ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 8px"><button class="btn" data-a3xls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="a3Msg" style="font-size:13px"></span></div>
+    <div style="overflow-x:auto"><table class="emt"><thead><tr><th>Country</th><th>Type</th><th>Company</th><th>Email</th><th>Website</th><th>Notes</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.c)}</td><td style="white-space:nowrap">${esc(STEP[r.step] || '')}</td><td>${esc(r.name || '')}</td><td style="overflow-wrap:anywhere">${r.email ? `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="mut">—</span>'}</td><td style="overflow-wrap:anywhere">${r.web ? `<a href="${esc(/^https?:/.test(r.web) ? r.web : 'https://' + r.web)}" target="_blank" rel="noopener">${esc(r.web.replace(/^https?:\/\//, ''))}</a>` : ''}</td><td style="font-size:13px">${esc(r.notes || '')}</td></tr>`).join('')}
+    </tbody></table></div>` : '<p class="mut" style="margin:0;font-size:13px">No results yet. Select countries and ask Claude to research them.</p>'}
+  </details>`;
+}
+async function a3Excel() {
+  const A = D.a3; const res = A.res.countries; const name = {}; A.world.forEach((c) => { name[c.id] = c.n; }); const msg = $('#a3Msg');
+  const STEP = { 1: 'Official Herman Miller dealer', 2: 'Other dealer / shop', 3: 'Used / refurbished' };
+  try { await loadExcelJS(); const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now'; const ws = wb.addWorksheet('Action 3 contacts', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = [{ header: 'Country', key: 'c', width: 18 }, { header: 'Type', key: 't', width: 28 }, { header: 'Company', key: 'n', width: 36 }, { header: 'Email', key: 'e', width: 36 }, { header: 'Website', key: 'w', width: 36 }, { header: 'Phone', key: 'p', width: 20 }, { header: 'City', key: 'ci', width: 16 }, { header: 'Notes', key: 'no', width: 50 }, { header: 'Source', key: 's', width: 40 }];
+    Object.keys(res).forEach((id) => (res[id].rows || []).forEach((r) => ws.addRow({ c: name[id] || id, t: STEP[r.step] || '', n: r.name || '', e: r.email || '', w: r.web || '', p: r.phone || '', ci: r.city || '', no: r.notes || '', s: r.src || '' })));
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }; ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; ws.autoFilter = { from: 'A1', to: 'I1' };
+    const buf = await wb.xlsx.writeBuffer(); const fn = 'Action3_dealers_by_country_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: fn, data: buf }); msg.textContent = 'Downloaded: ' + fn; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); msg.textContent = 'Downloaded: ' + fn;
+  } catch (e) { msg.textContent = 'Could not create the Excel here.'; }
+}
 function emSummary(R) {
   if (!R) return '';
   const rs = R.respuestas || [], n = (t) => rs.filter((x) => x.tipo === t).length;
@@ -1540,7 +1594,7 @@ function emSummary(R) {
     <div class="kpi"><span class="l">With reply</span><span class="v">${rs.length}</span><span class="l">${n('Interested')} interested · ${n('Unsubscribe')} unsubscribe · ${rs.length - n('Interested') - n('Unsubscribe')} automatic</span></div>
   </div>
   ${!L.length ? '<p class="mut" style="margin:0 0 14px;font-size:13px">No replies yet.</p>' : ''}<div class="tbl-wrap" style="overflow-x:auto;margin:0 0 14px${L.length ? '' : ';display:none'}"><table class="emt"><thead><tr><th>Date</th><th>Email</th><th>Reply</th><th>Notes</th></tr></thead><tbody>
-  ${L.map((x) => `<tr><td style="white-space:nowrap">${esc(fd(x.fecha))}</td><td style="overflow-wrap:anywhere"><a href="mailto:${esc(x.email)}">${esc(x.email)}</a></td><td style="white-space:nowrap;font-weight:600;color:${col[x.tipo] || 'var(--mut)'}">${esc(x.tipo)}</td><td style="font-size:13px">${esc(x.nota)}</td></tr>`).join('')}
+  ${L.map((x) => `<tr><td style="white-space:nowrap">${esc(fd(x.fecha))}</td><td style="overflow-wrap:anywhere"><a href="mailto:${esc(x.email)}">${esc(x.email)}</a></td><td style="white-space:nowrap;font-weight:600;color:${col[x.tipo] || 'var(--muted)'}">${esc(x.tipo)}</td><td style="font-size:13px">${esc(x.nota)}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
 // ---- Marketing · Emails: actions (collapsible) with a copy of the email sent + files
@@ -1561,7 +1615,7 @@ function emPage() {
     <div style="font-size:13px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:10px 12px;background:var(--surface);overflow-wrap:anywhere"><div><span class="mut">From:</span> ${esc(A.de)}</div><div><span class="mut">Subject:</span> <b>${esc(A.asunto)}</b></div></div>
     <iframe title="Email sent: ${esc(A.asunto)}" src="${esc(A.html)}" loading="lazy" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:1250px;border:1px solid var(--line);border-radius:0 0 10px 10px;background:#fff;display:block"></iframe>
     <a class="bs-sec" href="${esc(A.html)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;margin-top:8px;min-height:44px;text-decoration:none">Open email in a new tab</a>
-  </details>`).join('');
+  </details>`).join('') + a3Block();
 }
 async function igDownload(id, i, kind) {
   const A = (D[kind || 'instagram'] || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
@@ -2311,6 +2365,12 @@ const AFTER = {
     document.querySelectorAll('[data-igdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.igdl, +b.dataset.igf)));
     document.querySelectorAll('[data-emdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.emdl, +b.dataset.igf, 'emails')));
     document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
+    const a3r = () => { const y = scrollY; render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-a3c]').forEach((p) => p.addEventListener('click', () => { const s = a3Sel(), id = p.dataset.a3c, i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); a3Save(); a3r(); }));
+    document.querySelectorAll('[data-a3rm]').forEach((b) => b.addEventListener('click', () => { const s = a3Sel(), i = s.indexOf(b.dataset.a3rm); if (i >= 0) s.splice(i, 1); a3Save(); a3r(); }));
+    const a3a = $('#a3add'); if (a3a) a3a.addEventListener('change', () => { const v = a3a.value; if (v && !a3Sel().includes(v)) { a3Sel().push(v); a3Save(); } a3r(); });
+    const a3c = document.querySelector('[data-a3clear]'); if (a3c) a3c.addEventListener('click', () => { A3.sel = []; a3Save(); a3r(); });
+    const a3x = document.querySelector('[data-a3xls]'); if (a3x) a3x.addEventListener('click', a3Excel);
     document.querySelectorAll('[data-igcopy]').forEach((b) => b.addEventListener('click', async () => { const A = (D.instagram || []).find((x) => x.id === b.dataset.igcopy); const m = $('#igMsg-' + A.id); try { await navigator.clipboard.writeText(A.caption); m.textContent = 'Text copied.'; } catch (e) { m.textContent = 'Could not copy here; select the text and copy it.'; } }));
     document.querySelectorAll('details[data-igact]').forEach((d) => d.addEventListener('toggle', () => { state.igOpen = state.igOpen || {}; state.igOpen[d.dataset.igact] = d.open; }));
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
