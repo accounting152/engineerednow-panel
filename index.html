@@ -648,9 +648,9 @@ competitors() {
   return `<section class="card"><h3>Top 3 competitors – Aeron headrest, Amazon USA</h3><p class="mut" style="margin:6px 0 0;font-size:13px">Search "Headrest Aeron chair" on amazon.com and Brand Analytics data, collected on ${fdEN(C.asof).d} ${fdEN(C.asof).m} ${C.asof.slice(0, 4)}. Brands with most clicks every month: ERGOKING, Engineered Now and MingYi.office.</p>${C.markets_note ? `<p class="hint" style="margin:6px 0 0">Amazon countries: ${esc(C.markets_note)}</p>` : ''}</section>${cards}${ours}${alert}${table}${cat}${webc}`;
 },
 marketing() {
-  const ms = state.mkSub === 'instagram' ? 'instagram' : 'contacts';
-  const nav = `<div class="seg" role="group" aria-label="Marketing" style="margin-bottom:12px"><button aria-pressed="${ms === 'contacts'}" data-mksub="contacts">Contacts</button><button aria-pressed="${ms === 'instagram'}" data-mksub="instagram">Instagram</button></div>`;
-  return nav + (ms === 'instagram' ? igPage() : VIEWS._mktContacts());
+  const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
+  const nav = `<div class="seg" role="group" aria-label="Marketing" style="margin-bottom:12px"><button aria-pressed="${ms === 'emails'}" data-mksub="emails">Emails</button><button aria-pressed="${ms === 'instagram'}" data-mksub="instagram">Instagram</button></div>`;
+  return nav + (ms === 'instagram' ? igPage() : emPage());
 },
 _mktContacts() {
   const M = (D.informes || {}).mkt;
@@ -1525,8 +1525,27 @@ function igPage() {
       </div></div>
   </details>`).join('');
 }
-async function igDownload(id, i) {
-  const A = (D.instagram || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
+// ---- Marketing · Emails: actions (collapsible) with a copy of the email sent + files
+function emPage() {
+  const L = D.emails || [];
+  if (!L.length) return '<section class="card"><h3>Emails</h3><p class="mut" style="margin:0">No actions yet.</p></section>';
+  const op = state.emOpen || {};
+  const fdl = (f) => new Date(f + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `<section class="card"><h3>Emails</h3><p class="hint" style="margin:0">Email campaigns. Open an action to see the email that was sent and download its files.</p></section>` + L.map((A) => `
+  <details class="card ig-act" data-emact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
+    <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
+    <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
+    <h4 style="margin:0 0 6px">Files</h4>
+    ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn" data-emdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">Download Excel</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
+    <span class="mut" id="igMsg-${esc(A.id)}" style="font-size:13px;display:block;min-height:18px"></span>
+    <h4 style="margin:14px 0 6px">Email sent (English)</h4>
+    <div style="font-size:13px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:10px 12px;background:var(--surface);overflow-wrap:anywhere"><div><span class="mut">From:</span> ${esc(A.de)}</div><div><span class="mut">Subject:</span> <b>${esc(A.asunto)}</b></div></div>
+    <iframe title="Email sent: ${esc(A.asunto)}" src="${esc(A.html)}" loading="lazy" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:1250px;border:1px solid var(--line);border-radius:0 0 10px 10px;background:#fff;display:block"></iframe>
+    <a class="bs-sec" href="${esc(A.html)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;margin-top:8px;min-height:44px;text-decoration:none">Open email in a new tab</a>
+  </details>`).join('');
+}
+async function igDownload(id, i, kind) {
+  const A = (D[kind || 'instagram'] || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
   const bin = atob(f.b64); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
   const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
   if (dl) { try { await dl.save({ filename: f.name, data: u.buffer }); m.textContent = 'Downloaded: ' + f.name; } catch (err) { m.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
@@ -2271,6 +2290,8 @@ const AFTER = {
   marketing() {
     document.querySelectorAll('[data-mksub]').forEach((b) => b.addEventListener('click', () => { state.mkSub = b.dataset.mksub; render(); }));
     document.querySelectorAll('[data-igdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.igdl, +b.dataset.igf)));
+    document.querySelectorAll('[data-emdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.emdl, +b.dataset.igf, 'emails')));
+    document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
     document.querySelectorAll('[data-igcopy]').forEach((b) => b.addEventListener('click', async () => { const A = (D.instagram || []).find((x) => x.id === b.dataset.igcopy); const m = $('#igMsg-' + A.id); try { await navigator.clipboard.writeText(A.caption); m.textContent = 'Text copied.'; } catch (e) { m.textContent = 'Could not copy here; select the text and copy it.'; } }));
     document.querySelectorAll('details[data-igact]').forEach((d) => d.addEventListener('toggle', () => { state.igOpen = state.igOpen || {}; state.igOpen[d.dataset.igact] = d.open; }));
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
