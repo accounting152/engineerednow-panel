@@ -327,6 +327,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .yq-done{margin-top:12px}.yq-done summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 .ig-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}@media (max-width:700px){.ig-grid{grid-template-columns:1fr}}
 details.ig-act>summary::-webkit-details-marker{display:none}
+.emt{width:100%;border-collapse:collapse;font-size:14px;min-width:600px}.emt th{text-align:left;font-size:12px;color:var(--mut);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}.emt td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}.emt td:nth-child(4){min-width:240px}
 </style>
 </head>
 <body>
@@ -1525,6 +1526,23 @@ function igPage() {
       </div></div>
   </details>`).join('');
 }
+function emSummary(R) {
+  if (!R) return '';
+  const rs = R.respuestas || [], n = (t) => rs.filter((x) => x.tipo === t).length;
+  const fd = (f) => new Date(f.replace(' ', 'T')).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const col = { Interested: '#1E7B34', Unsubscribe: '#B42318' };
+  const ord = { Interested: 0, Unsubscribe: 1 };
+  const L = rs.slice().sort((a, b) => (ord[a.tipo] ?? 2) - (ord[b.tipo] ?? 2) || a.fecha.localeCompare(b.fecha));
+  return `<h4 style="margin:4px 0 8px">Summary <span class="mut" style="font-weight:400;font-size:12px">· updated ${esc(fd(R.actualizado))}</span></h4>
+  <div class="kpis" style="margin:0 0 12px">
+    <div class="kpi"><span class="l">Emails sent</span><span class="v">${R.enviados}</span><span class="l">${R.rebotados} bounced · ${R.enviados - R.rebotados} delivered</span></div>
+    <div class="kpi"><span class="l">Scheduled</span><span class="v">${R.programados}</span><span class="l">Fri 13 Nov</span></div>
+    <div class="kpi"><span class="l">With reply</span><span class="v">${rs.length}</span><span class="l">${n('Interested')} interested · ${n('Unsubscribe')} unsubscribe · ${rs.length - n('Interested') - n('Unsubscribe')} automatic</span></div>
+  </div>
+  <div class="tbl-wrap" style="overflow-x:auto;margin:0 0 14px"><table class="emt"><thead><tr><th>Date</th><th>Email</th><th>Reply</th><th>Notes</th></tr></thead><tbody>
+  ${L.map((x) => `<tr><td style="white-space:nowrap">${esc(fd(x.fecha))}</td><td style="overflow-wrap:anywhere"><a href="mailto:${esc(x.email)}">${esc(x.email)}</a></td><td style="white-space:nowrap;font-weight:600;color:${col[x.tipo] || 'var(--mut)'}">${esc(x.tipo)}</td><td style="font-size:13px">${esc(x.nota)}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
 // ---- Marketing · Emails: actions (collapsible) with a copy of the email sent + files
 function emPage() {
   const L = D.emails || [];
@@ -1535,6 +1553,7 @@ function emPage() {
   <details class="card ig-act" data-emact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
     <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
     <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
+    ${emSummary(A.resumen)}
     <h4 style="margin:0 0 6px">Files</h4>
     ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn" data-emdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">Download Excel</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
     <span class="mut" id="igMsg-${esc(A.id)}" style="font-size:13px;display:block;min-height:18px"></span>
