@@ -325,6 +325,8 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .yq-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;width:32px;height:32px;border-radius:8px;cursor:pointer;flex:none}
 .yq-x:hover{background:var(--line);color:var(--bad)}
 .yq-done{margin-top:12px}.yq-done summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
+.ig-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}@media (max-width:700px){.ig-grid{grid-template-columns:1fr}}
+details.ig-act>summary::-webkit-details-marker{display:none}
 </style>
 </head>
 <body>
@@ -646,6 +648,11 @@ competitors() {
   return `<section class="card"><h3>Top 3 competitors – Aeron headrest, Amazon USA</h3><p class="mut" style="margin:6px 0 0;font-size:13px">Search "Headrest Aeron chair" on amazon.com and Brand Analytics data, collected on ${fdEN(C.asof).d} ${fdEN(C.asof).m} ${C.asof.slice(0, 4)}. Brands with most clicks every month: ERGOKING, Engineered Now and MingYi.office.</p>${C.markets_note ? `<p class="hint" style="margin:6px 0 0">Amazon countries: ${esc(C.markets_note)}</p>` : ''}</section>${cards}${ours}${alert}${table}${cat}${webc}`;
 },
 marketing() {
+  const ms = state.mkSub === 'instagram' ? 'instagram' : 'contacts';
+  const nav = `<div class="seg" role="group" aria-label="Marketing" style="margin-bottom:12px"><button aria-pressed="${ms === 'contacts'}" data-mksub="contacts">Contacts</button><button aria-pressed="${ms === 'instagram'}" data-mksub="instagram">Instagram</button></div>`;
+  return nav + (ms === 'instagram' ? igPage() : VIEWS._mktContacts());
+},
+_mktContacts() {
   const M = (D.informes || {}).mkt;
   if (!M) return '<section class="card"><h3>Marketing</h3><p class="mut" style="margin:0">No customer data loaded yet.</p></section>';
   const all = M.contactos; const cn = (c) => { try { return c === '??' ? 'Unknown' : (new Intl.DisplayNames(['en'], { type: 'region' })).of(c); } catch (e) { return c; } };
@@ -1496,6 +1503,35 @@ async function downloadPL() {
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
 // ---- Marketing: CSV export of the filtered contact list
+// ---- Marketing · Instagram: actions (collapsible), each with video + files
+function igPage() {
+  const L = D.instagram || [];
+  if (!L.length) return '<section class="card"><h3>Instagram</h3><p class="mut" style="margin:0">No actions yet.</p></section>';
+  const op = state.igOpen || {};
+  const fdl = (f) => { const d = new Date(f + 'T12:00:00'); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
+  return `<section class="card"><h3>Instagram</h3><p class="hint" style="margin:0">Campaign actions on @engineerednow. Open an action to see the video and download its files.</p></section>` + L.map((A) => `
+  <details class="card ig-act" data-igact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
+    <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
+    <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
+    <div class="ig-grid">
+      <div><video controls playsinline preload="metadata" poster="${esc(A.poster || '')}" src="${esc(A.video)}" style="width:100%;max-width:340px;aspect-ratio:9/16;border-radius:12px;background:#000;display:block"></video>
+        <a class="bs-sec" href="${esc(A.video)}" download="${esc(A.video_name)}" style="display:inline-flex;align-items:center;margin-top:8px;min-height:44px;text-decoration:none">Download video</a></div>
+      <div style="min-width:0">
+        <h4 style="margin:0 0 6px">Files</h4>
+        ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><button class="btn" data-igdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">Download Excel</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
+        <h4 style="margin:14px 0 6px">Post text</h4>
+        <pre style="white-space:pre-wrap;font:inherit;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;max-height:260px;overflow:auto">${esc(A.caption)}</pre>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><button class="bs-sec" data-igcopy="${esc(A.id)}">Copy text</button><span class="mut" id="igMsg-${esc(A.id)}" style="font-size:13px"></span></div>
+      </div></div>
+  </details>`).join('');
+}
+async function igDownload(id, i) {
+  const A = (D.instagram || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
+  const bin = atob(f.b64); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+  if (dl) { try { await dl.save({ filename: f.name, data: u.buffer }); m.textContent = 'Downloaded: ' + f.name; } catch (err) { m.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+  const url = URL.createObjectURL(new Blob([u], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); m.textContent = 'Downloaded: ' + f.name;
+}
 async function downloadMkt() {
   const M = D.informes.mkt; const f = state.mkC || 'ALL'; const only = state.mkAcc !== false; const q = (state.mkQ || '').trim().toLowerCase(); const msg = $('#mkMsg');
   const list = M.contactos.filter((x) => (f === 'ALL' || x.c === f) && (!only || x.acc) && (!q || x.e.includes(q) || (x.n || '').toLowerCase().includes(q)));
@@ -2233,6 +2269,10 @@ const AFTER = {
     unitsChart($('#chUnits'), A, P); $('#uXls').addEventListener('click', downloadUnits);
   },
   marketing() {
+    document.querySelectorAll('[data-mksub]').forEach((b) => b.addEventListener('click', () => { state.mkSub = b.dataset.mksub; render(); }));
+    document.querySelectorAll('[data-igdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.igdl, +b.dataset.igf)));
+    document.querySelectorAll('[data-igcopy]').forEach((b) => b.addEventListener('click', async () => { const A = (D.instagram || []).find((x) => x.id === b.dataset.igcopy); const m = $('#igMsg-' + A.id); try { await navigator.clipboard.writeText(A.caption); m.textContent = 'Text copied.'; } catch (e) { m.textContent = 'Could not copy here; select the text and copy it.'; } }));
+    document.querySelectorAll('details[data-igact]').forEach((d) => d.addEventListener('toggle', () => { state.igOpen = state.igOpen || {}; state.igOpen[d.dataset.igact] = d.open; }));
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-mkc]').forEach((b) => b.addEventListener('click', kp(() => { state.mkC = state.mkC === b.dataset.mkc ? 'ALL' : b.dataset.mkc; state.mkPage = 0; })));
     const sel = document.querySelector('[data-mksel]'); if (sel) sel.addEventListener('change', kp(() => { state.mkC = sel.value; state.mkPage = 0; }));
