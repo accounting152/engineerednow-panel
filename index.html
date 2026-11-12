@@ -1604,7 +1604,7 @@ function emSummary(R) {
     <div class="kpi"><span class="l">Emails sent</span><span class="v">${R.enviados}</span><span class="l">${R.rebotados} bounced · ${R.enviados - R.rebotados} delivered</span></div>
     <div class="kpi"><span class="l">Scheduled</span><span class="v">${R.programados}</span><span class="l">${esc(R.prog_label || '')}</span></div>
     <div class="kpi"><span class="l">With reply</span><span class="v">${rs.length}</span><span class="l">${n('Interested')} interested · ${n('Unsubscribe')} unsubscribe · ${rs.length - n('Interested') - n('Unsubscribe')} automatic</span></div>
-  </div>
+  </div>${R.plan ? `<p class="hint" style="margin:-4px 0 12px">${esc(R.plan)}</p>` : ''}
   ${!L.length ? '<p class="mut" style="margin:0 0 14px;font-size:13px">No replies yet.</p>' : ''}<div class="tbl-wrap" style="overflow-x:auto;margin:0 0 14px${L.length ? '' : ';display:none'}"><table class="emt"><thead><tr><th>Date</th><th>Email</th><th>Reply</th><th>Notes</th></tr></thead><tbody>
   ${L.map((x) => `<tr><td style="white-space:nowrap">${esc(fd(x.fecha))}</td><td style="overflow-wrap:anywhere"><a href="mailto:${esc(x.email)}">${esc(x.email)}</a></td><td style="white-space:nowrap;font-weight:600;color:${col[x.tipo] || 'var(--muted)'}">${esc(x.tipo)}</td><td style="font-size:13px">${esc(x.nota)}</td></tr>`).join('')}
   </tbody></table></div>`;
