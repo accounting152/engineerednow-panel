@@ -455,6 +455,7 @@ const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario', questions: 'Questions Yohai' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
+  if (tab === 'marketing' && state.tab !== 'marketing') { state.emOpen = {}; state.igOpen = {}; }
   state.tab = tab;
   document.querySelectorAll('.tabs button').forEach((b) => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   $('#title').textContent = TITLES[tab];
@@ -1526,7 +1527,7 @@ function igPage() {
   const op = state.igOpen || {};
   const fdl = (f) => { const d = new Date(f + 'T12:00:00'); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
   return `<section class="card"><h3>Instagram</h3><p class="hint" style="margin:0">Campaign actions on @engineerednow. Open an action to see the video and download its files.</p></section>` + L.map((A) => `
-  <details class="card ig-act" data-igact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
+  <details class="card ig-act" data-igact="${esc(A.id)}"${op[A.id] === true ? ' open' : ''} style="margin-top:12px">
     <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
     <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
     <div class="ig-grid">
@@ -1544,7 +1545,7 @@ function igPage() {
 function a3Block() {
   const A = D.a3; if (!A) return '';
   a3Init(); const sel = a3Sel(); const res = (A.res && A.res.countries) || {}; const name = {}; A.world.forEach((c) => { name[c.id] = c.n; });
-  const op = (state.emOpen || {}).e3 !== false;
+  const op = (state.emOpen || {}).e3 === true;
   const fill = (id) => res[id] && res[id].status === 'done' ? '#2E7D4F' : sel.includes(id) ? '#C8692B' : 'var(--a3land)';
   const paths = A.world.filter((c) => c.d).map((c) => `<path d="${c.d}" data-a3c="${c.id}" fill="${fill(c.id)}" tabindex="-1"><title>${esc(c.n)}${res[c.id] && res[c.id].status === 'done' ? ' · researched' : sel.includes(c.id) ? ' · selected' : ''}</title></path>`).join('');
   const opts = A.world.slice().sort((a, b) => a.n.localeCompare(b.n)).map((c) => `<option value="${c.id}">${esc(c.n)}</option>`).join('');
@@ -1616,7 +1617,7 @@ function emPage() {
   const op = state.emOpen || {};
   const fdl = (f) => new Date(f + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const card = (A) => `
-  <details class="card ig-act" data-emact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
+  <details class="card ig-act" data-emact="${esc(A.id)}"${op[A.id] === true ? ' open' : ''} style="margin-top:12px">
     <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
     <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
     ${emSummary(A.resumen)}
