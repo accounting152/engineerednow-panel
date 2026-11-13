@@ -1615,7 +1615,7 @@ function emPage() {
   if (!L.length) return '<section class="card"><h3>Emails</h3><p class="mut" style="margin:0">No actions yet.</p></section>';
   const op = state.emOpen || {};
   const fdl = (f) => new Date(f + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  return `<section class="card"><h3>Emails</h3><p class="hint" style="margin:0">Email campaigns. Open an action to see the email that was sent and download its files.</p></section>` + L.map((A) => `
+  const card = (A) => `
   <details class="card ig-act" data-emact="${esc(A.id)}"${op[A.id] !== false ? ' open' : ''} style="margin-top:12px">
     <summary style="cursor:pointer;font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;gap:10px;list-style:none"><span style="color:#D7262E;font-size:20px;font-weight:800" aria-hidden="true">*</span>${esc(A.titulo)} · ${esc(fdl(A.fecha))}</summary>
     <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
@@ -1623,11 +1623,12 @@ function emPage() {
     <h4 style="margin:0 0 6px">Files</h4>
     ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn" data-emdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">Download Excel</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
     <span class="mut" id="igMsg-${esc(A.id)}" style="font-size:13px;display:block;min-height:18px"></span>
-    <h4 style="margin:14px 0 6px">Email sent (English)</h4>
+    <h4 style="margin:14px 0 6px">${esc(A.htmlLabel || 'Email sent (English)')}</h4>
     <div style="font-size:13px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:10px 12px;background:var(--surface);overflow-wrap:anywhere"><div><span class="mut">From:</span> ${esc(A.de)}</div><div><span class="mut">Subject:</span> <b>${esc(A.asunto)}</b></div></div>
     <iframe title="Email sent: ${esc(A.asunto)}" src="${esc(A.html)}" loading="lazy" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:1250px;border:1px solid var(--line);border-radius:0 0 10px 10px;background:#fff;display:block"></iframe>
     <a class="bs-sec" href="${esc(A.html)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;margin-top:8px;min-height:44px;text-decoration:none">Open email in a new tab</a>
-  </details>`).join('') + a3Block();
+  </details>`;
+  return `<section class="card"><h3>Emails</h3><p class="hint" style="margin:0">Email campaigns. Open an action to see the email and download its files.</p></section>` + L.filter((A) => !A.after3).map(card).join('') + a3Block() + L.filter((A) => A.after3).map(card).join('');
 }
 async function igDownload(id, i, kind) {
   const A = (D[kind || 'instagram'] || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
