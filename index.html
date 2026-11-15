@@ -700,7 +700,7 @@ margins() {
   const RS = D.informes || {}; const R = RS.pagos_amazon_us;
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
   const id = 'pagos_amazon_us';
-  return nav + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>`;
+  return nav + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>` + pagSumTable(R);
 },
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
@@ -1986,6 +1986,34 @@ function pagShip(R) {
 }
 function pagUnits(l) { const t = l[1] || ''; return t.startsWith('Order (MCF') ? (l[10] || 0) : (t.startsWith('Order') && l[6] > 0 ? l[6] : 0); }
 function pagCost(l) { const PR = ((D.informes || {}).stock_modelo || {}).precios || {}; const u = pagUnits(l); return u ? -Math.round((PR[l[5]] || 0) * u * 100) / 100 : 0; }
+function pagFam(m) { m = m || ''; return /^H3/.test(m) ? 'H3' : /^H4/.test(m) ? 'H4' : /^HW/.test(m) ? 'H5' : /^H6/.test(m) ? 'H6' : /^M2/.test(m) ? 'Mirra 2' : /^CASTER/.test(m) ? 'Casters' : 'Other (no model)'; }
+function pagSummary(R) {
+  if (R.__sum) return R.__sum;
+  const AL = pagAlloc(R), OW = R.__own, SH = pagShip(R); const out = {};
+  R.filas.forEach((f) => { const d = f.detalle; if (!d) return; const y = f.anio || ''; const k = pagAK(f);
+    d.lineas.forEach((l, j) => { const fam = pagFam(l[5]); const o = ((out[y] = out[y] || {})[fam] = out[y][fam] || { sales: 0, refunds: 0, sold: 0, units: 0, own: 0, dist: 0, ship: 0, cost: 0 });
+      d.cols.forEach((c, i) => { if (c[0] === 'Sales') o.sales += l[9][i] || 0; else if (c[0] === 'Refunds') o.refunds += l[9][i] || 0; });
+      const t = l[1] || ''; const mcf = t.startsWith('Order (MCF'); const u = mcf ? (l[10] || 0) : (l[6] || 0);
+      o.units += u; if (!mcf && t.startsWith('Order') && l[6] > 0) o.sold += l[6];
+      const key = k + '|' + j; const ow = OW.get(key) || 0; const al = AL.get(key) || 0; o.own += ow; o.dist += al - ow; o.ship += SH.get(key) || 0; o.cost += pagCost(l); }); });
+  R.__sum = out; return out;
+}
+const FAM_ORDER = ['H3', 'H4', 'H5', 'H6', 'Mirra 2', 'Casters', 'Other (no model)'];
+function pagSumRows(R) {
+  const X = pagSummary(R); const rows = [];
+  (R.anios || ['2026', '2025']).slice().sort().forEach((y) => { const Y = X[y] || {}; const T = { sales: 0, refunds: 0, sold: 0, units: 0, own: 0, dist: 0, ship: 0, cost: 0 };
+    FAM_ORDER.filter((f) => Y[f]).forEach((f) => { const o = Y[f]; Object.keys(T).forEach((k) => { T[k] += o[k]; }); rows.push({ y, f, o, tot: false }); });
+    rows.push({ y, f: 'Total ' + y, o: T, tot: true }); });
+  return rows.map((r) => { const o = r.o; const net = o.sales + o.refunds; return Object.assign(r, { asp: o.sold ? o.sales / o.sold : null, net, pct: net ? -(o.own + o.dist) / net : null, mg: net + o.own + o.dist + o.ship + o.cost }); });
+}
+function pagSumTable(R) {
+  const rows = pagSumRows(R); const m = (v) => nfE(0).format(Math.round(v)); const neg = (v) => (v < -0.5 ? ' style="color:var(--bad)"' : '');
+  const body = rows.map((r, i) => { const first = i === 0 || rows[i - 1].y !== r.y; const o = r.o;
+    return `<tr class="${r.tot ? 'tot' : 'sub'}"><td class="l">${first ? `<b>${esc(r.y)}</b>` : ''}</td><td style="text-align:left">${esc(r.tot ? 'All models' : r.f)}</td><td>${r.asp == null ? '–' : nfE(2).format(r.asp)}</td><td>${nfE(0).format(o.units)}</td><td class="te">${m(r.net)}</td><td${neg(o.own)}>${m(o.own)}</td><td${neg(o.dist)}>${m(o.dist)}</td><td><b>${r.pct == null ? '–' : nfE(1).format(r.pct * 100) + '%'}</b></td><td${neg(o.ship)}>${m(o.ship)}</td><td${neg(o.cost)}>${m(o.cost)}</td><td style="font-weight:700;color:${r.mg < 0 ? 'var(--bad)' : 'var(--ok)'}">${m(r.mg)}</td></tr>`; }).join('');
+  return `<section class="card"><h3>Amazon Margins by model · US$</h3>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:900px;width:100%;font-size:13px"><thead><tr><th class="l">Year</th><th style="text-align:left">Headrest</th><th>Avg. selling price</th><th>Net units</th><th class="te">Net revenue</th><th>Order expenses</th><th>Distributed expenses</th><th>Amazon fees %</th><th>Shipping, Duties and warehouse</th><th>Product cost</th><th>Margin</th></tr></thead><tbody>${body}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">Amazon payouts of Hunter and JEER, all countries, by payment year, in US$. Avg. selling price = product and shipping charged ÷ Amazon units sold. Net units = units sold − units returned, own-website (MCF) orders included. Net revenue = sales − refunds. Amazon fees % = (Order expenses + Distributed expenses) ÷ Net revenue. Margin = Net revenue + Order expenses + Distributed expenses + Shipping, Duties and warehouse + Product cost. MCF orders bring only costs here (their income is in Shopify). Shipping, Duties and warehouse for 2026 covers QuickBooks up to September. Other (no model): Amazon lines with an order but no product, such as reimbursements.</p></section>`;
+}
 function pagosBody(id, ttl) {
   const R = D.informes[id]; const TT = ttl || R.titulo; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
   const tab = state.pagTab === 'detail' ? 'detail' : 'transfers'; const acc = state.pagAcc || 'All';
@@ -2052,6 +2080,14 @@ async function downloadPagos(id, ttl) {
     const MF = '#,##0.00 "US$";[Red]-#,##0.00 "US$";;@'; const thin = { bottom: { style: 'thin', color: { argb: 'FFD0D7DC' } } }; const D8 = (s) => (s ? new Date(s + 'T00:00:00Z') : '');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Engineered Now';
     const hdr = (ws, r, H) => { H.forEach((h, k) => { const c = ws.getCell(r, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = fill('FF11181D'); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; }); ws.getRow(r).height = 30; };
+    if (ttl) { const sm = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 3 }] }); sm.getCell('A1').value = 'Amazon Margins by model · US$'; sm.getCell('A1').font = F({ bold: true, size: 14 });
+      const SHd = ['Year', 'Headrest', 'Avg. selling price', 'Net units', 'Net revenue', 'Order expenses', 'Distributed expenses', 'Amazon fees %', 'Shipping, Duties and warehouse', 'Product cost', 'Margin']; hdr(sm, 3, SHd);
+      let q = 4; pagSumRows(R).forEach((r) => { const o = r.o; const vals = [r.y, r.tot ? 'All models' : r.f, r.asp, o.units, Math.round(r.net * 100) / 100, Math.round(o.own * 100) / 100, Math.round(o.dist * 100) / 100, null, Math.round(o.ship * 100) / 100, Math.round(o.cost * 100) / 100, null];
+        vals.forEach((v, k) => { const c = sm.getCell(q, k + 1); c.value = v; c.font = F({ bold: r.tot || k === 10 }); if ([2, 4, 5, 6, 8, 9, 10].includes(k)) c.numFmt = '#,##0.00;[Red]-#,##0.00'; if (k === 3) c.numFmt = '#,##0'; c.border = thin; if (r.tot) c.fill = fill('FFF0F2F4'); });
+        sm.getCell(q, 8).value = { formula: `IF(E${q}=0,"",-(F${q}+G${q})/E${q})`, result: r.pct == null ? '' : r.pct }; sm.getCell(q, 8).numFmt = '0.0%';
+        sm.getCell(q, 11).value = { formula: `E${q}+F${q}+G${q}+I${q}+J${q}`, result: Math.round(r.mg * 100) / 100 }; q++; });
+      sm.getCell(q + 1, 1).value = 'Avg. selling price = product and shipping charged / Amazon units sold. Net units = sold − returned, MCF included. Net revenue = sales − refunds. Amazon fees % = (Order + Distributed expenses) / Net revenue. 2026 shipping, duties and warehouse up to September (QuickBooks).'; sm.getCell(q + 1, 1).font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+      [8, 18, 14, 11, 15, 15, 15, 12, 17, 14, 14].forEach((w, k) => { sm.getColumn(k + 1).width = w; }); }
     // Sheet 1: transfers
     const ws = wb.addWorksheet('Transfers', { views: [{ state: 'frozen', ySplit: 4 }] });
     ws.getCell('A1').value = ttl || R.titulo; ws.getCell('A1').font = F({ bold: true, size: 14 }); ws.getCell('A2').value = R.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
