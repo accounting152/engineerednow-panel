@@ -701,7 +701,7 @@ margins() {
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
   const id = 'pagos_amazon_us'; const open = !!(state.repOpen || {})[id];
   const sub = (R.anios || ['2026']).map((y) => `${y}: ${(R.n_anio || {})[y] || 0} transfers · ${moneyE((R.total_anio || {})[y] || 0, 'USD', 0)}`).join(' · ');
-  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${pagosBody(id)}</div>` : ''}<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>`;
+  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Amazon Margins</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${pagosBody(id, 'Amazon Margins')}</div>` : ''}<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>`;
 },
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
@@ -1976,8 +1976,8 @@ function pagAlloc(R) {
     const ei = d.cols.map((c, i) => (c[0] === 'Expenses' ? i : -1)).filter((i) => i >= 0); d.lineas.forEach((l, j) => { M.set(pagAK(f) + '|' + j, ei.reduce((a, i) => a + (l[9][i] || 0), 0)); }); });
   R.__alloc = M; R.__allocG = G; return M;
 }
-function pagosBody(id) {
-  const R = D.informes[id]; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
+function pagosBody(id, ttl) {
+  const R = D.informes[id]; const TT = ttl || R.titulo; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
   const tab = state.pagTab === 'detail' ? 'detail' : 'transfers'; const acc = state.pagAcc || 'All';
   const tabs = `<div class="seg" role="tablist" aria-label="Report tabs" style="margin:4px 0 8px"><button aria-pressed="${tab === 'transfers'}" data-ptab="transfers">Transfers</button><button aria-pressed="${tab === 'detail'}" data-ptab="detail">Line detail</button></div>`;
   const accs = ['All', 'Standard orders', 'Invoiced orders (Amazon Business)'];
@@ -2029,12 +2029,12 @@ function pagosBody(id) {
     main = `<div class="rtbl-wrap"><table class="rtbl cobt" style="min-width:860px"><thead><tr><th class="l">Date in Wells Fargo</th><th>Account</th><th>Group</th><th style="text-align:left">Concept</th><th class="te">Amount</th><th>Status</th></tr></thead><tbody>${body}</tbody></table></div>
       <p class="hint" style="margin-top:8px">${esc(R.nota_desglose)}</p>`;
   }
-  return `<section class="card"><h3>${esc(R.titulo)}</h3>${tabs}${accSeg}
+  return `<section class="card"><h3>${esc(TT)}</h3>${tabs}${accSeg}
     <section class="kpis" style="margin:6px 0 12px">${kp}</section>${main}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">One file with two sheets: Transfers and Line detail (one row per transaction, ready to filter).</span></div>
   </section>`;
 }
-async function downloadPagos(id) {
+async function downloadPagos(id, ttl) {
   const msg = $('#repMsg-' + id); msg.textContent = 'Preparing the Excel file…';
   try {
     await loadExcelJS();
@@ -2044,7 +2044,7 @@ async function downloadPagos(id) {
     const hdr = (ws, r, H) => { H.forEach((h, k) => { const c = ws.getCell(r, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = fill('FF11181D'); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; }); ws.getRow(r).height = 30; };
     // Sheet 1: transfers
     const ws = wb.addWorksheet('Transfers', { views: [{ state: 'frozen', ySplit: 4 }] });
-    ws.getCell('A1').value = R.titulo; ws.getCell('A1').font = F({ bold: true, size: 14 }); ws.getCell('A2').value = R.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
+    ws.getCell('A1').value = ttl || R.titulo; ws.getCell('A1').font = F({ bold: true, size: 14 }); ws.getCell('A2').value = R.nota; ws.getCell('A2').font = F({ size: 9, italic: true, color: { argb: 'FF5F6E79' } });
     hdr(ws, 4, ['Year', 'Bank date', 'Date status', 'Account', 'Settlement start', 'Settlement end', 'Sales (USD)', 'Refunds (USD)', 'Expenses (USD)', 'Balance / reserve (USD)', 'Amount transferred (USD)', 'Company', 'Country', 'Currency', 'Amount in local currency', 'FX rate (USD per unit)', 'FX source']);
     let r = 5; const first = r; const closed = rows.filter((x) => x.estado !== 'Open').sort((a, b) => (a.fecha_banco || '').localeCompare(b.fecha_banco || ''));
     closed.forEach((x) => { const vals = [x.anio || '', D8(x.fecha_banco || x.fecha_estimada), x.estado === 'Confirmed in bank' ? 'Confirmed' : x.estado === 'Accepted by bank' ? 'Accepted by bank (Amazon)' : x.estado === 'Amazon deposit date' ? 'Amazon deposit date' : x.estado === 'Expected date' ? 'Estimated' : 'No transfer', x.cuenta, D8(x.periodo[0]), D8(x.periodo[1]), x.ventas, x.reembolsos, x.gastos, x.otros, x.importe, x.empresa || 'Hunter', x.pais || 'USA', x.moneda || 'USD', x.importe_local != null ? x.importe_local : x.importe, x.fx || 1, x.fx_fuente || '—'];
@@ -2081,7 +2081,7 @@ async function downloadPagos(id) {
         rr++; }); });
     [7, 12, 28, 12, 12, 13, 12, 20, 21, 15, 24, 8, 12].forEach((wd, k) => { w2.getColumn(k + 1).width = wd; }); for (let c = C0; c <= ts + 7; c++) w2.getColumn(c).width = 13; w2.getColumn(uc + 2).width = 40;
     if (rr > 2) w2.autoFilter = { from: { row: 1, column: 1 }, to: { row: rr - 1, column: HH.length } };
-    const buf = await wb.xlsx.writeBuffer(); const name = 'Amazon_payouts_by_country_USD_2025-2026.xlsx';
+    const buf = await wb.xlsx.writeBuffer(); const name = ttl ? ttl.replace(/ /g, '_') + '_USD_2025-2026.xlsx' : 'Amazon_payouts_by_country_USD_2025-2026.xlsx';
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -2384,7 +2384,7 @@ const AFTER = {
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-mgsub]').forEach((b) => b.addEventListener('click', () => { state.mgSub = b.dataset.mgsub; render(); scrollTo({ top: 0 }); }));
     document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
-    document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => downloadPagos(x.dataset.rxls)));
+    document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => downloadPagos(x.dataset.rxls, 'Amazon Margins')));
     document.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', kp(() => { state.pagTab = b.dataset.ptab; })));
     document.querySelectorAll('[data-pyear]').forEach((b) => b.addEventListener('click', kp(() => { state.pagYear = b.dataset.pyear; state.pagSel = ''; })));
     document.querySelectorAll('[data-pemp]').forEach((b) => b.addEventListener('click', kp(() => { state.pagEmp = b.dataset.pemp; state.pagSel = ''; })));
