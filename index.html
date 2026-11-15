@@ -1992,14 +1992,14 @@ function pagSummary(R) {
   const AL = pagAlloc(R), OW = R.__own, SH = pagShip(R); const out = {};
   R.filas.forEach((f) => { const d = f.detalle; if (!d) return; const y = f.anio || ''; const k = pagAK(f);
     const mo = (f.fecha_banco || f.fecha_estimada || d.deposito || '').slice(5, 7); const Ym = ((out[y] = out[y] || {})[mo] = out[y][mo] || {});
-    d.lineas.forEach((l, j) => { const fam = pagFam(l[5]); const o = (Ym[fam] = Ym[fam] || { sales: 0, refunds: 0, sold: 0, units: 0, own: 0, dist: 0, ship: 0, cost: 0 });
+    d.lineas.forEach((l, j) => { const fam = (l[1] || '').startsWith('Order (MCF') ? 'Own website (MCF)' : pagFam(l[5]); const o = (Ym[fam] = Ym[fam] || { sales: 0, refunds: 0, sold: 0, units: 0, own: 0, dist: 0, ship: 0, cost: 0 });
       d.cols.forEach((c, i) => { if (c[0] === 'Sales') o.sales += l[9][i] || 0; else if (c[0] === 'Refunds') o.refunds += l[9][i] || 0; });
       const t = l[1] || ''; const mcf = t.startsWith('Order (MCF'); const u = mcf ? (l[10] || 0) : (l[6] || 0);
       o.units += u; if (!mcf && t.startsWith('Order') && l[6] > 0) o.sold += l[6];
       const key = k + '|' + j; const ow = OW.get(key) || 0; const al = AL.get(key) || 0; o.own += ow; o.dist += al - ow; o.ship += SH.get(key) || 0; o.cost += pagCost(l); }); });
   R.__sum = out; return out;
 }
-const FAM_ORDER = ['H3', 'H4', 'H5', 'H6', 'Mirra 2', 'Casters', 'Other (no model)'];
+const FAM_ORDER = ['H3', 'H4', 'H5', 'H6', 'Mirra 2', 'Casters', 'Own website (MCF)', 'Other (no model)'];
 const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function pagSumSel(R) { const ys = (R.anios || ['2026', '2025']).slice().sort(); const sy = (state.msY || []).filter((y) => ys.includes(y)); const sm = (state.msM || []).filter((m) => /^\d\d$/.test(m)); return { ys, years: sy.length ? sy : ys, months: sm.length ? sm : null }; }
 function pagSumRows(R) {
@@ -2020,7 +2020,7 @@ function pagSumTable(R) {
   const per = SEL.months ? SEL.months.map((k) => MON3[+k - 1]).join(', ') : 'all months';
   return `<style>.msy0 td{background-image:linear-gradient(rgba(96,140,230,.11),rgba(96,140,230,.11))}.msy1 td{background-image:linear-gradient(rgba(240,170,90,.13),rgba(240,170,90,.13))}</style><section class="card"><h3>Amazon Margins by model · US$</h3>${filt}<p class="hint" style="margin:0 0 8px">Showing ${esc(SEL.years.join(' + '))} · ${esc(per)} (month of the Amazon payout). Tap several years or months to add them together.</p>
     <div class="rtbl-wrap"><table class="rtbl" style="min-width:900px;width:100%;font-size:13px"><thead><tr><th class="l">Year</th><th style="text-align:left">Headrest</th><th>Avg. selling price</th><th>Net units</th><th class="te">Net revenue</th><th>Order expenses</th><th>Distributed expenses</th><th>Amazon fees %</th><th>Shipping, Duties and warehouse</th><th>Product cost</th><th>Margin</th></tr></thead><tbody>${body}</tbody></table></div>
-    <p class="hint" style="margin-top:8px">Amazon payouts of Hunter and JEER, all countries, by payment year, in US$. Avg. selling price = product and shipping charged ÷ Amazon units sold. Net units = units sold − units returned, own-website (MCF) orders included. Net revenue = sales − refunds. Amazon fees % = (Order expenses + Distributed expenses) ÷ Net revenue. Margin = Net revenue + Order expenses + Distributed expenses + Shipping, Duties and warehouse + Product cost. MCF orders bring only costs here (their income is in Shopify). Shipping, Duties and warehouse for 2026 covers QuickBooks up to September. Months follow the date of each Amazon payout; distributed expenses and shipping are shared per year, so a month shows the share of the orders paid in it. Other (no model): Amazon lines with an order but no product, such as reimbursements.</p></section>`;
+    <p class="hint" style="margin-top:8px">Amazon payouts of Hunter and JEER, all countries, by payment year, in US$. Avg. selling price = product and shipping charged ÷ Amazon units sold. Net units = units sold − units returned, own-website (MCF) orders included. Net revenue = sales − refunds. Amazon fees % = (Order expenses + Distributed expenses) ÷ Net revenue. Margin = Net revenue + Order expenses + Distributed expenses + Shipping, Duties and warehouse + Product cost. Own website (MCF): orders from our website shipped by Amazon, all models together; they bring only costs here (their income is in Shopify) and will be counted in the Shopify margins. Shipping, Duties and warehouse for 2026 covers QuickBooks up to September. Months follow the date of each Amazon payout; distributed expenses and shipping are shared per year, so a month shows the share of the orders paid in it. Other (no model): Amazon lines with an order but no product, such as reimbursements.</p></section>`;
 }
 function pagosBody(id, ttl) {
   const R = D.informes[id]; const TT = ttl || R.titulo; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
