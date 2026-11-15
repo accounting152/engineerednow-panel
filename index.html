@@ -455,7 +455,7 @@ const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario', questions: 'Questions Yohai' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
-  if (tab === 'marketing' && state.tab !== 'marketing') { state.emOpen = {}; state.igOpen = {}; }
+  if (tab === 'marketing' && state.tab !== 'marketing') { state.emOpen = {}; state.igOpen = {}; state.tdOpen = false; }
   state.tab = tab;
   document.querySelectorAll('.tabs button').forEach((b) => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   $('#title').textContent = TITLES[tab];
@@ -488,6 +488,25 @@ function yqInit() { if (YQ.init) return; YQ.init = true; yqData();
       else if (first && yqData().topics.some((t) => t.items.length || t.id !== 'general')) yqSave();
       first = false; const a = document.activeElement; if (state.tab === 'questions' && !(a && a.matches && a.matches('.yq-row input') && a.value)) render(); }, () => { YQ.mode = 'local'; YQ.ref = null; if (state.tab === 'questions') render(); });
     if (state.tab === 'questions') render(); } catch (e) {} })(); }
+const TD = { init: false, ref: null, done: null };
+function tdDone() { if (!TD.done) { try { TD.done = JSON.parse(localStorage.getItem('enTodoDone') || '{}') || {}; } catch (e) { TD.done = {}; } } return TD.done; }
+async function tdSave() { try { localStorage.setItem('enTodoDone', JSON.stringify(tdDone())); } catch (e) {}
+  if (TD.ref) { try { await TD.ref.set({ done: Object.assign({}, tdDone()), updated: new Date().toISOString() }); } catch (e) { console.warn('todo save', e && e.code); } } }
+function tdInit() { if (TD.init) return; TD.init = true; tdDone();
+  (async () => { try { if (!(window.claude && window.claude.use)) return; const db = await window.claude.use('db'); if (!db) return;
+    TD.ref = db.doc('marketing/todo'); let first = true;
+    TD.ref.onSnapshot((snap) => { if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (snap.exists) { const v = snap.data(); if (v && v.done && typeof v.done === 'object') { TD.done = Object.assign({}, v.done); try { localStorage.setItem('enTodoDone', JSON.stringify(TD.done)); } catch (e) {} } }
+      else if (first && Object.keys(tdDone()).length) tdSave();
+      first = false; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } }, () => { TD.ref = null; });
+  } catch (e) {} })(); }
+function todoBlock() {
+  tdInit(); const L = D.todos || []; const dn = tdDone(); const pend = L.filter((x) => !dn[x.id]).length;
+  const rows = L.map((x) => `<tr${dn[x.id] ? ' style="opacity:.55"' : ''}><td style="text-align:center"><input type="checkbox" data-todo="${esc(x.id)}"${dn[x.id] ? ' checked' : ''} aria-label="Mark as done"></td><td class="l" style="white-space:nowrap">${esc((x.fecha || '').slice(0, 10))}</td><td class="l">${esc(x.fuente)}</td><td class="l">${esc(x.empresa)}${x.contacto ? `<div class="mut">${esc(x.contacto)}</div>` : ''}</td><td class="l">${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : '–'}</td><td class="l" style="min-width:260px">${esc(x.quiere)}</td></tr>`).join('');
+  return `<details class="card" data-todos${state.tdOpen === true ? ' open' : ''} style="margin-bottom:12px"><summary style="cursor:pointer;font-weight:600;font-size:16px">Actions To do <span class="mut" style="font-weight:400;font-size:13px">· ${pend} pending of ${L.length}</span></summary>
+    <p class="mut" style="margin:8px 0 10px;font-size:13px">Interested contacts from the email campaigns and Instagram. Tick the box when the action is done${TD.ref ? ' (saved for everyone using the panel)' : ' (saved in this browser)'}.</p>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:820px"><thead><tr><th>Done</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>`;
+}
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
@@ -667,7 +686,7 @@ competitors() {
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
   const nav = `<div class="seg" role="group" aria-label="Marketing" style="margin-bottom:12px"><button aria-pressed="${ms === 'emails'}" data-mksub="emails">Emails</button><button aria-pressed="${ms === 'instagram'}" data-mksub="instagram">Instagram</button></div>`;
-  return nav + (ms === 'instagram' ? igPage() : emPage());
+  return todoBlock() + nav + (ms === 'instagram' ? igPage() : emPage());
 },
 _mktContacts() {
   const M = (D.informes || {}).mkt;
@@ -2379,6 +2398,8 @@ const AFTER = {
     document.querySelectorAll('[data-igdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.igdl, +b.dataset.igf)));
     document.querySelectorAll('[data-emdl]').forEach((b) => b.addEventListener('click', () => igDownload(b.dataset.emdl, +b.dataset.igf, 'emails')));
     document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
+    document.querySelectorAll('details[data-todos]').forEach((d) => d.addEventListener('toggle', () => { state.tdOpen = d.open; }));
+    document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { const d = tdDone(); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
     const a3r = () => { const y = scrollY; render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-a3c]').forEach((p) => p.addEventListener('click', () => { const s = a3Sel(), id = p.dataset.a3c, i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); a3Save(); a3r(); }));
     document.querySelectorAll('[data-a3rm]').forEach((b) => b.addEventListener('click', () => { const s = a3Sel(), i = s.indexOf(b.dataset.a3rm); if (i >= 0) s.splice(i, 1); a3Save(); a3r(); }));
