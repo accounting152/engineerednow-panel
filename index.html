@@ -273,7 +273,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 /* tab bar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);
   border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
-.tabs-in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:2px}
+.tabs-in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:2px}
 .tabs button{font-size:10.5px;min-width:0}
 @media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.2px}}
 .amzsel{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -296,7 +296,7 @@ table.t .r{text-align:right;font-family:var(--mono);font-size:12.5px;white-space
 .liq .s{font-size:12px;color:var(--muted)}
 
 .tabs button{border:0;background:none;display:grid;justify-items:center;gap:3px;padding:6px 0;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;position:relative}
-@media (max-width:440px){.tabs button{font-size:9px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tabs .tl-full{display:none}}
+@media (max-width:440px){.tabs button svg{width:20px;height:20px}.tabs button{font-size:8.5px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tabs .tl-full{display:none}}
 @media (min-width:441px){.tabs .tl-short{display:none}}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current="page"]{color:var(--accent)}
@@ -381,6 +381,7 @@ details.ig-act>summary::-webkit-details-marker{display:none}
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="amazon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Sales</button>
       <button data-tab="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M2 3h20v4H2zM10 12h4"/></svg>Inventario</button>
+      <button data-tab="margins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg>Margins</button>
       <button data-tab="questions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.2-2.4 3.8"/><path d="M12 17h.01"/></svg><span class="tl-full">Questions Yohai</span><span class="tl-short">Q. Yohai</span></button>
     </div>
   </nav>
@@ -441,7 +442,7 @@ async function unlock(pw, remember) {
     D = await decrypt(pw);
     if (remember) store.set('en-pw', pw); else store.del('en-pw');
     $('#lock').hidden = true; $('#app').hidden = false;
-    const h = location.hash.slice(1); go(['resumen','bancos','competitors','marketing','finances','amazon','inventario','questions'].includes(h) ? h : 'resumen');
+    const h = location.hash.slice(1); go(['resumen','bancos','competitors','marketing','finances','amazon','inventario','margins','questions'].includes(h) ? h : 'resumen');
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'No se pudieron descargar los datos. Revisa la conexión.' : 'Contraseña incorrecta.';
@@ -452,7 +453,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario', questions: 'Questions Yohai' };
+const TITLES = { resumen: 'Resumen', bancos: 'Bancos', pendientes: 'Pendientes', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventario', margins: 'Margins', questions: 'Questions Yohai' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   if (tab === 'marketing' && state.tab !== 'marketing') { state.emOpen = {}; state.igOpen = {}; state.tdOpen = false; }
@@ -691,6 +692,16 @@ competitors() {
     <div class="rtbl-wrap"><table class="rtbl" style="min-width:820px"><thead><tr><th class="l">Month</th><th>Searches</th><th>Total purchases</th><th class="te">Engineered Now</th>${brands.map((b) => `<th>${esc(b)} (est.)</th>`).join('')}<th>Other sellers</th></tr></thead><tbody>${toth}${rows}</tbody></table></div>
     <p class="hint" style="margin-top:8px">How it is estimated: Amazon does not publish competitors' sales. Brand Analytics (our Hunter brand account) gives, for each search and month, the total number of purchases and the purchase share (conversion share) of the 3 most clicked products. Estimated units = purchase share × total purchases, added up for the two searches. "–" = the product was not in the top 3 that month, so its units are unknown (not zero). These figures only cover these two searches; total sales of each competitor are higher. The best signal of total current sales is the "bought in past month" badge on each listing (ERGOKING 200+, Engineered Now 100+).</p></section>`;
   return `<section class="card"><h3>Top 3 competitors – Aeron headrest, Amazon USA</h3><p class="mut" style="margin:6px 0 0;font-size:13px">Search "Headrest Aeron chair" on amazon.com and Brand Analytics data, collected on ${fdEN(C.asof).d} ${fdEN(C.asof).m} ${C.asof.slice(0, 4)}. Brands with most clicks every month: ERGOKING, Engineered Now and MingYi.office.</p>${C.markets_note ? `<p class="hint" style="margin:6px 0 0">Amazon countries: ${esc(C.markets_note)}</p>` : ''}</section>${cards}${ours}${alert}${table}${cat}${webc}`;
+},
+margins() {
+  const ms = ['amazon', 'wholesalers', 'shopify'].includes(state.mgSub) ? state.mgSub : 'amazon';
+  const nav = `<div class="seg" role="group" aria-label="Margins" style="margin-bottom:12px"><button aria-pressed="${ms === 'amazon'}" data-mgsub="amazon">Amazon</button><button aria-pressed="${ms === 'wholesalers'}" data-mgsub="wholesalers">Wholesalers</button><button aria-pressed="${ms === 'shopify'}" data-mgsub="shopify">Shopify</button></div>`;
+  if (ms !== 'amazon') return nav + `<section class="card"><h3>${ms === 'shopify' ? 'Shopify' : 'Wholesalers'}</h3><p class="mut" style="margin:0">Reports coming soon.</p></section>`;
+  const RS = D.informes || {}; const R = RS.pagos_amazon_us;
+  if (!R) return nav + '<div class="card mut">No reports yet.</div>';
+  const id = 'pagos_amazon_us'; const open = !!(state.repOpen || {})[id];
+  const sub = (R.anios || ['2026']).map((y) => `${y}: ${(R.n_anio || {})[y] || 0} transfers · ${moneyE((R.total_anio || {})[y] || 0, 'USD', 0)}`).join(' · ');
+  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${pagosBody(id)}</div>` : ''}<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>`;
 },
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
@@ -2350,6 +2361,19 @@ const AFTER = {
     $('#invEstado').addEventListener('change', (e) => keep(() => { state.invEstado = e.target.value; }));
     let t; const qi = $('#invQ'); qi.addEventListener('input', (e) => { clearTimeout(t); t = setTimeout(() => { keep(() => { state.invQ = e.target.value; }); const n = $('#invQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 400); });
     $('#xlsBtn').addEventListener('click', downloadStock);
+  },
+  margins() {
+    const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    document.querySelectorAll('[data-mgsub]').forEach((b) => b.addEventListener('click', () => { state.mgSub = b.dataset.mgsub; render(); scrollTo({ top: 0 }); }));
+    document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
+    document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => downloadPagos(x.dataset.rxls)));
+    document.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', kp(() => { state.pagTab = b.dataset.ptab; })));
+    document.querySelectorAll('[data-pyear]').forEach((b) => b.addEventListener('click', kp(() => { state.pagYear = b.dataset.pyear; state.pagSel = ''; })));
+    document.querySelectorAll('[data-pemp]').forEach((b) => b.addEventListener('click', kp(() => { state.pagEmp = b.dataset.pemp; state.pagSel = ''; })));
+    document.querySelectorAll('[data-pcty]').forEach((b) => b.addEventListener('change', kp(() => { state.pagCty = b.value; state.pagSel = ''; })));
+    document.querySelectorAll('[data-ppay]').forEach((b) => b.addEventListener('change', kp(() => { state.pagSel = b.value; })));
+    document.querySelectorAll('[data-pq]').forEach((b) => b.addEventListener('change', kp(() => { state.pagQ = b.value; })));
+    document.querySelectorAll('[data-pacc]').forEach((b) => b.addEventListener('click', kp(() => { state.pagAcc = b.dataset.pacc; })));
   },
   amazon() {
     document.querySelectorAll('[data-ssub]').forEach((b) => b.addEventListener('click', () => { state.salesSub = b.dataset.ssub; render(); scrollTo({ top: 0 }); }));
