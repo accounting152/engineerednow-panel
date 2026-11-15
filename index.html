@@ -699,9 +699,8 @@ margins() {
   if (ms !== 'amazon') return nav + `<section class="card"><h3>${ms === 'shopify' ? 'Shopify' : 'Wholesalers'}</h3><p class="mut" style="margin:0">Reports coming soon.</p></section>`;
   const RS = D.informes || {}; const R = RS.pagos_amazon_us;
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
-  const id = 'pagos_amazon_us'; const open = !!(state.repOpen || {})[id];
-  const sub = (R.anios || ['2026']).map((y) => `${y}: ${(R.n_anio || {})[y] || 0} transfers · ${moneyE((R.total_anio || {})[y] || 0, 'USD', 0)}`).join(' · ');
-  return nav + `<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-rtoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>Amazon Margins</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${pagosBody(id, 'Amazon Margins')}</div>` : ''}<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>`;
+  const id = 'pagos_amazon_us';
+  return nav + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>`;
 },
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
