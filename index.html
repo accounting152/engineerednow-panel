@@ -1687,7 +1687,7 @@ function emPage() {
 }
 async function igDownload(id, i, kind) {
   const A = (D[kind || 'instagram'] || []).find((x) => x.id === id); const f = A.files[i]; const m = $('#igMsg-' + id);
-  const bin = atob(f.b64); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+  let u; if (f.url) { try { u = new Uint8Array(await (await fetch(f.url)).arrayBuffer()); } catch (e) { m.textContent = 'Could not download here.'; return; } } else { const bin = atob(f.b64); u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k); }
   const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
   if (dl) { try { await dl.save({ filename: f.name, data: u.buffer }); m.textContent = 'Downloaded: ' + f.name; } catch (err) { m.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
   const url = URL.createObjectURL(new Blob([u], { type: /\.pdf$/i.test(f.name) ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); m.textContent = 'Downloaded: ' + f.name;
