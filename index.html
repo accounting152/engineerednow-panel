@@ -1348,7 +1348,37 @@ function scBody(R) { const y = state.scYear || '2026', pf = state.scPf || 'All';
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-scxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-sc" style="font-size:13px"></span></div></section>`; }
 async function downloadSC() { const msg = $('#repMsg-sc'); msg.textContent = 'Preparing the Excel file…';
   try { await loadExcelJS(); const R = D.informes.shipping_check; const F = (o) => Object.assign({ name: 'Arial', size: 9 }, o || {}); const MF = '#,##0.00;[Red]-#,##0.00;-';
-    const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Shipping costs by line', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
+    const wb = new ExcelJS.Workbook();
+    { const sm = wb.addWorksheet('Summary'); const uq = (a) => new Set(a.map((r) => r.pedido)).size; const S = (k, a) => a.reduce((t, r) => t + (r[k] || 0), 0);
+      sm.getCell('A1').value = 'Checking shipping costs · Summary (USD)'; sm.getCell('A1').font = F({ bold: true, size: 14 });
+      const ys = R.anios.slice(); const hd = ['Concept'].concat(ys);
+      hd.forEach((h, k) => { const c = sm.getCell(3, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: k ? 'center' : 'left' }; });
+      const L = (y) => R.filas.filter((r) => r.anio === y);
+      const rowsS = [
+        ['Orders', (a) => uq(a), '#,##0'],
+        ['Units', (a) => S('uds', a), '#,##0'],
+        ['Net revenue', (a) => S('neto', a), MF],
+        ['Total shipping paid', (a) => S('total', a), MF],
+        ['  Amazon MCF', (a) => S('mcf', a), MF],
+        ['  Hipshipper', (a) => S('hs_coste', a), MF],
+        ['  LVK', (a) => S('lvk', a), MF],
+        ['  Shippo (return labels)', (a) => S('shippo', a), MF],
+        ['Orders with Amazon MCF', (a) => uq(a.filter((r) => r.mcf > 0)), '#,##0'],
+        ['Orders with Hipshipper', (a) => uq(a.filter((r) => r.hs_coste > 0)), '#,##0'],
+        ['  of which handled by TVL', (a) => uq(a.filter((r) => r.tvl_lot)), '#,##0'],
+        ['Orders with LVK', (a) => uq(a.filter((r) => r.lvk > 0)), '#,##0'],
+        ['Orders with Shippo', (a) => uq(a.filter((r) => r.shippo > 0)), '#,##0'],
+        ['Shipping per order with cost', (a) => S('total', a) / Math.max(1, uq(a.filter((r) => r.total > 0))), MF],
+        ['Shipping per unit', (a) => S('total', a) / Math.max(1, S('uds', a.filter((r) => r.total > 0))), MF],
+        ['Orders paid in more than one platform', (a) => uq(a.filter((r) => r.doble)), '#,##0'],
+        ['  their total shipping', (a) => S('total', a.filter((r) => r.doble)), MF],
+        ['Orders with no shipping cost found', (a) => uq(a.filter((r) => r.plataformas === '\u2014')), '#,##0'],
+        ['Shipping charged to customers', (a) => S('envio_cobrado', a), MF],
+        ['Shipping margin', (a) => S('margen_envio', a), MF]];
+      rowsS.forEach(([lab, fn, nf], i) => { const r = 4 + i; const c0 = sm.getCell(r, 1); c0.value = lab; c0.font = F({ bold: !/^ /.test(lab) }); ys.forEach((y, k) => { const c = sm.getCell(r, k + 2); c.value = Math.round(fn(L(y)) * 100) / 100; c.numFmt = nf; c.font = F({ bold: !/^ /.test(lab) }); }); });
+      sm.getCell(4 + rowsS.length + 1, 1).value = R.nota || ''; sm.getCell(4 + rowsS.length + 1, 1).font = F({ size: 8, italic: true, color: { argb: 'FF5F6E79' } });
+      sm.getColumn(1).width = 40; ys.forEach((y, k) => { sm.getColumn(k + 2).width = 16; }); }
+    const ws = wb.addWorksheet('Shipping costs by line', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
     const H = [['anio', 'Year'], ['fecha', 'Date'], ['pedido', 'Order'], ['estado', 'Status'], ['pais', 'Country'], ['canal', 'Channel'], ['envio_por', 'Fulfilled by (Shopify tag)'], ['uds', 'Units'], ['modelo', 'Model'], ['sku', 'SKU'], ['neto', 'Net revenue (USD)'], ['fee_shop', 'Shopify Payments fee (USD)'], ['neto_fee', 'Net after Shopify fee (USD)'], ['envio_cobrado', 'Shipping charged (USD)'], ['hs_ids', 'Hipshipper ID'], ['hs_estado', 'Hipshipper status'], ['hs_pais', 'Hipshipper country'], ['hs_cancel', 'Hipshipper cancelled labels (USD, not counted)'], ['tvl_lot', 'TVL lot'], ['tvl_fecha', 'TVL date'], ['mcf_cuenta', 'MCF Amazon account'], ['mcf', 'Amazon MCF paid (USD)'], ['hs_coste', 'Hipshipper paid (USD)'], ['lvk', 'LVK shipping (USD)'], ['lvk_fecha', 'LVK invoice date'], ['shippo', 'Shippo (USD)'], ['shippo_fecha', 'Shippo label date'], ['shippo_rma', 'Rich Returns RMA'], ['total', 'Total shipping paid (USD)'], ['plataformas', 'Paid in'], ['margen_envio', 'Shipping margin (USD)'], ['neto_envio', 'Net after shipping (USD)']];
     H.forEach(([, h], k) => { const c = ws.getCell(1, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; }); ws.getRow(1).height = 40;
     const num = ['neto', 'fee_shop', 'neto_fee', 'envio_cobrado', 'hs_cancel', 'mcf', 'hs_coste', 'lvk', 'shippo', 'total', 'margen_envio', 'neto_envio']; const ci = Object.fromEntries(H.map(([k], i) => [k, i + 1])); const L = (k) => ws.getColumn(ci[k]).letter;
