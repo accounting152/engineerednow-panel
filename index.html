@@ -1676,7 +1676,7 @@ function emPage() {
     <p class="mut" style="margin:6px 0 12px;font-size:13px">${esc(A.desc)}</p>
     ${emSummary(A.resumen)}
     <h4 style="margin:0 0 6px">Files</h4>
-    ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn" data-emdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">Download Excel</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
+    ${A.files.map((f, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn" data-emdl="${esc(A.id)}" data-igf="${i}" style="height:44px;padding:0 16px">${/\.pdf$/i.test(f.name) ? 'Download PDF' : 'Download Excel'}</button><span style="font-size:13px;min-width:0;overflow-wrap:anywhere"><b>${esc(f.name)}</b><br><span class="mut">${esc(f.desc)} · ${Math.round(f.bytes / 1024)} KB</span></span></div>`).join('')}
     <span class="mut" id="igMsg-${esc(A.id)}" style="font-size:13px;display:block;min-height:18px"></span>
     <h4 style="margin:14px 0 6px">${esc(A.htmlLabel || 'Email sent (English)')}</h4>
     <div style="font-size:13px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:10px 12px;background:var(--surface);overflow-wrap:anywhere"><div><span class="mut">From:</span> ${esc(A.de)}</div><div><span class="mut">Subject:</span> <b>${esc(A.asunto)}</b></div></div>
@@ -1690,7 +1690,7 @@ async function igDownload(id, i, kind) {
   const bin = atob(f.b64); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
   const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
   if (dl) { try { await dl.save({ filename: f.name, data: u.buffer }); m.textContent = 'Downloaded: ' + f.name; } catch (err) { m.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
-  const url = URL.createObjectURL(new Blob([u], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); m.textContent = 'Downloaded: ' + f.name;
+  const url = URL.createObjectURL(new Blob([u], { type: /\.pdf$/i.test(f.name) ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); m.textContent = 'Downloaded: ' + f.name;
 }
 async function downloadMkt() {
   const M = D.informes.mkt; const f = state.mkC || 'ALL'; const only = state.mkAcc !== false; const q = (state.mkQ || '').trim().toLowerCase(); const msg = $('#mkMsg');
