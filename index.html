@@ -511,7 +511,7 @@ async function tdPush(id, key, value) { const c = tdSyncCfg(); if (!c) return; c
   try { const r = await fetch(c.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ t: c.t, id, key, value: !!value, empresa: x.empresa || '', email: x.email || '', who: 'GitHub panel' }) });
     const j = await r.json(); if (j && j.state) { tdApply(j.state); TDS.ok = true; } else TDS.ok = false; } catch (e) { TDS.ok = false; } }
 async function tdPull(force) { const c = tdSyncCfg(); if (!c) return; if (!force && Date.now() - TDS.last < 30000) return; TDS.last = Date.now();
-  try { const r = await fetch(c.url + '?t=' + encodeURIComponent(c.t)); const j = await r.json(); if (!(j && j.state)) { TDS.ok = false; return; }
+  try { const r = await fetch(c.url + '?t=' + encodeURIComponent(c.t) + '&_=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); if (!(j && j.state)) { TDS.ok = false; return; }
     const remote = Object.keys(TD_KEYS).reduce((a, k) => a + Object.keys(j.state[k] || {}).length, 0);
     if (!remote && !TDS.seeded) { TDS.seeded = true; const loc = []; Object.keys(TD_KEYS).forEach((k) => Object.keys(tdMap(k)).forEach((id) => loc.push([id, k]))); for (const [id, k] of loc) await tdPush(id, k, true); }
     else tdApply(j.state);
