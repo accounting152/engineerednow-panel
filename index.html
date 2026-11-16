@@ -489,12 +489,12 @@ function yqInit() { if (YQ.init) return; YQ.init = true; yqData();
       else if (first && yqData().topics.some((t) => t.items.length || t.id !== 'general')) yqSave();
       first = false; const a = document.activeElement; if (state.tab === 'questions' && !(a && a.matches && a.matches('.yq-row input') && a.value)) render(); }, () => { YQ.mode = 'local'; YQ.ref = null; if (state.tab === 'questions') render(); });
     if (state.tab === 'questions') render(); } catch (e) {} })(); }
-const TD = { init: false, ref: null, done: null, yohai: null, sample: null };
-const TD_KEYS = { done: 'enTodoDone', yohai: 'enTodoYohai', sample: 'enTodoSample' };
+const TD = { init: false, ref: null, done: null, yohai: null, sample: null, notint: null };
+const TD_KEYS = { done: 'enTodoDone', yohai: 'enTodoYohai', sample: 'enTodoSample', notint: 'enTodoNotInt' };
 function tdMap(k) { if (!TD[k]) { try { TD[k] = JSON.parse(localStorage.getItem(TD_KEYS[k]) || '{}') || {}; } catch (e) { TD[k] = {}; } } return TD[k]; }
 function tdDone() { return tdMap('done'); }
 async function tdSave() { try { Object.keys(TD_KEYS).forEach((k) => localStorage.setItem(TD_KEYS[k], JSON.stringify(tdMap(k)))); } catch (e) {}
-  if (TD.ref) { try { await TD.ref.set({ done: Object.assign({}, tdMap('done')), yohai: Object.assign({}, tdMap('yohai')), sample: Object.assign({}, tdMap('sample')), updated: new Date().toISOString() }); } catch (e) { console.warn('todo save', e && e.code); } } }
+  if (TD.ref) { try { await TD.ref.set({ done: Object.assign({}, tdMap('done')), yohai: Object.assign({}, tdMap('yohai')), sample: Object.assign({}, tdMap('sample')), notint: Object.assign({}, tdMap('notint')), updated: new Date().toISOString() }); } catch (e) { console.warn('todo save', e && e.code); } } }
 function tdInit() { if (TD.init) return; TD.init = true; tdDone();
   (async () => { try { if (!(window.claude && window.claude.use)) return; const db = await window.claude.use('db'); if (!db) return;
     TD.ref = db.doc('marketing/todo'); let first = true;
@@ -503,6 +503,19 @@ function tdInit() { if (TD.init) return; TD.init = true; tdDone();
       else if (first && Object.keys(tdDone()).length) tdSave();
       first = false; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } }, () => { TD.ref = null; });
   } catch (e) {} })(); }
+const TDS = { last: 0, ok: null, seeded: false };
+const tdOnGitHub = () => !(window.claude && window.claude.use);
+function tdSyncCfg() { return D && D.td_sync && D.td_sync.url && tdOnGitHub() ? D.td_sync : null; }
+function tdApply(st) { Object.keys(TD_KEYS).forEach((k) => { TD[k] = Object.assign({}, (st && st[k]) || {}); try { localStorage.setItem(TD_KEYS[k], JSON.stringify(TD[k])); } catch (e) {} }); }
+async function tdPush(id, key, value) { const c = tdSyncCfg(); if (!c) return; const x = (D.todos || []).find((t) => t.id === id) || {};
+  try { const r = await fetch(c.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ t: c.t, id, key, value: !!value, empresa: x.empresa || '', email: x.email || '', who: 'GitHub panel' }) });
+    const j = await r.json(); if (j && j.state) { tdApply(j.state); TDS.ok = true; } else TDS.ok = false; } catch (e) { TDS.ok = false; } }
+async function tdPull(force) { const c = tdSyncCfg(); if (!c) return; if (!force && Date.now() - TDS.last < 30000) return; TDS.last = Date.now();
+  try { const r = await fetch(c.url + '?t=' + encodeURIComponent(c.t)); const j = await r.json(); if (!(j && j.state)) { TDS.ok = false; return; }
+    const remote = Object.keys(TD_KEYS).reduce((a, k) => a + Object.keys(j.state[k] || {}).length, 0);
+    if (!remote && !TDS.seeded) { TDS.seeded = true; const loc = []; Object.keys(TD_KEYS).forEach((k) => Object.keys(tdMap(k)).forEach((id) => loc.push([id, k]))); for (const [id, k] of loc) await tdPush(id, k, true); }
+    else tdApply(j.state);
+    TDS.ok = true; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } } catch (e) { TDS.ok = false; } }
 const TDU = { busy: false, msg: '' };
 async function tdUpdate() { if (TDU.busy) return; TDU.busy = true; TDU.msg = 'Sending the update request…'; render();
   try { const mcp = window.claude && window.claude.use ? await window.claude.use('mcp') : null;
@@ -512,12 +525,12 @@ async function tdUpdate() { if (TDU.busy) return; TDU.busy = true; TDU.msg = 'Se
   } catch (e) { const c = e && e.code; TDU.msg = c === 'not_granted' || c === 'approval_required' ? 'The update needs your approval: allow the "Claude Code Remote" connection for this panel and press Update again.' : (c === 'server_not_connected' ? 'The "Claude Code Remote" connector is not available here. Ask Claude in the chat to update the report.' : 'Could not send the request (' + (c || 'error') + '). Try again later or ask Claude in the chat.'); }
   TDU.busy = false; const y = scrollY; render(); scrollTo({ top: y }); }
 function todoBlock() {
-  tdInit(); const L = D.todos || []; const dn = tdDone(); const pend = L.filter((x) => !dn[x.id]).length;
+  tdInit(); tdPull(false); const L = D.todos || []; const dn = tdDone(); const ni = tdMap('notint'); const pend = L.filter((x) => !dn[x.id] && !ni[x.id]).length;
   const yh = tdMap('yohai'), sp = tdMap('sample'); const cb = (k, m, x, lab) => `<td style="text-align:center"><input type="checkbox" data-todo="${esc(x.id)}" data-tdk="${k}"${m[x.id] ? ' checked' : ''} aria-label="${lab}"></td>`;
-  const rows = L.map((x) => `<tr${dn[x.id] ? ' style="opacity:.55"' : ''}>${cb('done', dn, x, 'Mark as done')}${cb('yohai', yh, x, 'Email sent to Yohai')}${cb('sample', sp, x, 'Free sample sent')}<td class="l" style="white-space:nowrap">${esc((x.fecha || '').slice(0, 10))}</td><td class="l">${esc(x.fuente)}</td><td class="l">${esc(x.empresa)}${x.contacto ? `<div class="mut">${esc(x.contacto)}</div>` : ''}</td><td class="l">${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : '–'}</td><td class="l" style="min-width:260px">${esc(x.quiere)}</td></tr>`).join('');
+  const rows = L.map((x) => `<tr${dn[x.id] || ni[x.id] ? ' style="opacity:.55"' : ''}>${cb('done', dn, x, 'Mark as done')}${cb('yohai', yh, x, 'Email sent to Yohai')}${cb('sample', sp, x, 'Free sample sent')}${cb('notint', ni, x, 'Not interested')}<td class="l" style="white-space:nowrap">${esc((x.fecha || '').slice(0, 10))}</td><td class="l">${esc(x.fuente)}</td><td class="l">${esc(x.empresa)}${x.contacto ? `<div class="mut">${esc(x.contacto)}</div>` : ''}</td><td class="l">${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : '–'}</td><td class="l" style="min-width:260px">${esc(x.quiere)}</td></tr>`).join('');
   return `<details class="card" data-todos${state.tdOpen === true ? ' open' : ''} style="margin-bottom:12px"><summary style="cursor:pointer;font-weight:600;font-size:16px">Actions To do <span class="mut" style="font-weight:400;font-size:13px">· ${pend} pending of ${L.length}</span></summary>
-    <p class="mut" style="margin:8px 0 10px;font-size:13px">Interested contacts from the email campaigns and Instagram. Tick the box when the action is done${TD.ref ? ' (saved for everyone using the panel)' : ' (saved in this browser)'}.</p>
-    <div class="rtbl-wrap"><table class="rtbl" style="min-width:980px"><thead><tr><th>Done</th><th style="white-space:normal;min-width:70px">Email sent to Yohai</th><th style="white-space:normal;min-width:70px">Free sample sent</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>
+    <p class="mut" style="margin:8px 0 10px;font-size:13px">Interested contacts from the email campaigns and Instagram. Tick the box when the action is done${TD.ref || (tdSyncCfg() && TDS.ok) ? ' (saved for everyone using the panel)' : (tdSyncCfg() && TDS.ok === false ? ' (could not reach the shared sheet; saved in this browser for now)' : ' (saved in this browser)')}.</p>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:1050px"><thead><tr><th>Done</th><th style="white-space:normal;min-width:70px">Email sent to Yohai</th><th style="white-space:normal;min-width:70px">Free sample sent</th><th style="white-space:normal;min-width:70px">Not interested</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px"><button class="btn" style="padding:7px 16px;font-size:14px;border-radius:8px;width:auto;min-height:0" data-todoupd${TDU.busy ? ' disabled' : ''}>${TDU.busy ? 'Updating…' : 'Update'}</button><span class="mut" style="font-size:13px">Last update: ${esc(D.todos_updated || '–')}</span></div>${TDU.msg ? `<p class="hint" style="margin:-6px 0 14px">${esc(TDU.msg)}</p>` : ''}`;
 }
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
@@ -2517,7 +2530,7 @@ const AFTER = {
     document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
     document.querySelectorAll('details[data-todos]').forEach((d) => d.addEventListener('toggle', () => { state.tdOpen = d.open; }));
     document.querySelectorAll('[data-todoupd]').forEach((b) => b.addEventListener('click', () => tdUpdate()));
-    document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { const d = tdMap(c.dataset.tdk || 'done'); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
+    document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { tdPush(c.dataset.todo, c.dataset.tdk || 'done', c.checked); const d = tdMap(c.dataset.tdk || 'done'); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
     const a3r = () => { const y = scrollY; render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-a3c]').forEach((p) => p.addEventListener('click', () => { const s = a3Sel(), id = p.dataset.a3c, i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); a3Save(); a3r(); }));
     document.querySelectorAll('[data-a3rm]').forEach((b) => b.addEventListener('click', () => { const s = a3Sel(), i = s.indexOf(b.dataset.a3rm); if (i >= 0) s.splice(i, 1); a3Save(); a3r(); }));
