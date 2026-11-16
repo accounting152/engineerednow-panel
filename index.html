@@ -489,15 +489,17 @@ function yqInit() { if (YQ.init) return; YQ.init = true; yqData();
       else if (first && yqData().topics.some((t) => t.items.length || t.id !== 'general')) yqSave();
       first = false; const a = document.activeElement; if (state.tab === 'questions' && !(a && a.matches && a.matches('.yq-row input') && a.value)) render(); }, () => { YQ.mode = 'local'; YQ.ref = null; if (state.tab === 'questions') render(); });
     if (state.tab === 'questions') render(); } catch (e) {} })(); }
-const TD = { init: false, ref: null, done: null };
-function tdDone() { if (!TD.done) { try { TD.done = JSON.parse(localStorage.getItem('enTodoDone') || '{}') || {}; } catch (e) { TD.done = {}; } } return TD.done; }
-async function tdSave() { try { localStorage.setItem('enTodoDone', JSON.stringify(tdDone())); } catch (e) {}
-  if (TD.ref) { try { await TD.ref.set({ done: Object.assign({}, tdDone()), updated: new Date().toISOString() }); } catch (e) { console.warn('todo save', e && e.code); } } }
+const TD = { init: false, ref: null, done: null, yohai: null, sample: null };
+const TD_KEYS = { done: 'enTodoDone', yohai: 'enTodoYohai', sample: 'enTodoSample' };
+function tdMap(k) { if (!TD[k]) { try { TD[k] = JSON.parse(localStorage.getItem(TD_KEYS[k]) || '{}') || {}; } catch (e) { TD[k] = {}; } } return TD[k]; }
+function tdDone() { return tdMap('done'); }
+async function tdSave() { try { Object.keys(TD_KEYS).forEach((k) => localStorage.setItem(TD_KEYS[k], JSON.stringify(tdMap(k)))); } catch (e) {}
+  if (TD.ref) { try { await TD.ref.set({ done: Object.assign({}, tdMap('done')), yohai: Object.assign({}, tdMap('yohai')), sample: Object.assign({}, tdMap('sample')), updated: new Date().toISOString() }); } catch (e) { console.warn('todo save', e && e.code); } } }
 function tdInit() { if (TD.init) return; TD.init = true; tdDone();
   (async () => { try { if (!(window.claude && window.claude.use)) return; const db = await window.claude.use('db'); if (!db) return;
     TD.ref = db.doc('marketing/todo'); let first = true;
     TD.ref.onSnapshot((snap) => { if (snap.metadata && snap.metadata.hasPendingWrites) return;
-      if (snap.exists) { const v = snap.data(); if (v && v.done && typeof v.done === 'object') { TD.done = Object.assign({}, v.done); try { localStorage.setItem('enTodoDone', JSON.stringify(TD.done)); } catch (e) {} } }
+      if (snap.exists) { const v = snap.data(); Object.keys(TD_KEYS).forEach((k) => { if (v && v[k] && typeof v[k] === 'object') { TD[k] = Object.assign({}, v[k]); try { localStorage.setItem(TD_KEYS[k], JSON.stringify(TD[k])); } catch (e) {} } }); }
       else if (first && Object.keys(tdDone()).length) tdSave();
       first = false; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } }, () => { TD.ref = null; });
   } catch (e) {} })(); }
@@ -511,10 +513,11 @@ async function tdUpdate() { if (TDU.busy) return; TDU.busy = true; TDU.msg = 'Se
   TDU.busy = false; const y = scrollY; render(); scrollTo({ top: y }); }
 function todoBlock() {
   tdInit(); const L = D.todos || []; const dn = tdDone(); const pend = L.filter((x) => !dn[x.id]).length;
-  const rows = L.map((x) => `<tr${dn[x.id] ? ' style="opacity:.55"' : ''}><td style="text-align:center"><input type="checkbox" data-todo="${esc(x.id)}"${dn[x.id] ? ' checked' : ''} aria-label="Mark as done"></td><td class="l" style="white-space:nowrap">${esc((x.fecha || '').slice(0, 10))}</td><td class="l">${esc(x.fuente)}</td><td class="l">${esc(x.empresa)}${x.contacto ? `<div class="mut">${esc(x.contacto)}</div>` : ''}</td><td class="l">${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : '–'}</td><td class="l" style="min-width:260px">${esc(x.quiere)}</td></tr>`).join('');
+  const yh = tdMap('yohai'), sp = tdMap('sample'); const cb = (k, m, x, lab) => `<td style="text-align:center"><input type="checkbox" data-todo="${esc(x.id)}" data-tdk="${k}"${m[x.id] ? ' checked' : ''} aria-label="${lab}"></td>`;
+  const rows = L.map((x) => `<tr${dn[x.id] ? ' style="opacity:.55"' : ''}>${cb('done', dn, x, 'Mark as done')}${cb('yohai', yh, x, 'Email sent to Yohai')}${cb('sample', sp, x, 'Free sample sent')}<td class="l" style="white-space:nowrap">${esc((x.fecha || '').slice(0, 10))}</td><td class="l">${esc(x.fuente)}</td><td class="l">${esc(x.empresa)}${x.contacto ? `<div class="mut">${esc(x.contacto)}</div>` : ''}</td><td class="l">${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : '–'}</td><td class="l" style="min-width:260px">${esc(x.quiere)}</td></tr>`).join('');
   return `<details class="card" data-todos${state.tdOpen === true ? ' open' : ''} style="margin-bottom:12px"><summary style="cursor:pointer;font-weight:600;font-size:16px">Actions To do <span class="mut" style="font-weight:400;font-size:13px">· ${pend} pending of ${L.length}</span></summary>
     <p class="mut" style="margin:8px 0 10px;font-size:13px">Interested contacts from the email campaigns and Instagram. Tick the box when the action is done${TD.ref ? ' (saved for everyone using the panel)' : ' (saved in this browser)'}.</p>
-    <div class="rtbl-wrap"><table class="rtbl" style="min-width:820px"><thead><tr><th>Done</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>
+    <div class="rtbl-wrap"><table class="rtbl" style="min-width:980px"><thead><tr><th>Done</th><th style="white-space:normal;min-width:70px">Email sent to Yohai</th><th style="white-space:normal;min-width:70px">Free sample sent</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px"><button class="btn" style="padding:7px 16px;font-size:14px;border-radius:8px;width:auto;min-height:0" data-todoupd${TDU.busy ? ' disabled' : ''}>${TDU.busy ? 'Updating…' : 'Update'}</button><span class="mut" style="font-size:13px">Last update: ${esc(D.todos_updated || '–')}</span></div>${TDU.msg ? `<p class="hint" style="margin:-6px 0 14px">${esc(TDU.msg)}</p>` : ''}`;
 }
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
@@ -2514,7 +2517,7 @@ const AFTER = {
     document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
     document.querySelectorAll('details[data-todos]').forEach((d) => d.addEventListener('toggle', () => { state.tdOpen = d.open; }));
     document.querySelectorAll('[data-todoupd]').forEach((b) => b.addEventListener('click', () => tdUpdate()));
-    document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { const d = tdDone(); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
+    document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { const d = tdMap(c.dataset.tdk || 'done'); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
     const a3r = () => { const y = scrollY; render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-a3c]').forEach((p) => p.addEventListener('click', () => { const s = a3Sel(), id = p.dataset.a3c, i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); a3Save(); a3r(); }));
     document.querySelectorAll('[data-a3rm]').forEach((b) => b.addEventListener('click', () => { const s = a3Sel(), i = s.indexOf(b.dataset.a3rm); if (i >= 0) s.splice(i, 1); a3Save(); a3r(); }));
