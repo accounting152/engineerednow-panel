@@ -712,7 +712,7 @@ competitors() {
 margins() {
   const ms = ['amazon', 'wholesalers', 'shopify'].includes(state.mgSub) ? state.mgSub : 'amazon';
   const nav = `<div class="seg" role="group" aria-label="Margins" style="margin-bottom:12px"><button aria-pressed="${ms === 'amazon'}" data-mgsub="amazon">Amazon</button><button aria-pressed="${ms === 'wholesalers'}" data-mgsub="wholesalers">Wholesalers</button><button aria-pressed="${ms === 'shopify'}" data-mgsub="shopify">Shopify</button></div>`;
-  if (ms === 'shopify') { const RS = (D.informes || {}).shipping_check; return nav + (RS ? shpSumTable(RS) + mscBody(RS) : '<section class="card"><p class="mut" style="margin:0">No Shopify data loaded yet.</p></section>'); }
+  if (ms === 'shopify') { const RS = (D.informes || {}).shipping_check; return nav + (RS ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px"><button class="btn" data-mscxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-msc" style="font-size:13px"></span></div>` + shpSumTable(RS) : '<section class="card"><p class="mut" style="margin:0">No Shopify data loaded yet.</p></section>'); }
   if (ms !== 'amazon') return nav + `<section class="card"><h3>Wholesalers</h3><p class="mut" style="margin:0">Reports coming soon.</p></section>`;
   const RS = D.informes || {}; const R = RS.pagos_amazon_us;
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
