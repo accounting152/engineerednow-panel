@@ -717,7 +717,7 @@ margins() {
   const RS = D.informes || {}; const R = RS.pagos_amazon_us;
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
   const id = 'pagos_amazon_us';
-  return nav + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>` + pagSumTable(R);
+  return nav + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span></div>` + pagSumTable(R) + amzAvgTable(R);
 },
 marketing() {
   const ms = state.mkSub === 'instagram' ? 'instagram' : 'emails';
@@ -2188,6 +2188,19 @@ function pagSumTable(R) {
     <div class="rtbl-wrap"><table class="rtbl mst" style="min-width:0;width:100%;font-size:11.5px"><thead><tr><th class="l" style="width:40px">Year</th><th style="text-align:left;width:68px">Headrest</th><th>Avg. selling price</th><th>Avg. cost</th><th>Avg. margin</th><th>Net units</th><th class="te">Net revenue</th><th>Order expenses</th><th>Distributed expenses</th><th>Amazon fees %</th><th>Shipping, Duties and warehouse</th><th>Product cost</th><th>Margin</th></tr></thead><tbody>${body}</tbody></table></div>
     <p class="hint" style="margin-top:8px">Amazon payouts of Hunter and JEER, all countries, by payment year, in US$. Avg. selling price = product and shipping charged ÷ Amazon units sold. Avg. cost = (Order expenses + Distributed expenses + Shipping, Duties and warehouse + Product cost) ÷ Net units. Avg. margin = Margin ÷ Net units. Net units = units sold − units returned, own-website (MCF) orders included. Net revenue = sales − refunds. Amazon fees % = (Order expenses + Distributed expenses) ÷ Net revenue. Margin = Net revenue + Order expenses + Distributed expenses + Shipping, Duties and warehouse + Product cost. Own website (MCF): orders from our website shipped by Amazon, all models together; they bring only costs here (their income is in Shopify) and will be counted in the Shopify margins. Shipping, Duties and warehouse for 2026 covers QuickBooks up to September. Months follow the date of each Amazon payout; distributed expenses and shipping are shared per year, so a month shows the share of the orders paid in it. Other (no model): Amazon lines with an order but no product, such as reimbursements.</p></section>`;
 }
+function amzAvgTable(R) {
+  const sv = [state.msY, state.msM]; state.msY = state.aaY; state.msM = state.aaM; let rows; let SEL; try { rows = pagSumRows(R); SEL = pagSumSel(R); } finally { state.msY = sv[0]; state.msM = sv[1]; }
+  rows = rows.filter((r) => !r.mcf && !r.total && !r.grand);
+  const selY = state.aaY && state.aaY.length ? state.aaY : []; const selM = state.aaM && state.aaM.length ? state.aaM : [];
+  const filt = `<div style="display:flex;flex-direction:column;gap:8px;margin:0 0 12px"><div class="seg" role="group" aria-label="Year" style="flex-wrap:wrap;max-width:100%"><button aria-pressed="${!selY.length}" data-aay="">All years</button>${SEL.ys.map((y) => `<button aria-pressed="${selY.includes(y)}" data-aay="${y}">${y}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="Month" style="flex-wrap:wrap;max-width:100%"><button aria-pressed="${!selM.length}" data-aam="">All months</button>${MON3.map((n, i) => { const k = String(i + 1).padStart(2, '0'); return `<button aria-pressed="${selM.includes(k)}" data-aam="${k}">${n}</button>`; }).join('')}</div></div>`;
+  const av = (o, v) => (o.units ? v / o.units : null); const c2 = (v, strong) => (v == null ? '<td>–</td>' : `<td${v < -0.005 ? ' style="color:var(--bad)' + (strong ? ';font-weight:700' : '') + '"' : strong ? ' style="color:var(--ok);font-weight:700"' : ''}>${nfE(2).format(v)}</td>`);
+  const body = rows.map((r, i) => { const first = i === 0 || rows[i - 1].y !== r.y; const o = r.o; return `<tr class="${r.tot ? 'tot mstt' : 'sub'} msy${SEL.ys.indexOf(r.y) % 2}"><td class="l">${first ? `<b>${esc(r.y)}</b>` : ''}</td><td style="text-align:left">${esc(r.label)}</td><td>${nfE(0).format(o.units)}</td>${c2(av(o, r.net))}${c2(av(o, o.own))}${c2(av(o, o.dist))}${c2(av(o, o.ship))}${c2(av(o, o.cost))}${c2(av(o, r.mg), true)}</tr>`; }).join('');
+  const per = SEL.months ? SEL.months.map((k) => MON3[+k - 1]).join(', ') : 'all months';
+  return `<section class="card" style="margin-top:14px"><h3 style="display:flex;align-items:center;gap:8px;margin:0${state.aaOpen ? ' 0 12px' : ''}"><button class="msx" data-aatog aria-expanded="${!!state.aaOpen}" title="${state.aaOpen ? 'Collapse' : 'Expand'} report" style="width:24px;height:24px;font-size:16px">${state.aaOpen ? '−' : '+'}</button>Amazon Margins by model · average · US$</h3>${!state.aaOpen ? '' : filt + `<p class="hint" style="margin:0 0 8px">Showing ${esc(SEL.years.join(' + '))} · ${esc(per)} (month of the Amazon payout). Tap several years or months to add them together.</p>
+    <div class="rtbl-wrap"><table class="rtbl mst" style="min-width:0;width:100%;font-size:11.5px"><thead><tr><th class="l" style="width:40px">Year</th><th style="text-align:left;width:68px">Headrest</th><th>Units</th><th>Avg. selling price</th><th>Avg. order expenses</th><th>Avg. distributed expenses</th><th>Avg. Shipping, Duties and warehouse</th><th>Avg. product cost</th><th>Avg. margin</th></tr></thead><tbody>${body}</tbody></table></div>
+    <p class="hint" style="margin-top:8px">Same data as the report above, per unit. Units = net units (units sold − units returned). Avg. selling price = (Total sales − Refunds) ÷ Units. Each other average = total of the column ÷ Units. Avg. margin = Avg. selling price + Avg. order expenses + Avg. distributed expenses + Avg. Shipping, Duties and warehouse + Avg. product cost. Amazon orders only: the own-website (MCF) orders are not included here (their income is in Shopify).</p>`}</section>`;
+}
 function pagosBody(id, ttl) {
   const R = D.informes[id]; const TT = ttl || R.titulo; const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(0, 4)}` : '');
   const tab = state.pagTab === 'detail' ? 'detail' : 'transfers'; const acc = state.pagAcc || 'All';
@@ -2621,6 +2634,9 @@ const AFTER = {
     document.querySelectorAll('[data-shtog]').forEach((b) => b.addEventListener('click', kp(() => { state.shOpen = !state.shOpen; })));
     document.querySelectorAll('[data-smy]').forEach((b) => b.addEventListener('click', kp(() => { state.shY = tog(state.shY, b.dataset.smy); })));
     document.querySelectorAll('[data-smm]').forEach((b) => b.addEventListener('click', kp(() => { state.shM = tog(state.shM, b.dataset.smm); })));
+    document.querySelectorAll('[data-aatog]').forEach((b) => b.addEventListener('click', kp(() => { state.aaOpen = !state.aaOpen; })));
+    document.querySelectorAll('[data-aay]').forEach((b) => b.addEventListener('click', kp(() => { state.aaY = tog(state.aaY, b.dataset.aay); })));
+    document.querySelectorAll('[data-aam]').forEach((b) => b.addEventListener('click', kp(() => { state.aaM = tog(state.aaM, b.dataset.aam); })));
     document.querySelectorAll('[data-msx]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.msx; state.msExp = Object.assign({}, state.msExp, { [k]: !(state.msExp || {})[k] }); })));
     document.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', kp(() => { state.pagTab = b.dataset.ptab; })));
     document.querySelectorAll('[data-pyear]').forEach((b) => b.addEventListener('click', kp(() => { state.pagYear = b.dataset.pyear; state.pagSel = ''; })));
