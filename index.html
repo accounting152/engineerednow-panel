@@ -713,6 +713,7 @@ margins() {
   const ms = ['amazon', 'wholesalers', 'shopify'].includes(state.mgSub) ? state.mgSub : 'amazon';
   const nav = `<div class="seg" role="group" aria-label="Margins" style="margin-bottom:12px"><button aria-pressed="${ms === 'amazon'}" data-mgsub="amazon">Amazon</button><button aria-pressed="${ms === 'wholesalers'}" data-mgsub="wholesalers">Wholesalers</button><button aria-pressed="${ms === 'shopify'}" data-mgsub="shopify">Shopify</button></div>`;
   if (ms === 'shopify') { const RS = (D.informes || {}).shipping_check; return nav + (RS ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px"><button class="btn" data-mscxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-msc" style="font-size:13px"></span></div>` + shpSumTable(RS) + shpTotTable(RS) : '<section class="card"><p class="mut" style="margin:0">No Shopify data loaded yet.</p></section>'); }
+  if (ms === 'wholesalers') return nav + wsPage('Wholesalers', true);
   if (ms !== 'amazon') return nav + `<section class="card"><h3>Wholesalers</h3><p class="mut" style="margin:0">Reports coming soon.</p></section>`;
   const RS = D.informes || {}; const R = RS.pagos_amazon_us;
   if (!R) return nav + '<div class="card mut">No reports yet.</div>';
@@ -1698,12 +1699,12 @@ async function downloadWS() { const msg = $('#repMsg-ws'); msg.textContent = 'Pr
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); msg.textContent = 'Downloaded: ' + name;
   } catch (e) { msg.textContent = 'Could not create the Excel file (' + (e && e.message || e) + ').'; }
 }
-function wsPage(src) {
+function wsPage(src, noNav) {
   const W = (D.informes || {}).ws_lineas; if (!W) return '<div class="card mut">No data loaded yet.</div>';
   const id = src === 'INNOVAD' ? 'innovad_um' : 'wholesalers_um'; if (!D.informes[id]) D.informes[id] = wsUMBuild(W, src, src === 'INNOVAD' ? 'Innovad · units and sales by model and month' : 'Wholesalers · units and sales by model and month');
   const R = D.informes[id]; const open = !!(state.repOpen || {})[id];
   const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
-  return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>${src === 'INNOVAD' ? '' : '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px"><button class="btn" data-wsxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-ws" style="font-size:13px"></span></div>'}<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
+  return `${noNav ? '' : '<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>'}${src === 'INNOVAD' ? '' : '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px"><button class="btn" data-wsxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-ws" style="font-size:13px"></span></div>'}<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
 }
 // ---- Finances: P&L 2025 by quarter (QuickBooks)
 function plRowsOf(R, e) { return e === 'Consolidated' ? R.consolidado : R.entidades[e].filas; }
@@ -2653,7 +2654,8 @@ const AFTER = {
     document.querySelectorAll('[data-mscq]').forEach((b) => b.addEventListener('change', kp(() => { state.mscQ = b.value; })));
     document.querySelectorAll('[data-mscxls]').forEach((b) => b.addEventListener('click', () => downloadMSC()));
     document.querySelectorAll('[data-rtoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.rtoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} })));
-    document.querySelectorAll('[data-rxls]').forEach((x) => x.addEventListener('click', () => downloadPagos(x.dataset.rxls, 'Amazon Margins')));
+    document.querySelectorAll('[data-rxls="pagos_amazon_us"]').forEach((x) => x.addEventListener('click', () => downloadPagos(x.dataset.rxls, 'Amazon Margins')));
+    if (state.mgSub === 'wholesalers') { document.querySelectorAll('[data-wsxls]').forEach((b) => b.addEventListener('click', () => downloadWS())); document.querySelectorAll('[data-wstoggle]').forEach((b) => b.addEventListener('click', kp(() => { const k = b.dataset.wstoggle; state.repOpen = Object.assign({}, state.repOpen, { [k]: !(state.repOpen || {})[k] }); try { localStorage.setItem('enRepOpen', JSON.stringify(state.repOpen)); } catch (e) {} }))); document.querySelectorAll('[data-rxls="wholesalers_um"]').forEach((x) => x.addEventListener('click', () => downloadUM('wholesalers_um'))); umBind(); }
     const tog = (arr, v) => (!v ? [] : (arr || []).includes(v) ? (arr || []).filter((x) => x !== v) : (arr || []).concat(v).sort());
     document.querySelectorAll('[data-msy]').forEach((b) => b.addEventListener('click', kp(() => { state.msY = tog(state.msY, b.dataset.msy); })));
     document.querySelectorAll('[data-msm]').forEach((b) => b.addEventListener('click', kp(() => { state.msM = tog(state.msM, b.dataset.msm); })));
