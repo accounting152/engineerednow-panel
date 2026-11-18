@@ -810,7 +810,7 @@ amazon() {
   return salesNav + VIEWS._amazonInner();
 },
 _amazonInner() {
-  const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:12px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
+  const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:8px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
   return amzNav + VIEWS._amazonMain();
 },
@@ -819,7 +819,7 @@ _amazonMain() {
   const bOn = (k) => state.amz === k || state.amz === 'BOTH';
   const btn = (k) => `<button data-amz="${k}" aria-pressed="${bOn(k)}" ${AM[k] ? '' : 'disabled'}><i class="dot" style="background:${COL[k]};margin-right:6px"></i>${k}</button>`;
   const met = state.amzMet === 'sales' ? 'sales' : 'units';
-  const sel = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div class="seg" role="group" aria-label="Company" style="flex:1 1 200px">${btn('HUNTER')}${btn('JEER')}</div><div class="seg" role="group" aria-label="Year" style="flex:1 1 160px">${['2025', '2026'].map((y) => `<button data-ayr="${y}" aria-pressed="${amzYrs().includes(y)}">${y}</button>`).join('')}</div><div class="seg" role="group" aria-label="Metric" style="flex:1 1 200px"><button data-amet="sales" aria-pressed="${met === 'sales'}">Sales</button><button data-amet="units" aria-pressed="${met === 'units'}">Units</button></div></div>`;
+  const sel = `<div style="display:flex;gap:6px;flex-wrap:wrap"><div class="seg" role="group" aria-label="Company" style="flex:1 1 200px">${btn('HUNTER')}${btn('JEER')}</div><div class="seg" role="group" aria-label="Year" style="flex:1 1 160px">${['2025', '2026'].map((y) => `<button data-ayr="${y}" aria-pressed="${amzYrs().includes(y)}">${y}</button>`).join('')}</div><div class="seg" role="group" aria-label="Metric" style="flex:1 1 200px"><button data-amet="sales" aria-pressed="${met === 'sales'}">Sales</button><button data-amet="units" aria-pressed="${met === 'units'}">Units</button></div></div>`;
   const A0 = amzA(state.amz);
   if (!A0) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
   const A = amzFilt(A0);
@@ -866,9 +866,9 @@ _amazonMain() {
   const dep = (A.depositos || []).map((d) => `<div class="liq"><span>${esc(d.origen)}<div class="s">${nf(0).format(d.ingresos)} deposits in ${esc(d.cuenta)}</div></span><span class="v">${money(d.importe_usd, 'USD', 0)}</span></div>`).join('');
   const np = fdate(A.proximo_pago);
   const stockOpts = [['', 'All countries']].concat(stockPaises.map((x) => [x, x])).map(([val, l]) => `<option value="${esc(val)}" ${SP === val ? 'selected' : ''}>${esc(l)}</option>`).join('');
-  return sel + `
+  return `<style>.amzf{display:grid;gap:6px;margin:0 0 10px}.amzf .seg{padding:3px;gap:3px;border-radius:12px}.amzf .seg button{height:29px;padding:0 8px;font-size:13px;border-radius:9px}#units .kpis{gap:8px}#units .kpi{padding:8px 11px;border-radius:12px;gap:1px}#units .kpi .v{font-size:19px}#units .kpi .l{font-size:11.5px}#units>h3{margin-bottom:2px}#units .ulegend{margin:4px 0 0}</style><div class="amzf">` + sel + `
   <div class="seg" role="group" aria-label="Period">${perBtns}</div>
-  ${amzCtySel(A0)}
+  ${amzCtySel(A0)}</div>
   <div class="cols">
     <section class="card span2" id="units"><h3>${state.amzMet === 'sales' ? 'Sales (US$)' : 'Units sold'} by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · ${amzYrs().join(' vs ')} · Seller Central (ordered ${state.amzMet === 'sales' ? 'sales' : 'units'})${perMonths(P).length ? ' · Highlighted ' + perMonths(P).map((k) => MESL[+k - 1]).join(', ') : ''}. Tap a bar to see the detail.</p>
       ${unitsBlock(A, P)}
@@ -2671,9 +2671,9 @@ function amzCtySel(A) {
   Object.entries(((A.hist || {})['2025']) || {}).forEach(([p, ms]) => { Object.values(ms).forEach((v) => { tot[p] = (tot[p] || 0) + v[0] * ((A.fx || {})[v[2]] || 1); }); });
   const all = Object.keys(tot).filter((c) => tot[c] > 0.5).sort((x, y) => tot[y] - tot[x]);
   const S = (state.amzCty || []).filter((c) => all.includes(c));
-  const chip = (attr, on, lab) => `<button class="ctyc" ${attr} aria-pressed="${on}" style="padding:0 10px;height:34px">${lab}</button>`;
+  const chip = (attr, on, lab) => `<button class="ctyc" ${attr} aria-pressed="${on}">${lab}</button>`;
   const lab = (c) => { const m = AMZ_CTY[c] || ['', '', c, '']; const iso = [...(m[1] || '')].map((ch) => String.fromCharCode(ch.codePointAt(0) - 0x1F1E6 + 65)).join(''); return `<span title="${esc(m[2])}">${iso.length === 2 ? iso : esc(m[2])}</span>`; };
-  return `<div class="seg wrap" role="group" aria-label="Countries" style="margin:0 0 12px">${chip('data-ctyall', !S.length, 'All')}${all.map((c) => chip(`data-ctyb="${esc(c)}"`, S.includes(c), lab(c))).join('')}</div>`;
+  return `<div class="seg wrap" role="group" aria-label="Countries">${chip('data-ctyall', !S.length, 'All')}${all.map((c) => chip(`data-ctyb="${esc(c)}"`, S.includes(c), lab(c))).join('')}</div>`;
 }
 function amzA(k) {
   const AM = D.amazon || {}; if (k !== 'BOTH') return AM[k];
