@@ -867,24 +867,7 @@ _amazonMain() {
   return sel + `
   <div class="seg" role="group" aria-label="Period">${perBtns}</div>
   ${amzCtySel(A0)}
-  <section class="card hero">
-    <div class="eyebrow">${state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz} on Amazon · ${perTxt} · ${esc(scope)}</div>
-    <div class="big">${nf(0).format(v)}<small>US$</small></div>
-    <div class="mut" style="font-size:13px">${nf(0).format(u)} units · average ${money(D2.length ? v / new Set(D2.map((r) => r.f)).size : 0, 'USD', 0)} per day</div>
-  </section>
-  <section class="kpis">
-    <div class="kpi"><span class="l">Sales 2026 (all countries)</span><span class="v">${compact(A.paises.reduce((s, p) => s + (+p.ventas_ytd_usd || 0), 0))}</span><span class="l">US$</span></div>
-    <div class="kpi"><span class="l">Next payout</span><span class="v">${money(A.saldo_amazon, 'USD', 0)}</span><span class="l">el ${np.d} ${np.m}${A.pago_en_proceso ? ` · ${money(A.pago_en_proceso, 'USD', 0)} ya en camino` : ` · ${money(A.saldo_diferido, 'USD', 0)} retenidos`}</span></div>
-    <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Urgent stock</span><span class="v">${urg.length}</span><span class="l">products out of stock or close</span></div>
-    <div class="kpi"><span class="l">Account</span><span class="v ok" style="font-size:18px">${A.estado_cuenta === 'En buen estado' ? 'Healthy' : esc(A.estado_cuenta)}</span><span class="l">${A.valoracion != null ? `Rating ${nf(1).format(A.valoracion)}/5` : esc(A.cuenta_amazon || '')}</span></div>
-  </section>
   <div class="cols">
-    <section class="card"><h3>${P === 'ytd' ? 'Sales per month' : 'Sales per day'} · ${esc(scope)}</h3><p class="hint">US$ ${perTxt}. Tap a bar to see the detail.</p><div class="chart" id="chAmzDay"></div></section>
-    <section class="card"><h3>Sales per month · ${esc(scope)}</h3><p class="hint">2026, US$. ${/^\d{4}-\d\d$/.test(P) ? 'Resaltado el mes elegido.' : ''}</p><div class="chart" id="chAmzMon"></div></section>
-    <section class="card"><h3>By country · ${perTxt}</h3><p class="hint">${esc(paisNote)}</p>${paises}</section>
-    ${detalleBlock(A)}
-    <section class="card"><h3>Settlements vs bank</h3><p class="hint">Amazon US payouts matched with the deposits in ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
-    ${dep ? `<section class="card span2"><h3>Amazon income in bank by source</h3><p class="hint">1 July to 29 October 2026, per QuickBooks</p>${dep}</section>` : ''}
     <section class="card span2" id="units"><h3>Units sold by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · 2026 · Seller Central (ordered units)${/^\d{4}-\d\d$/.test(P) ? ' · Highlighted ' + MESL[+P.slice(5, 7) - 1] : ''}. Tap a bar to see the detail.</p>
       ${unitsBlock(A, P)}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="uXls" style="height:44px;padding:0 16px">Download units Excel</button><span class="mut" id="uMsg" style="font-size:13px"></span></div>
@@ -2869,9 +2852,6 @@ const AFTER = {
     const days = amzDays(A);
     const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
     const sel = days.filter((r) => inPer(r.f, P, A));
-    if (P === 'ytd') barChart($('#chAmzDay'), byKey(sel, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1);
-    else barChart($('#chAmzDay'), byKey(sel, (r) => r.f), (k) => fdate(k).d, (d) => `${fdate(d.k).d} ${fdate(d.k).m}`, 5);
-    barChart($('#chAmzMon'), byKey(days, (r) => r.f.slice(0, 7)), (k) => MES[+k.slice(5, 7) - 1], (d) => `${MESL[+d.k.slice(5, 7) - 1]} 2026`, 1, /^\d{4}-\d\d$/.test(P) ? P : null);
     unitsChart($('#chUnits'), A, P); $('#uXls').addEventListener('click', downloadUnits);
   },
   marketing() {
