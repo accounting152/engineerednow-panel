@@ -464,7 +464,7 @@ function go(tab) {
   state.tab = tab;
   document.querySelectorAll('.tabs button').forEach((b) => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   $('#title').textContent = TITLES[tab];
-  const g = fdate(D.corte);
+  const g = fdate((D.generado || D.corte).slice(0, 10));
   $('#stamp').textContent = `Data as of ${g.d} ${g.m} ${g.y} · ${D.generado.slice(11)}`;
   const badge = $('#badge'); if (badge) { badge.textContent = D.resumen.pendientes_n; badge.hidden = !D.resumen.pendientes_n; }
   try { history.replaceState(null, '', '#' + tab); } catch (e) {}
