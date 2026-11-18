@@ -2608,8 +2608,8 @@ function amzCtySel(A) {
   const all = Object.keys(tot).filter((c) => tot[c] > 0.5).sort((x, y) => tot[y] - tot[x]);
   const S = (state.amzCty || []).filter((c) => all.includes(c));
   const chip = (attr, on, lab) => `<button class="ctyc" ${attr} aria-pressed="${on}" style="padding:0 10px;height:34px">${lab}</button>`;
-  const lab = (c) => { const m = AMZ_CTY[c] || ['', '🏳', c, '']; return `${m[1]} ${esc(m[2])}`; };
-  return `<div class="seg wrap" role="group" aria-label="Countries" style="margin:0 0 12px">${chip('data-ctyall', !S.length, 'All countries')}${all.map((c) => chip(`data-ctyb="${esc(c)}"`, S.includes(c), lab(c))).join('')}</div>`;
+  const lab = (c) => { const m = AMZ_CTY[c] || ['', '', c, '']; const iso = [...(m[1] || '')].map((ch) => String.fromCharCode(ch.codePointAt(0) - 0x1F1E6 + 65)).join(''); return `<span title="${esc(m[2])}">${iso.length === 2 ? iso : esc(m[2])}</span>`; };
+  return `<div class="seg wrap" role="group" aria-label="Countries" style="margin:0 0 12px">${chip('data-ctyall', !S.length, 'All')}${all.map((c) => chip(`data-ctyb="${esc(c)}"`, S.includes(c), lab(c))).join('')}</div>`;
 }
 function amzA(k) {
   const AM = D.amazon || {}; if (k !== 'BOTH') return AM[k];
