@@ -2603,13 +2603,13 @@ function amzFilt(A) {
     detalle_paises: Object.fromEntries(Object.entries(A.detalle_paises || {}).filter(([k, J]) => inS(k) || inS(J.stock_pais) || (k === 'Europa' && eu))), liquidaciones: inS('Estados Unidos') ? A.liquidaciones : [], depositos: inS('Estados Unidos') ? A.depositos : [], __cty: S });
 }
 function amzCtySel(A) {
-  const all = amzCtyAll(A); const S = (state.amzCty || []).filter((c) => all.includes(c)); const on = (c) => !S.length || S.includes(c);
-  const groups = ['America', 'Asia Pacific', 'Europe'].map((g) => [g, all.filter((c) => (AMZ_CTY[c] || ['Europe'])[0] === g)]).filter(([, l]) => l.length);
-  const lab = (c) => { const m = AMZ_CTY[c] || ['', '🏳', c, '']; return `${m[1]} ${esc(m[2])} <span class="mut">(${esc(m[3])})</span>`; };
-  const sum = !S.length ? 'All countries' : S.length <= 3 ? S.map((c) => (AMZ_CTY[c] || [0, 0, c])[2]).join(', ') : S.length + ' countries';
-  const body = groups.map(([g, l]) => { const gOn = l.every(on); return `<label class="ctyg"><input type="checkbox" data-ctyg="${esc(g)}" ${gOn ? 'checked' : ''}> <b>${g}</b></label>` + l.map((c) => `<label class="ctyi"><input type="checkbox" data-cty="${esc(c)}" ${on(c) ? 'checked' : ''}> ${lab(c)}</label>`).join(''); }).join('');
-  return `<style>.ctyd{position:relative;margin:0 0 12px}.ctyd>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-weight:600;font-size:14px}.ctyd>summary::-webkit-details-marker{display:none}.ctyp{position:absolute;z-index:20;top:calc(100% + 6px);left:0;min-width:260px;max-height:360px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px}.ctyp label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:14px}.ctyp label:hover{background:var(--surface2)}.ctyp .ctyg{margin-top:4px;background:var(--surface2)}.ctyp .ctyi{padding-left:26px}.ctyp input{width:16px;height:16px;accent-color:var(--info)}</style>
-  <details class="ctyd" data-ctyd ${state.amzCtyOpen ? 'open' : ''}><summary>🌐 Countries: ${esc(sum)} <span aria-hidden="true">▾</span></summary><div class="ctyp"><label class="ctyg"><input type="checkbox" data-ctyall ${!S.length ? 'checked' : ''}> <b>All countries</b></label>${body}</div></details>`;
+  const tot = {}; Object.entries(A.dias || {}).forEach(([p, o]) => { const fx = (A.fx || {})[o.moneda] || 1; tot[p] = (tot[p] || 0) + (o.rows || []).reduce((s, r) => s + r[1] * fx, 0); });
+  (A.paises_mes || []).forEach((r) => { if (!(A.dias || {})[r.pais]) tot[r.pais] = (tot[r.pais] || 0) + (+r.usd || 0); });
+  const all = Object.keys(tot).filter((c) => tot[c] > 0.5).sort((x, y) => tot[y] - tot[x]);
+  const S = (state.amzCty || []).filter((c) => all.includes(c));
+  const chip = (attr, on, lab) => `<button class="ctyc" ${attr} aria-pressed="${on}" style="padding:0 10px;height:34px">${lab}</button>`;
+  const lab = (c) => { const m = AMZ_CTY[c] || ['', '🏳', c, '']; return `${m[1]} ${esc(m[2])}`; };
+  return `<div class="seg wrap" role="group" aria-label="Countries" style="margin:0 0 12px">${chip('data-ctyall', !S.length, 'All countries')}${all.map((c) => chip(`data-ctyb="${esc(c)}"`, S.includes(c), lab(c))).join('')}</div>`;
 }
 function amzA(k) {
   const AM = D.amazon || {}; if (k !== 'BOTH') return AM[k];
@@ -2844,9 +2844,8 @@ const AFTER = {
     document.querySelectorAll('[data-ctyd]').forEach((d) => d.addEventListener('toggle', () => { state.amzCtyOpen = d.open; }));
     const ctyRe = () => { const y = scrollY; render(); scrollTo({ top: y }); };
     const ctyAll = () => amzCtyAll(amzA(state.amz) || {});
-    document.querySelectorAll('[data-ctyall]').forEach((c) => c.addEventListener('change', () => { state.amzCty = []; ctyRe(); }));
-    document.querySelectorAll('[data-cty]').forEach((c) => c.addEventListener('change', () => { const all = ctyAll(); let S = (state.amzCty || []).filter((x) => all.includes(x)); if (!S.length) S = all.slice(); const k = c.dataset.cty; S = c.checked ? [...new Set(S.concat(k))] : S.filter((x) => x !== k); state.amzCty = S.length === all.length || !S.length ? [] : S; ctyRe(); }));
-    document.querySelectorAll('[data-ctyg]').forEach((c) => c.addEventListener('change', () => { const all = ctyAll(); const g = all.filter((x) => (AMZ_CTY[x] || ['Europe'])[0] === c.dataset.ctyg); let S = (state.amzCty || []).filter((x) => all.includes(x)); if (!S.length) S = all.slice(); S = c.checked ? [...new Set(S.concat(g))] : S.filter((x) => !g.includes(x)); state.amzCty = S.length === all.length || !S.length ? [] : S; ctyRe(); }));
+    document.querySelectorAll('[data-ctyall]').forEach((c) => c.addEventListener('click', () => { state.amzCty = []; ctyRe(); }));
+    document.querySelectorAll('[data-ctyb]').forEach((c) => c.addEventListener('click', () => { const all = [...document.querySelectorAll('[data-ctyb]')].map((x) => x.dataset.ctyb); const k = c.dataset.ctyb; let S = (state.amzCty || []).filter((x) => all.includes(x)); S = S.includes(k) ? S.filter((x) => x !== k) : S.concat(k); state.amzCty = S.length === all.length ? [] : S; ctyRe(); }));
     const A = amzFilt(amzA(state.amz)); if (!A) return;
     const P = state.amzPer || '30d';
     const days = amzDays(A);
