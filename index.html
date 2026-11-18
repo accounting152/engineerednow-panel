@@ -420,7 +420,7 @@ const compact = (v) => { const a = Math.abs(v); const s = v < 0 ? '−' : ''; if
 const MES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fdate = (s) => { const [y, m, d] = String(s).split('-'); return { d: +d, m: MES[+m - 1] || '', y }; };
 const PCOL = ['#B8692F', '#3A6E9E', '#2F8C7F', '#8B5FBF', '#C2496A', '#5E8A2E', '#D69A1E', '#4A5D9C', '#8A6B52', '#2A9BB5', '#9B4F96'];
-const COL = { HJ: 'var(--info)', HUNTER: 'var(--c-hunter)', JEER: 'var(--c-jeer)', IPAI: 'var(--c-ipai)', VENANDI: 'var(--c-venandi)', VENATOR: 'var(--c-venator)' };
+const COL = { HJ: 'var(--info)', BOTH: 'var(--info)', HUNTER: 'var(--c-hunter)', JEER: 'var(--c-jeer)', IPAI: 'var(--c-ipai)', VENANDI: 'var(--c-venandi)', VENATOR: 'var(--c-venator)' };
 const ST = { 'Cuadra': ['ok', 'Reconciled'], 'Explicado por pendientes': ['warn', 'Pending reconciliation'], 'Sin conexión bancaria': ['mut', 'No bank feed'], 'Feed sin actualizar': ['bad', 'Check connection'], 'Descuadre': ['bad', 'Mismatch'] };
 
 /* ---------- crypto ---------- */
@@ -471,7 +471,11 @@ function go(tab) {
   render(); scrollTo({ top: 0 });
 }
 addEventListener('scroll', () => $('#top').classList.toggle('scrolled', scrollY > 4), { passive: true });
-function render() { $('#main').innerHTML = `<div class="view">${VIEWS[state.tab]()}</div>`; AFTER[state.tab] && AFTER[state.tab](); }
+const TR_EN = [['Estados Unidos', 'United States'], ['Reino Unido', 'United Kingdom'], ['Alemania', 'Germany'], ['Japón', 'Japan'], ['Francia', 'France'], ['España', 'Spain'], ['Italia', 'Italy'], ['Países Bajos', 'Netherlands'], ['Suecia', 'Sweden'], ['Polonia', 'Poland'], ['Canadá', 'Canada'], ['México', 'Mexico'], ['Brasil', 'Brazil'], ['Bélgica', 'Belgium'], ['Irlanda', 'Ireland'], ['Australia', 'Australia'], ['Singapur', 'Singapore'], ['Emiratos Árabes Unidos', 'United Arab Emirates'], ['Arabia Saudí', 'Saudi Arabia'], ['Turquía', 'Turkey'], ['India', 'India'], ['Corea del Sur', 'South Korea'], ['Suiza', 'Switzerland'], ['Europa', 'Europe'], ['stock UE', 'EU stock'],
+  ['Reponer ya', 'Restock now'], ['Agotado', 'Out of stock'], ['Vigilar', 'Watch'], ['Exceso', 'Excess'], ['Correcto', 'OK'], ['Cobrado ✓', 'Received ✓'], ['En camino', 'On its way'], ['No llegó', 'Not received'], ['ya en camino', 'already on its way'], ['retenidos', 'held'], ['Resaltado el mes elegido.', 'Selected month highlighted.'], ['Vendidas 90 d', 'Sold 90 d'], ['Disponible', 'Available'], ['Cobertura', 'Coverage'], ['En buen estado', 'Good standing'], ['Preparando el Excel…', 'Preparing the Excel…']];
+const TR_RE = new RegExp(TR_EN.map(([a]) => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((x, y) => y.length - x.length).join('|'), 'g'); const TR_MAP = Object.fromEntries(TR_EN);
+function trEN(root) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (TR_RE.test(n.nodeValue)) { TR_RE.lastIndex = 0; n.nodeValue = n.nodeValue.replace(TR_RE, (m) => TR_MAP[m]).replace(/\bel (\d{1,2} [A-Z][a-z]{2})/g, 'on $1'); } TR_RE.lastIndex = 0; } }
+function render() { $('#main').innerHTML = `<div class="view">${VIEWS[state.tab]()}</div>`; AFTER[state.tab] && AFTER[state.tab](); try { trEN($('#main')); } catch (e) {} }
 
 /* ---------- views ---------- */
 const pill = (estado) => { const [c, t] = ST[estado] || ['mut', estado]; return `<span class="pill ${c}">${esc(t)}</span>`; };
@@ -656,7 +660,7 @@ pendientes() {
 
 finances() {
   const B = (D.informes || {}).bs;
-  const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>`;
+  const nav = `<div class="seg" role="group" aria-label="Finances" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div>`;
   if (!(D.informes || {}).pl_q && !B && !((D.informes || {}).docs || []).length) return nav + '<div class="card mut">No reports loaded yet.</div>';
   let h = nav;
   const Q = (D.informes || {}).pl_q;
@@ -802,27 +806,27 @@ amazon() {
   if (ss === 'wholesalers') return salesNav + wsPage('Wholesalers');
   if (ss === 'innovad') return salesNav + wsPage('INNOVAD');
   if (ss === 'engineered') return salesNav + enPage();
-  if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>` + shopifyInformes();
+  if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
 _amazonInner() {
-  const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:12px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Resumen</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Informes</button></div>`;
+  const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:12px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
   return amzNav + VIEWS._amazonMain();
 },
 _amazonMain() {
   const AM = D.amazon || {};
-  const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Pendiente de conectar'}</span></div></button>`; };
-  const sel = `<div class="amzsel">${btn('JEER', 'US, Canada, Mexico, Brazil')}${btn('HUNTER', 'US and 12 more countries')}</div>`;
-  const A = AM[state.amz];
-  if (!A) return sel + `<div class="card mut">Todavía no hay datos de Amazon de ${state.amz}.</div>`;
+  const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Not connected yet'}</span></div></button>`; };
+  const sel = `<div class="amzsel" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${btn('HUNTER', 'US and 12 more countries')}<button class="amzbtn" style="--cc:${COL.BOTH}" data-amz="BOTH" aria-pressed="${state.amz === 'BOTH'}"><span class="lg">+</span><div><b>HUNTER + JEER</b><span>Both accounts together</span></div></button>${btn('JEER', 'US, Canada, Mexico, Brazil')}</div>`;
+  const A = amzA(state.amz);
+  if (!A) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
   const P = state.amzPer || '30d';
   const months = [...new Set(amzDays(A).map((r) => r.f.slice(0, 7)))].sort();
   const perBtns = [['30d', '30 days'], ['ytd', 'Year']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v}" data-per="${v}">${l}</button>`).join('');
   const D2 = amzDays(A).filter((r) => inPer(r.f, P, A));
   const v = D2.reduce((s, r) => s + r.usd, 0), u = D2.reduce((s, r) => s + r.u, 0);
-  const scope = Object.keys(A.dias || {}).length > 1 ? Object.keys(A.dias).join(', ') : 'EE. UU.';
-  const perTxt = P === '30d' ? 'last 30 days' : P === 'ytd' ? 'en 2026' : `en ${MESL[+P.slice(5, 7) - 1]}`;
+  const scope = Object.keys(A.dias || {}).length > 1 ? Object.keys(A.dias).join(', ') : 'US';
+  const perTxt = P === '30d' ? 'last 30 days' : P === 'ytd' ? 'in 2026' : `in ${MESL[+P.slice(5, 7) - 1]}`;
   // countries for the period
   let paisesRows;
   const agg = {}; D2.forEach((r) => { const k = r.pais; agg[k] = agg[k] || { pais: k, usd: 0, u: 0, loc: 0, mon: r.mon }; agg[k].usd += r.usd; agg[k].u += r.u; agg[k].loc += r.v; });
@@ -862,7 +866,7 @@ _amazonMain() {
   return sel + `
   <div class="seg" role="group" aria-label="Periodo">${perBtns}</div>
   <section class="card hero">
-    <div class="eyebrow">${state.amz} en Amazon · ${perTxt} · ${esc(scope)}</div>
+    <div class="eyebrow">${state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz} on Amazon · ${perTxt} · ${esc(scope)}</div>
     <div class="big">${nf(0).format(v)}<small>US$</small></div>
     <div class="mut" style="font-size:13px">${nf(0).format(u)} units · average ${money(D2.length ? v / new Set(D2.map((r) => r.f)).size : 0, 'USD', 0)} per day</div>
   </section>
@@ -879,7 +883,7 @@ _amazonMain() {
     ${detalleBlock(A)}
     <section class="card"><h3>Settlements vs bank</h3><p class="hint">Amazon US payouts matched with the deposits in ${esc(BK)}${/^\d{4}-\d\d$/.test(P) ? ' · ' + MESL[+P.slice(5, 7) - 1] : ''}</p>${liq}</section>
     ${dep ? `<section class="card span2"><h3>Amazon income in bank by source</h3><p class="hint">1 July to 29 October 2026, per QuickBooks</p>${dep}</section>` : ''}
-    <section class="card span2" id="units"><h3>Units sold by country and month</h3><p class="hint">${esc(state.amz)} · 2026 · Seller Central (ordered units)${/^\d{4}-\d\d$/.test(P) ? ' · Highlighted ' + MESL[+P.slice(5, 7) - 1] : ''}. Tap a bar to see the detail.</p>
+    <section class="card span2" id="units"><h3>Units sold by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · 2026 · Seller Central (ordered units)${/^\d{4}-\d\d$/.test(P) ? ' · Highlighted ' + MESL[+P.slice(5, 7) - 1] : ''}. Tap a bar to see the detail.</p>
       ${unitsBlock(A, P)}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="uXls" style="height:44px;padding:0 16px">Download units Excel</button><span class="mut" id="uMsg" style="font-size:13px"></span></div>
     </section>
@@ -1001,24 +1005,24 @@ function detalleBlock(A) {
     const cod = J.por_codigo.map((r) => `<div class="arrow"><span class="nm">${esc(r.codigo)} <span class="mut" style="font-weight:400;font-size:12px">· ${nf(0).format(r.unidades)} units · ${nf(0).format(r.unidades / tot * 100)}%${r.detalle && (J.por_pais || []).length ? ' · ' + esc(r.detalle) : ''}</span></span><span class="v">${money(r.ventas, J.moneda, 0)}</span><div class="bar"><i style="width:${r.unidades / vmax * 100}%;background:${COL.HUNTER}"></i></div></div>`).join('');
     const liq = J.liquidaciones.map((l) => { const a = fdate(l.periodo_inicio); const b = l.periodo_fin ? fdate(l.periodo_fin) : null; const bf = l.banco_fecha ? fdate(l.banco_fecha) : null; const M = l.moneda || J.moneda;
       const ok = /^Cobrado/.test(l.estado); const cls = ok ? 'ok' : (l.estado === 'Abierta' ? 'info' : (l.estado === 'Transferred by Amazon' ? 'mut' : 'warn'));
-      const bank = bf ? (l.banco_usd != null ? ` · en Wells Fargo el ${bf.d} ${bf.m}: ${money(l.banco_usd, 'USD')}` : ` · en Wise el ${bf.d} ${bf.m}: ${money(l.banco_importe, l.banco_moneda || M)}`) : '';
-      return `<div class="liq"><span>${a.d} ${a.m} – ${b ? b.d + ' ' + b.m : 'hoy'}${M !== J.moneda ? ` <span class="pill mut" style="font-size:11px">${esc(M)}</span>` : ''}<div class="s">Ventas ${money(l.ventas, M, 0)}${l.reembolsos ? ' · refunds ' + money(l.reembolsos, M, 0) : ''} · tarifas ${money(l.gastos, M, 0)}${bank}</div></span>
-        <span class="v">${money(l.importe, M, M === 'JPY' ? 0 : 2)}<div class="s ${cls}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : l.estado === 'Abierta' ? 'Periodo abierto' : l.estado === 'Transferred by Amazon' ? 'Transferido' : 'En camino'}</div></span></div>`; }).join('');
+      const bank = bf ? (l.banco_usd != null ? ` · in Wells Fargo on ${bf.d} ${bf.m}: ${money(l.banco_usd, 'USD')}` : ` · in Wise on ${bf.d} ${bf.m}: ${money(l.banco_importe, l.banco_moneda || M)}`) : '';
+      return `<div class="liq"><span>${a.d} ${a.m} – ${b ? b.d + ' ' + b.m : 'today'}${M !== J.moneda ? ` <span class="pill mut" style="font-size:11px">${esc(M)}</span>` : ''}<div class="s">Sales ${money(l.ventas, M, 0)}${l.reembolsos ? ' · refunds ' + money(l.reembolsos, M, 0) : ''} · fees ${money(l.gastos, M, 0)}${bank}</div></span>
+        <span class="v">${money(l.importe, M, M === 'JPY' ? 0 : 2)}<div class="s ${cls}" style="font-family:var(--body)">${ok ? 'Cobrado ✓' : l.estado === 'Abierta' ? 'Open period' : l.estado === 'Transferred by Amazon' ? 'Transferred' : 'En camino'}</div></span></div>`; }).join('');
     const pp = (J.por_pais || []).map((p) => `<span class="pill info" style="margin:0 6px 6px 0">${esc(p.pais)} · ${nf(0).format(p.unidades)} units · ${money(p.ventas, p.moneda, 0)}</span>`).join('');
     const urgL = urg.map((f) => `<span class="pill bad" style="margin:0 6px 6px 0">${esc(f.codigo || f.producto)} · ${f.disponible} units</span>`).join('');
     return `<section class="card span2" style="border-top:3px solid ${COL.HUNTER}">
-      <h3>${esc(pais)} en detalle</h3><p class="hint">${esc(J.cuenta)}. Read on ${fdate(J.leido.slice(0, 10)).d} ${fdate(J.leido.slice(0, 10)).m}. 2026 sales (ordered) by code.</p>${pp ? `<div style="margin:2px 0 6px">${pp}</div>` : ''}
+      <h3>${esc(pais)} in detail</h3><p class="hint">${esc(J.cuenta)}. Read on ${fdate(J.leido.slice(0, 10)).d} ${fdate(J.leido.slice(0, 10)).m}. 2026 sales (ordered) by code.</p>${pp ? `<div style="margin:2px 0 6px">${pp}</div>` : ''}
       <section class="kpis" style="margin:4px 0 12px">
-        <div class="kpi"><span class="l">Ventas 2026</span><span class="v">${money(J.ventas_ytd, J.moneda, 0)}</span><span class="l">≈ ${money(J.ventas_ytd * fx, 'USD', 0)} · ${nf(0).format(J.unidades_ytd)} units</span></div>
-        <div class="kpi"><span class="l">Next payout</span><span class="v">${money(J.saldo, J.moneda, 0)}</span><span class="l">el ${np.d} ${np.m} · ≈ ${money(J.proximo_pago_usd, 'USD', 0)}</span></div>
-        <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Stock en Amazon ${esc(pais)}${J.stock_pais && J.stock_pais !== pais ? ' (UE)' : ''}</span><span class="v">${nf(0).format(disp)}</span><span class="l">${urg.length} codes out of stock or close</span></div>
+        <div class="kpi"><span class="l">Sales 2026</span><span class="v">${money(J.ventas_ytd, J.moneda, 0)}</span><span class="l">≈ ${money(J.ventas_ytd * fx, 'USD', 0)} · ${nf(0).format(J.unidades_ytd)} units</span></div>
+        <div class="kpi"><span class="l">Next payout</span><span class="v">${money(J.saldo, J.moneda, 0)}</span><span class="l">on ${np.d} ${np.m} · ≈ ${money(J.proximo_pago_usd, 'USD', 0)}</span></div>
+        <div class="kpi ${urg.length ? 'alert' : ''}"><span class="l">Amazon stock ${esc(pais)}${J.stock_pais && J.stock_pais !== pais ? ' (EU)' : ''}</span><span class="v">${nf(0).format(disp)}</span><span class="l">${urg.length} codes out of stock or close</span></div>
         <div class="kpi"><span class="l">Account</span><span class="v ok" style="font-size:18px">${J.estado_cuenta === 'En buen estado' ? 'Healthy' : esc(J.estado_cuenta)}</span><span class="l">${J.nivel_estado != null ? `Level ${J.nivel_estado} · defects ${esc(J.odr)}` : 'No open issues'}</span></div>
       </section>
       <div class="cols">
         <div><h3 style="font-size:15px">Sales 2026 by code</h3>${cod}</div>
         <div><h3 style="font-size:15px">Settlements vs bank</h3><p class="hint">${esc(J.nota_pago)}</p>${liq}</div>
       </div>
-      ${urg.length ? `<h3 style="font-size:15px;margin-top:12px">Reponer en ${esc(pais)}</h3><div>${urgL}</div>` : ''}
+      ${urg.length ? `<h3 style="font-size:15px;margin-top:12px">Restock in ${esc(pais)}</h3><div>${urgL}</div>` : ''}
       <button class="btn" data-go="inventario" style="height:44px;padding:0 16px;margin-top:10px">View inventory</button>
     </section>`;
   }).join('');
@@ -1676,7 +1680,7 @@ function enBuild() { const I = D.informes; const recs = [], tot = {}, totS = {};
 function enPage() {
   const I = D.informes || {}; if (!I.engineered_um) I.engineered_um = enBuild(); const id = 'engineered_um'; const R = I[id]; const open = !!(state.repOpen || {})[id];
   const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
-  return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div><section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
+  return `<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div><section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
 }
 function enMgData() {
   tvlAlloc(); const R = D.informes.pagos_amazon_us; const SC = D.informes.shipping_check; const W = (D.informes.ws_lineas || { filas: [] }); const PR = ((D.informes || {}).stock_modelo || {}).precios || {};
@@ -1799,7 +1803,7 @@ function wsPage(src, noNav, extra) {
   const id = src === 'INNOVAD' ? 'innovad_um' : 'wholesalers_um'; if (!D.informes[id]) D.informes[id] = wsUMBuild(W, src, src === 'INNOVAD' ? 'Innovad · units and sales by model and month' : 'Wholesalers · units and sales by model and month');
   const R = D.informes[id]; const open = !!(state.repOpen || {})[id];
   const sub = R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)}`).join(' · ');
-  return `${noNav ? '' : '<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Informes</button></div>'}${src === 'INNOVAD' && !noNav ? '' : '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px"><button class="btn" data-wsxls="' + src + '" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-ws" style="font-size:13px"></span></div>'}${extra || ''}<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
+  return `${noNav ? '' : '<div class="seg" role="group" aria-label="Reports" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div>'}${src === 'INNOVAD' && !noNav ? '' : '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px"><button class="btn" data-wsxls="' + src + '" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-ws" style="font-size:13px"></span></div>'}${extra || ''}<section class="card rep-item${open ? ' open' : ''}"><button class="rep-head" data-wstoggle="${id}" aria-expanded="${open}"><span class="rep-pm" aria-hidden="true">${open ? '−' : '+'}</span><span class="rep-t"><b>${esc(R.titulo)}</b><span class="mut">${esc(sub)}</span></span></button></section>${open ? `<div class="rep-body">${umBody(id)}</div>` : ''}`;
 }
 // ---- Finances: P&L 2025 by quarter (QuickBooks)
 function plRowsOf(R, e) { return e === 'Consolidated' ? R.consolidado : R.entidades[e].filas; }
@@ -2601,6 +2605,20 @@ async function downloadUnits() {
     XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
   } catch (e) { msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'No se pudo generar el Excel en este navegador.'; }
 }
+function amzA(k) {
+  const AM = D.amazon || {}; if (k !== 'BOTH') return AM[k];
+  const L = ['HUNTER', 'JEER'].map((e) => AM[e]).filter(Boolean); if (L.length < 2) return L[0];
+  if (amzA.__c) return amzA.__c;
+  const dias = {}; const fx = Object.assign({}, ...L.map((A) => A.fx || {}));
+  L.forEach((A) => Object.entries(A.dias || {}).forEach(([p, o]) => { const d = (dias[p] = dias[p] || { moneda: o.moneda, rows: [] }); const m = new Map(d.rows.map((r) => [r[0], r])); (o.rows || []).forEach(([f, v, u]) => { const r = m.get(f); if (r) { r[1] += v; r[2] += u; } else { const n = [f, v, u]; d.rows.push(n); m.set(f, n); } }); d.rows.sort((a, b) => (a[0] < b[0] ? -1 : 1)); }));
+  const cat = (k) => L.flatMap((A, i) => (A[k] || []).map((x) => (typeof x === 'object' ? Object.assign({ _emp: ['HUNTER', 'JEER'][i] }, x) : x)));
+  const sum = (k) => L.reduce((s, A) => s + (+A[k] || 0), 0);
+  const np = L.map((A) => A.proximo_pago).filter(Boolean).sort()[0];
+  amzA.__c = { dias, fx, paises: cat('paises'), fba: cat('fba'), liquidaciones: cat('liquidaciones').sort((a, b) => ((b.periodo_fin || '') < (a.periodo_fin || '') ? -1 : 1)), depositos: cat('depositos'), paises_mes: cat('paises_mes').length ? cat('paises_mes') : null,
+    detalle_paises: Object.assign({}, ...L.map((A) => A.detalle_paises || {})), saldo_amazon: sum('saldo_amazon'), pago_en_proceso: sum('pago_en_proceso'), saldo_diferido: sum('saldo_diferido'), proximo_pago: np,
+    estado_cuenta: L.every((A) => A.estado_cuenta === 'En buen estado') ? 'En buen estado' : L.map((A) => A.estado_cuenta).join(' / '), valoracion: null, cuenta_amazon: 'HUNTER + JEER', banco_liq: 'Wells Fargo / Mercury', leido: L.map((A) => A.leido).sort().pop() };
+  return amzA.__c;
+}
 function amzDays(A) {
   const out = []; const fx = A.fx || { USD: 1 };
   Object.entries(A.dias || {}).forEach(([pais, o]) => (o.rows || []).forEach(([f, v, u]) => out.push({ pais, mon: o.moneda, f, v, u, usd: v * (fx[o.moneda] || 1) })));
@@ -2817,7 +2835,7 @@ const AFTER = {
     document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; state.amzStockPais = ''; render(); } }));
     document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { state.amzPer = b.dataset.per; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
-    const A = (D.amazon || {})[state.amz]; if (!A) return;
+    const A = amzA(state.amz); if (!A) return;
     const P = state.amzPer || '30d';
     const days = amzDays(A);
     const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
