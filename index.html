@@ -818,8 +818,9 @@ _amazonMain() {
   const AM = D.amazon || {};
   const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Not connected yet'}</span></div></button>`; };
   const sel = `<div class="amzsel" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${btn('HUNTER', 'US and 12 more countries')}<button class="amzbtn" style="--cc:${COL.BOTH}" data-amz="BOTH" aria-pressed="${state.amz === 'BOTH'}"><span class="lg">+</span><div><b>HUNTER + JEER</b><span>Both accounts together</span></div></button>${btn('JEER', 'US, Canada, Mexico, Brazil')}</div>`;
-  const A = amzA(state.amz);
-  if (!A) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
+  const A0 = amzA(state.amz);
+  if (!A0) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
+  const A = amzFilt(A0);
   const P = state.amzPer || '30d';
   const months = [...new Set(amzDays(A).map((r) => r.f.slice(0, 7)))].sort();
   const perBtns = [['30d', '30 days'], ['ytd', 'Year']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v}" data-per="${v}">${l}</button>`).join('');
@@ -864,7 +865,8 @@ _amazonMain() {
   const np = fdate(A.proximo_pago);
   const stockOpts = [['', 'All countries']].concat(stockPaises.map((x) => [x, x])).map(([val, l]) => `<option value="${esc(val)}" ${SP === val ? 'selected' : ''}>${esc(l)}</option>`).join('');
   return sel + `
-  <div class="seg" role="group" aria-label="Periodo">${perBtns}</div>
+  <div class="seg" role="group" aria-label="Period">${perBtns}</div>
+  ${amzCtySel(A0)}
   <section class="card hero">
     <div class="eyebrow">${state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz} on Amazon · ${perTxt} · ${esc(scope)}</div>
     <div class="big">${nf(0).format(v)}<small>US$</small></div>
@@ -2605,6 +2607,27 @@ async function downloadUnits() {
     XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
   } catch (e) { msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'No se pudo generar el Excel en este navegador.'; }
 }
+const AMZ_CTY = { 'Estados Unidos': ['America', '🇺🇸', 'United States', '.com'], 'Canadá': ['America', '🇨🇦', 'Canada', '.ca'], 'México': ['America', '🇲🇽', 'Mexico', '.com.mx'], 'Brasil': ['America', '🇧🇷', 'Brazil', '.com.br'],
+  'Japón': ['Asia Pacific', '🇯🇵', 'Japan', '.co.jp'], 'Australia': ['Asia Pacific', '🇦🇺', 'Australia', '.com.au'], 'India': ['Asia Pacific', '🇮🇳', 'India', '.in'], 'Singapur': ['Asia Pacific', '🇸🇬', 'Singapore', '.sg'],
+  'Reino Unido': ['Europe', '🇬🇧', 'United Kingdom', '.co.uk'], 'Alemania': ['Europe', '🇩🇪', 'Germany', '.de'], 'Francia': ['Europe', '🇫🇷', 'France', '.fr'], 'España': ['Europe', '🇪🇸', 'Spain', '.es'], 'Italia': ['Europe', '🇮🇹', 'Italy', '.it'], 'Países Bajos': ['Europe', '🇳🇱', 'Netherlands', '.nl'], 'Suecia': ['Europe', '🇸🇪', 'Sweden', '.se'], 'Polonia': ['Europe', '🇵🇱', 'Poland', '.pl'], 'Bélgica': ['Europe', '🇧🇪', 'Belgium', '.com.be'], 'Irlanda': ['Europe', '🇮🇪', 'Ireland', '.ie'], 'Turquía': ['Europe', '🇹🇷', 'Turkey', '.com.tr'] };
+const AMZ_EU = ['Alemania', 'Francia', 'España', 'Italia', 'Países Bajos', 'Suecia', 'Polonia', 'Bélgica', 'Irlanda'];
+function amzCtyAll(A) { return [...new Set(Object.keys(A.dias || {}).concat((A.paises_mes || []).map((r) => r.pais)))]; }
+function amzFilt(A) {
+  if (!A) return A; const S = (state.amzCty || []).filter((c) => amzCtyAll(A).includes(c)); if (!S.length) return A;
+  const inS = (p) => S.includes(p); const dias = Object.fromEntries(Object.entries(A.dias || {}).filter(([p]) => inS(p)));
+  const eu = S.some((c) => AMZ_EU.includes(c));
+  return Object.assign({}, A, { dias, paises_mes: A.paises_mes ? A.paises_mes.filter((r) => inS(r.pais)) : A.paises_mes, fba: (A.fba || []).filter((f) => inS(f.pais || 'Estados Unidos') || (eu && /Europa/.test(f.pais || ''))),
+    detalle_paises: Object.fromEntries(Object.entries(A.detalle_paises || {}).filter(([k, J]) => inS(k) || inS(J.stock_pais) || (k === 'Europa' && eu))), liquidaciones: inS('Estados Unidos') ? A.liquidaciones : [], depositos: inS('Estados Unidos') ? A.depositos : [], __cty: S });
+}
+function amzCtySel(A) {
+  const all = amzCtyAll(A); const S = (state.amzCty || []).filter((c) => all.includes(c)); const on = (c) => !S.length || S.includes(c);
+  const groups = ['America', 'Asia Pacific', 'Europe'].map((g) => [g, all.filter((c) => (AMZ_CTY[c] || ['Europe'])[0] === g)]).filter(([, l]) => l.length);
+  const lab = (c) => { const m = AMZ_CTY[c] || ['', '🏳', c, '']; return `${m[1]} ${esc(m[2])} <span class="mut">(${esc(m[3])})</span>`; };
+  const sum = !S.length ? 'All countries' : S.length <= 3 ? S.map((c) => (AMZ_CTY[c] || [0, 0, c])[2]).join(', ') : S.length + ' countries';
+  const body = groups.map(([g, l]) => { const gOn = l.every(on); return `<label class="ctyg"><input type="checkbox" data-ctyg="${esc(g)}" ${gOn ? 'checked' : ''}> <b>${g}</b></label>` + l.map((c) => `<label class="ctyi"><input type="checkbox" data-cty="${esc(c)}" ${on(c) ? 'checked' : ''}> ${lab(c)}</label>`).join(''); }).join('');
+  return `<style>.ctyd{position:relative;margin:0 0 12px}.ctyd>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-weight:600;font-size:14px}.ctyd>summary::-webkit-details-marker{display:none}.ctyp{position:absolute;z-index:20;top:calc(100% + 6px);left:0;min-width:260px;max-height:360px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px}.ctyp label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:14px}.ctyp label:hover{background:var(--surface2)}.ctyp .ctyg{margin-top:4px;background:var(--surface2)}.ctyp .ctyi{padding-left:26px}.ctyp input{width:16px;height:16px;accent-color:var(--info)}</style>
+  <details class="ctyd" data-ctyd ${state.amzCtyOpen ? 'open' : ''}><summary>🌐 Countries: ${esc(sum)} <span aria-hidden="true">▾</span></summary><div class="ctyp"><label class="ctyg"><input type="checkbox" data-ctyall ${!S.length ? 'checked' : ''}> <b>All countries</b></label>${body}</div></details>`;
+}
 function amzA(k) {
   const AM = D.amazon || {}; if (k !== 'BOTH') return AM[k];
   const L = ['HUNTER', 'JEER'].map((e) => AM[e]).filter(Boolean); if (L.length < 2) return L[0];
@@ -2835,7 +2858,13 @@ const AFTER = {
     document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; state.amzStockPais = ''; render(); } }));
     document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { state.amzPer = b.dataset.per; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
-    const A = amzA(state.amz); if (!A) return;
+    document.querySelectorAll('[data-ctyd]').forEach((d) => d.addEventListener('toggle', () => { state.amzCtyOpen = d.open; }));
+    const ctyRe = () => { const y = scrollY; render(); scrollTo({ top: y }); };
+    const ctyAll = () => amzCtyAll(amzA(state.amz) || {});
+    document.querySelectorAll('[data-ctyall]').forEach((c) => c.addEventListener('change', () => { state.amzCty = []; ctyRe(); }));
+    document.querySelectorAll('[data-cty]').forEach((c) => c.addEventListener('change', () => { const all = ctyAll(); let S = (state.amzCty || []).filter((x) => all.includes(x)); if (!S.length) S = all.slice(); const k = c.dataset.cty; S = c.checked ? [...new Set(S.concat(k))] : S.filter((x) => x !== k); state.amzCty = S.length === all.length || !S.length ? [] : S; ctyRe(); }));
+    document.querySelectorAll('[data-ctyg]').forEach((c) => c.addEventListener('change', () => { const all = ctyAll(); const g = all.filter((x) => (AMZ_CTY[x] || ['Europe'])[0] === c.dataset.ctyg); let S = (state.amzCty || []).filter((x) => all.includes(x)); if (!S.length) S = all.slice(); S = c.checked ? [...new Set(S.concat(g))] : S.filter((x) => !g.includes(x)); state.amzCty = S.length === all.length || !S.length ? [] : S; ctyRe(); }));
+    const A = amzFilt(amzA(state.amz)); if (!A) return;
     const P = state.amzPer || '30d';
     const days = amzDays(A);
     const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
