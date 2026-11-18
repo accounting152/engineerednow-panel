@@ -819,13 +819,13 @@ _amazonMain() {
   const bOn = (k) => state.amz === k || state.amz === 'BOTH';
   const btn = (k) => `<button data-amz="${k}" aria-pressed="${bOn(k)}" ${AM[k] ? '' : 'disabled'}><i class="dot" style="background:${COL[k]};margin-right:6px"></i>${k}</button>`;
   const met = state.amzMet === 'sales' ? 'sales' : 'units';
-  const sel = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div class="seg" role="group" aria-label="Company" style="flex:1 1 220px">${btn('HUNTER')}${btn('JEER')}</div><div class="seg" role="group" aria-label="Metric" style="flex:1 1 220px"><button data-amet="sales" aria-pressed="${met === 'sales'}">Sales</button><button data-amet="units" aria-pressed="${met === 'units'}">Units</button></div></div>`;
+  const sel = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div class="seg" role="group" aria-label="Company" style="flex:1 1 200px">${btn('HUNTER')}${btn('JEER')}</div><div class="seg" role="group" aria-label="Year" style="flex:1 1 160px">${['2025', '2026'].map((y) => `<button data-ayr="${y}" aria-pressed="${amzYrs().includes(y)}">${y}</button>`).join('')}</div><div class="seg" role="group" aria-label="Metric" style="flex:1 1 200px"><button data-amet="sales" aria-pressed="${met === 'sales'}">Sales</button><button data-amet="units" aria-pressed="${met === 'units'}">Units</button></div></div>`;
   const A0 = amzA(state.amz);
   if (!A0) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
   const A = amzFilt(A0);
   const P = (state.amzPer && state.amzPer !== '30d' ? state.amzPer : 'ytd');
-  const months = [...new Set(amzDays(A).map((r) => r.f.slice(0, 7)))].sort();
-  const perBtns = [['ytd', 'Year']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v || perMonths(P).includes(v)}" data-per="${v}">${l}</button>`).join('');
+  const months = unitsCube(A).mnum;
+  const perBtns = [['ytd', 'All months']].concat(months.map((m) => [m, MES[+m - 1]])).map(([v, l]) => `<button aria-pressed="${P === v || perMonths(P).includes(v)}" data-per="${v}">${l}</button>`).join('');
   const D2 = amzDays(A).filter((r) => inPer(r.f, P, A));
   const v = D2.reduce((s, r) => s + r.usd, 0), u = D2.reduce((s, r) => s + r.u, 0);
   const scope = Object.keys(A.dias || {}).length > 1 ? Object.keys(A.dias).join(', ') : 'US';
@@ -870,7 +870,7 @@ _amazonMain() {
   <div class="seg" role="group" aria-label="Period">${perBtns}</div>
   ${amzCtySel(A0)}
   <div class="cols">
-    <section class="card span2" id="units"><h3>${state.amzMet === 'sales' ? 'Sales (US$)' : 'Units sold'} by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · 2026 · Seller Central (ordered ${state.amzMet === 'sales' ? 'sales' : 'units'})${perMonths(P).length ? ' · Highlighted ' + perMonths(P).map((k) => MESL[+k.slice(5, 7) - 1]).join(', ') : ''}. Tap a bar to see the detail.</p>
+    <section class="card span2" id="units"><h3>${state.amzMet === 'sales' ? 'Sales (US$)' : 'Units sold'} by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · ${amzYrs().join(' vs ')} · Seller Central (ordered ${state.amzMet === 'sales' ? 'sales' : 'units'})${perMonths(P).length ? ' · Highlighted ' + perMonths(P).map((k) => MESL[+k - 1]).join(', ') : ''}. Tap a bar to see the detail.</p>
       ${unitsBlock(A, P)}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="uXls" style="height:44px;padding:0 16px">Download units Excel</button><span class="mut" id="uMsg" style="font-size:13px"></span></div>
     </section>
@@ -2523,61 +2523,104 @@ const ctyIso = (c) => { const m = AMZ_CTY[c]; const iso = m ? [...(m[1] || '')].
 const ctyCode = (c) => `<span title="${esc((AMZ_CTY[c] || [0, 0, c])[2])}">${esc(ctyIso(c))}</span>`;
 const UMET = () => (state.amzMet === 'sales' ? 'v' : 'u');
 const ufmt = (x) => (UMET() === 'v' ? money(x, 'USD', 0) : nf(0).format(x));
+function unitsCube(A) {
+  // c[year][pais][mm] = { u, v (US$) } · 2026: Seller Central daily (ordered) · 2025: V2 settlement reports (settled)
+  const Y = amzYrs(); const fx = A.fx || { USD: 1 }; const c = {}; const P = new Set();
+  const cell = (y, p, mm) => { c[y] = c[y] || {}; c[y][p] = c[y][p] || {}; return (c[y][p][mm] = c[y][p][mm] || { u: 0, v: 0 }); };
+  if (Y.includes('2026')) amzDays(A).forEach((r) => { if (r.f.slice(0, 4) !== '2026') return; const x = cell('2026', r.pais, r.f.slice(5, 7)); x.u += r.u; x.v += r.usd; P.add(r.pais); });
+  if (Y.includes('2025')) Object.entries(((A.hist || {})['2025']) || {}).forEach(([p, ms]) => Object.entries(ms).forEach(([m, v]) => { const x = cell('2025', p, m.slice(5, 7)); x.v += v[0] * (fx[v[2]] || 1); x.u += v[1]; P.add(p); }));
+  const mnum = [...new Set(Y.flatMap((y) => Object.values(c[y] || {}).flatMap((o) => Object.keys(o))))].sort();
+  const val = (y, p, mm, K) => (((c[y] || {})[p] || {})[mm] || { u: 0, v: 0 })[K];
+  const K = UMET();
+  const tot = (p) => Y.reduce((s, y) => s + mnum.reduce((a, mm) => a + val(y, p, mm, K), 0), 0);
+  const paises = [...P].filter((p) => Math.abs(tot(p)) > 0.004 || Y.some((y) => mnum.some((mm) => val(y, p, mm, 'u')))).sort((x, z) => tot(z) - tot(x));
+  return { Y, mnum, paises, val, c };
+}
+const YCOL = { '2025': 'color-mix(in srgb, var(--muted) 55%, var(--surface2))' };
 function unitsBlock(A, P) {
-  const K = UMET(), S$ = K === 'v'; const uw = S$ ? 'US$' : 'units';
-  const { months, paises, m, tot } = unitsData(A);
-  const all = paises.reduce((s, p) => s + tot(p), 0);
-  const max = Math.max(1, ...paises.flatMap((p) => months.map((k) => m[p][k][K])));
+  const K = UMET(), S$ = K === 'v';
+  const { Y, mnum, paises, val } = unitsCube(A);
+  const two = Y.length === 2, yN = Y[Y.length - 1], yO = Y[0];
+  const SM = perMonths(P).filter((k) => mnum.includes(k)); const scopeM = SM.length ? SM : mnum;
   const col = COL[state.amz];
   const cf = (x) => (S$ ? compact(x) : nf(0).format(x));
-  const cell = (u, k) => `<td class="${perMonths(P).includes(k) ? 'h' : ''}" style="background:color-mix(in srgb, ${col} ${u > 0 ? Math.round(8 + u / max * 62) : 0}%, var(--surface2))">${Math.round(u) ? cf(u) : '·'}</td>`;
-  const mt = (k) => paises.reduce((s, p) => s + m[p][k][K], 0);
-  const sumU = (p) => months.reduce((s, k) => s + m[p][k].u, 0), sumV = (p) => months.reduce((s, k) => s + m[p][k].v, 0);
-  const rows = paises.map((p, i) => { const t = tot(p); const tu = sumU(p), tv = sumV(p);
-    return `<tr><td class="l"><i class="dot" style="background:${PCOL[i % PCOL.length]};margin-right:6px"></i>${ctyCode(p)}</td>${months.map((k) => cell(m[p][k][K], k)).join('')}<td class="t">${cf(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`; }).join('');
-  const TU = paises.reduce((s, p) => s + sumU(p), 0), TV = paises.reduce((s, p) => s + sumV(p), 0);
-  const totRow = paises.length > 1 ? `<tr class="tot"><td class="l">Total</td>${months.map((k) => `<td class="${perMonths(P).includes(k) ? 'h' : ''}">${cf(mt(k))}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t">100%</td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>` : '';
-  // KPIs follow the selection: company (A), countries (amzFilt), period (P) and metric (Sales / Units)
-  const SM = perMonths(P).filter((k) => months.includes(k));
-  const prevM = (k) => { const d = new Date(k + '-01T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); };
-  const mU = (k) => (months.includes(k) ? mt(k) : 0);
-  const scopeM = SM.length ? SM : months;
-  const uSel = scopeM.reduce((s, k) => s + mU(k), 0);
-  const perLab = SM.length ? SM.map((k) => MES[+k.slice(5, 7) - 1]).join(', ') + ' 2026' : '2026';
-  const lk = SM.length ? SM[SM.length - 1] : (months.length > 1 ? months[months.length - 2] : null);
-  const cmp = lk && months.includes(prevM(lk)) ? { l: `${MESL[+lk.slice(5, 7) - 1]} vs ${MESL[+prevM(lk).slice(5, 7) - 1]}`, a: mU(lk), b: mU(prevM(lk)) } : null;
-  const avgV = uSel / Math.max(1, scopeM.length);
-  const mom = cmp ? (cmp.a - cmp.b) / Math.max(1, cmp.b) * 100 : null;
-  const best = scopeM.reduce((b, k) => (mU(k) > mU(b) ? k : b), scopeM[0]);
-  const nC = paises.filter((p) => scopeM.some((k) => m[p][k][K])).length;
-  const kp = `<div class="kpis" style="margin:4px 0 10px"><div class="kpi"><span class="l">${S$ ? 'Sales' : 'Units'} · ${esc(perLab)}</span><span class="v">${ufmt(uSel)}</span><span class="l">${nC} ${nC === 1 ? 'country' : 'countries'}</span></div>
-    <div class="kpi"><span class="l">Best month${SM.length ? ' (selected)' : ''}</span><span class="v">${best ? MES[+best.slice(5, 7) - 1] : '—'}</span><span class="l">${best ? ufmt(mU(best)) : 0}${S$ ? '' : ' units'}</span></div>
-    ${cmp ? `<div class="kpi ${mom < -10 ? 'alert' : ''}"><span class="l">${esc(cmp.l)}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom > 0 ? '+' : ''}${nf(0).format(mom)}%</span><span class="l">${ufmt(cmp.a)} vs ${ufmt(cmp.b)}${S$ ? '' : ' units'}</span></div>` : ''}
-    <div class="kpi"><span class="l">Monthly average</span><span class="v">${ufmt(avgV)}</span><span class="l">${S$ ? 'per month' : 'units per month'}</span></div></div>`;
-  const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % PCOL.length]}"></i>${ctyCode(p)}</span>`).join('')}</div>`;
+  const mt = (y, mm) => paises.reduce((s, p) => s + val(y, p, mm, K), 0);
+  const sumY = (y, p, KK = K, ms = mnum) => ms.reduce((s, mm) => s + val(y, p, mm, KK), 0);
+  const totY = (y, ms = scopeM, KK = K) => paises.reduce((s, p) => s + sumY(y, p, KK, ms), 0);
+  const max = Math.max(1, ...Y.flatMap((y) => paises.flatMap((p) => mnum.map((mm) => val(y, p, mm, K)))));
+  const hl = (mm) => (SM.includes(mm) ? 'h' : '');
+  const shade = (x) => `background:color-mix(in srgb, ${col} ${x > 0 ? Math.round(8 + x / max * 62) : 0}%, var(--surface2))`;
+  const dlt = (a, b) => (b > 0 ? (a - b) / b * 100 : null);
+  const dTxt = (d) => (d == null ? '' : `<span class="${d < 0 ? 'bad' : 'ok'}" style="font-size:10.5px;font-weight:700">${d > 0 ? '+' : ''}${nf(0).format(d)}%</span>`);
+  const cell1 = (x, mm) => `<td class="${hl(mm)}" style="${shade(x)}">${Math.round(x) ? cf(x) : '·'}</td>`;
+  const cell2 = (p, mm) => { const a = val(yN, p, mm, K), b = val(yO, p, mm, K);
+    return `<td class="${hl(mm)}" style="${shade(a)};line-height:1.15"><div>${Math.round(a) ? cf(a) : '·'}</div><div class="mut" style="font-size:10.5px;font-weight:500">${Math.round(b) ? cf(b) : '·'}</div></td>`; };
+  const all = totY(yN, mnum);
+  // like-for-like: months with 2026 data, without the current (partial) month
+  const has26 = (mm) => paises.some((p) => val('2026', p, mm, 'u') || val('2026', p, mm, 'v'));
+  const m26 = mnum.filter(has26); const partial = Y.includes('2026') && m26.length ? m26[m26.length - 1] : null;
+  const LFL = two ? (SM.length ? SM : m26.filter((mm) => mm !== partial)) : mnum;
+  const lflLab = LFL.length ? (LFL.length === 1 ? MES[+LFL[0] - 1] : SM.length ? LFL.map((k) => MES[+k - 1]).join(', ') : `${MES[+LFL[0] - 1]}–${MES[+LFL[LFL.length - 1] - 1]}`) : '';
+  const rows = paises.map((p, i) => { const t = sumY(yN, p), tu = sumY(yN, p, 'u'), tv = sumY(yN, p, 'v');
+    const lead = `<td class="l"><i class="dot" style="background:${PCOL[i % PCOL.length]};margin-right:6px"></i>${ctyCode(p)}</td>`;
+    if (!two) return `<tr>${lead}${mnum.map((mm) => cell1(val(yN, p, mm, K), mm)).join('')}<td class="t">${cf(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`;
+    const to = sumY(yO, p); const dC = dlt(sumY(yN, p, K, LFL), sumY(yO, p, K, LFL));
+    return `<tr>${lead}${mnum.map((mm) => cell2(p, mm)).join('')}<td class="t" style="line-height:1.15"><div>${cf(t)}</div><div class="mut" style="font-size:10.5px;font-weight:500">${cf(to)}</div></td><td class="t">${dTxt(dC) || '—'}</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`; }).join('');
+  const TU = paises.reduce((s, p) => s + sumY(yN, p, 'u'), 0), TV = paises.reduce((s, p) => s + sumY(yN, p, 'v'), 0);
+  let totRow = '';
+  if (paises.length > 1 && !two) totRow = `<tr class="tot"><td class="l">Total</td>${mnum.map((mm) => `<td class="${hl(mm)}">${cf(mt(yN, mm))}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t">100%</td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>`;
+  if (two) { const allO = totY(yO, mnum);
+    totRow = `<tr class="tot"><td class="l">Total ${yN}</td>${mnum.map((mm) => `<td class="${hl(mm)}">${yN !== '2026' || has26(mm) ? cf(mt(yN, mm)) : '—'}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t"></td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>
+      <tr class="tot"><td class="l mut">Total ${yO}</td>${mnum.map((mm) => `<td class="${hl(mm)} mut">${cf(mt(yO, mm))}</td>`).join('')}<td class="t mut">${cf(allO)}</td><td class="t"></td><td class="t mut">${(() => { const u = paises.reduce((s, p) => s + sumY(yO, p, 'u'), 0), v = paises.reduce((s, p) => s + sumY(yO, p, 'v'), 0); return u ? money(v / u, 'USD', 0) : '—'; })()}</td></tr>
+      <tr class="tot"><td class="l">Change</td>${mnum.map((mm) => `<td class="${hl(mm)}">${has26(mm) ? (dTxt(dlt(mt(yN, mm), mt(yO, mm))) || '—') + (mm === partial ? '*' : '') : '—'}</td>`).join('')}<td class="t">${dTxt(dlt(totY(yN, LFL), totY(yO, LFL))) || '—'}</td><td class="t"></td><td class="t"></td></tr>`; }
+  // KPIs: follow company, countries, months, years and metric
+  const mLab = SM.length ? SM.map((k) => MES[+k - 1]).join(', ') : 'all months';
+  const uN = totY(yN), uO = two ? totY(yO) : 0;
+  const prevMM = (mm) => String(+mm - 1).padStart(2, '0');
+  const mUy = (y, mm) => (mnum.includes(mm) ? mt(y, mm) : 0);
+  const best = scopeM.reduce((b, k) => (mUy(yN, k) > mUy(yN, b) ? k : b), scopeM[0]);
+  const lk = SM.length ? SM[SM.length - 1] : (yN === '2026' && mnum.length > 1 ? mnum[mnum.length - 2] : mnum[mnum.length - 1]);
+  let cmp = null;
+  if (two) cmp = { l: `${lflLab} · ${yN} vs ${yO}`, a: totY(yN, LFL), b: totY(yO, LFL) };
+  else if (lk && mnum.includes(prevMM(lk))) cmp = { l: `${MESL[+lk - 1]} vs ${MESL[+prevMM(lk) - 1]} ${yN}`, a: mUy(yN, lk), b: mUy(yN, prevMM(lk)) };
+  const mom = cmp ? dlt(cmp.a, cmp.b) : null;
+  const avgV = uN / Math.max(1, scopeM.filter((k) => mUy(yN, k) || yN !== '2026').length || 1);
+  const nC = paises.filter((p) => scopeM.some((k) => val(yN, p, k, K))).length;
+  const unitW = S$ ? '' : ' units';
+  const kp = `<div class="kpis" style="margin:4px 0 10px"><div class="kpi"><span class="l">${S$ ? 'Sales' : 'Units'} ${yN} · ${esc(mLab)}</span><span class="v">${ufmt(uN)}</span><span class="l">${two ? `${yO}: ${ufmt(uO)}${unitW}${SM.length ? '' : ' (full year)'}` : `${nC} ${nC === 1 ? 'country' : 'countries'}`}</span></div>
+    <div class="kpi"><span class="l">Best month ${yN}${SM.length ? ' (selected)' : ''}</span><span class="v">${best ? MES[+best - 1] : '—'}</span><span class="l">${best ? ufmt(mUy(yN, best)) : 0}${unitW}</span></div>
+    ${cmp ? `<div class="kpi ${mom != null && mom < -10 ? 'alert' : ''}"><span class="l">${esc(cmp.l)}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom == null ? '—' : (mom > 0 ? '+' : '') + nf(0).format(mom) + '%'}</span><span class="l">${ufmt(cmp.a)} vs ${ufmt(cmp.b)}${unitW}</span></div>` : ''}
+    <div class="kpi"><span class="l">Monthly average ${yN}</span><span class="v">${ufmt(avgV)}</span><span class="l">${S$ ? 'per month' : 'units per month'}</span></div></div>`;
+  const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % PCOL.length]}"></i>${ctyCode(p)}</span>`).join('')}${two ? `<span style="margin-left:8px"><i style="background:${PCOL[0]}"></i>${yN}</span><span><i style="background:${PCOL[0]};opacity:.38"></i>${yO}</span>` : ''}</div>`;
+  const src = (two ? `<p class="hint" style="margin-top:8px">Change = ${yN} vs ${yO} for ${esc(lflLab)}${SM.length ? '' : ' (complete months of 2026)'}${partial ? `. * ${MESL[+partial - 1]} 2026 is still in progress` : ''}.</p>` : '') + (Y.includes('2025') ? `<p class="hint" style="margin-top:8px">2025: Amazon settlement reports (V2) by date the order was settled — product charges minus refunds, net units.${Y.includes('2026') ? ' 2026: Seller Central ordered sales/units.' : ''}</p>` : '') + (S$ ? '<p class="hint" style="margin-top:4px">US$ at the ECB rate of 8 Oct.</p>' : '');
   return kp + leg + `<div class="chart" id="chUnits"></div>` +
-    `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">Country</th>${months.map((k) => `<th>${MES[+k.slice(5, 7) - 1]}</th>`).join('')}<th>Total</th><th>% ${S$ ? 'sales' : 'units'}</th><th>US$/unit</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` +
-    (S$ ? '<p class="hint" style="margin-top:8px">Sales in US$ (ordered sales, Seller Central), local currencies converted at the ECB rate of 8 Oct.</p>' : '') +
-    (months[months.length - 1] ? `<p class="hint" style="margin-top:6px">${MESL[+months[months.length - 1].slice(5, 7) - 1]} runs to day ${fdate(amzDays(A).reduce((x, r) => (r.f > x ? r.f : x), '')).d}.</p>` : '');
+    `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">Country</th>${mnum.map((mm) => `<th>${MES[+mm - 1]}</th>`).join('')}<th>Total</th><th>${two ? 'Change' : '% ' + (S$ ? 'sales' : 'units')}</th><th>US$/unit</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` + src +
+    (Y.includes('2026') && partial ? `<p class="hint" style="margin-top:6px">${MESL[+partial - 1]} 2026 runs to day ${fdate(amzDays(A).reduce((x, r) => (r.f > x ? r.f : x), '')).d}.</p>` : '');
 }
 function unitsChart(box, A, P) {
-  const { months, paises, m } = unitsData(A); const K = UMET();
-  const W = Math.max(300, box.clientWidth), H = 220, mt = 10, mb = 24, ml = 40, mr = 4;
-  const totals = months.map((k) => paises.reduce((s, p) => s + m[p][k][K], 0));
-  const ticks = niceTicks(0, Math.max(1, ...totals), 4); const top = ticks[ticks.length - 1];
+  const { Y, mnum, paises, val } = unitsCube(A); const K = UMET(); const two = Y.length === 2;
+  const W = Math.max(300, box.clientWidth), H = 230, mt = 14, mb = 24, ml = 44, mr = 4;
+  const tot = (y, mm) => paises.reduce((s, p) => s + Math.max(0, val(y, p, mm, K)), 0);
+  const top0 = Math.max(1, ...Y.flatMap((y) => mnum.map((mm) => tot(y, mm))));
+  const ticks = niceTicks(0, top0, 4); const top = ticks[ticks.length - 1];
   const iw = W - ml - mr, ih = H - mt - mb; const y = (v) => mt + ih - v / top * ih;
-  const step = iw / months.length, bw = Math.min(34, step * .62);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Unidades vendidas por mes y país">`;
+  const step = iw / Math.max(1, mnum.length); const gap = two ? 3 : 0; const bw = two ? Math.min(22, step * 0.36) : Math.min(34, step * 0.62);
+  const lab = (x) => (K === 'v' ? compact(x) : nf(0).format(x));
+  const sel = perMonths(P);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Amazon by month and country">`;
   ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t ? 'stroke-dasharray="2 4"' : ''}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${compact(t)}</text>`; });
-  months.forEach((k, i) => { const x = ml + step * i + (step - bw) / 2; let acc = 0; const op = perMonths(P).length && !perMonths(P).includes(k) ? 0.3 : 1;
-    paises.forEach((p, j) => { const u = m[p][k][K]; if (!(u > 0)) return; const y1 = y(acc + u), y0 = y(acc); s += `<rect x="${x}" y="${y1}" width="${bw}" height="${Math.max(0, y0 - y1 - (acc + u < totals[i] ? 1.5 : 0))}" fill="${PCOL[j % PCOL.length]}" opacity="${op}"/>`; acc += u; });
-    s += `<text x="${x + bw / 2}" y="${y(totals[i]) - 4}" text-anchor="middle" style="font-weight:600">${K === 'v' ? compact(totals[i]) : totals[i]}</text>`;
-    s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${MES[+k.slice(5, 7) - 1]}</text>`;
+  mnum.forEach((mm, i) => { const op0 = sel.length && !sel.includes(mm) ? 0.3 : 1; const x0 = ml + step * i + (step - (two ? bw * 2 + gap : bw)) / 2;
+    Y.forEach((yy, yi) => { const x = x0 + (two ? yi * (bw + gap) : 0); const old = two && yy !== Y[Y.length - 1]; let acc = 0; const T = tot(yy, mm);
+      paises.forEach((p, j) => { const u = val(yy, p, mm, K); if (!(u > 0)) return; const y1 = y(acc + u), y0 = y(acc); s += `<rect x="${x}" y="${y1}" width="${bw}" height="${Math.max(0, y0 - y1 - (acc + u < T ? 1.2 : 0))}" rx="1.5" fill="${PCOL[j % PCOL.length]}" opacity="${op0 * (old ? 0.38 : 1)}"/>`; acc += u; });
+      if (T) s += `<text x="${x + bw / 2}" y="${y(T) - 4}" text-anchor="middle" style="font-weight:600;font-size:${two ? 9 : 11}px${old ? ';fill:var(--muted)' : ''}">${lab(T)}</text>`; });
+    s += `<text x="${ml + step * i + step / 2}" y="${H - 8}" text-anchor="middle">${MES[+mm - 1]}</text>`;
     s += `<rect data-i="${i}" x="${ml + step * i}" y="0" width="${step}" height="${H}" fill="transparent"/>`; });
   box.innerHTML = s + '</svg>';
-  const tip = tipFor(box);
-  box.querySelectorAll('rect[data-i]').forEach((el) => { const show = () => { const i = +el.dataset.i, k = months[i], sc = box.clientWidth / W;
-      tip.show((ml + step * i + step / 2) * sc, y(totals[i]) * sc, `${MESL[+k.slice(5, 7) - 1]} 2026`, paises.map((p, j) => [PCOL[j % PCOL.length], p, ufmt(m[p][k][K]) + (K === 'v' ? '' : ' units')]).concat([[null, 'Total', ufmt(totals[i]) + (K === 'v' ? '' : ' units')]])); };
+  const tip = tipFor(box); const unit = K === 'v' ? '' : ' units';
+  box.querySelectorAll('rect[data-i]').forEach((el) => { const show = () => { const i = +el.dataset.i, mm = mnum[i], sc = box.clientWidth / W;
+      const rowsT = two ? paises.map((p, j) => [PCOL[j % PCOL.length], `${(AMZ_CTY[p] || [0, 0, p])[2]}`, `${ufmt(val(Y[1], p, mm, K))} · ${Y[0]}: ${ufmt(val(Y[0], p, mm, K))}`]).concat([[null, 'Total', `${ufmt(tot(Y[1], mm))} · ${Y[0]}: ${ufmt(tot(Y[0], mm))}`]])
+        : paises.map((p, j) => [PCOL[j % PCOL.length], (AMZ_CTY[p] || [0, 0, p])[2], ufmt(val(Y[0], p, mm, K)) + unit]).concat([[null, 'Total', ufmt(tot(Y[0], mm)) + unit]]);
+      tip.show((ml + step * i + step / 2) * sc, y(Math.max(...Y.map((yy) => tot(yy, mm)))) * sc, `${MESL[+mm - 1]} ${two ? Y[1] + ' vs ' + Y[0] : Y[0]}`, rowsT); };
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
 async function downloadUnits() {
@@ -2613,17 +2656,17 @@ const AMZ_CTY = { 'Estados Unidos': ['America', '🇺🇸', 'United States', '.c
   'Japón': ['Asia Pacific', '🇯🇵', 'Japan', '.co.jp'], 'Australia': ['Asia Pacific', '🇦🇺', 'Australia', '.com.au'], 'India': ['Asia Pacific', '🇮🇳', 'India', '.in'], 'Singapur': ['Asia Pacific', '🇸🇬', 'Singapore', '.sg'],
   'Reino Unido': ['Europe', '🇬🇧', 'United Kingdom', '.co.uk'], 'Alemania': ['Europe', '🇩🇪', 'Germany', '.de'], 'Francia': ['Europe', '🇫🇷', 'France', '.fr'], 'España': ['Europe', '🇪🇸', 'Spain', '.es'], 'Italia': ['Europe', '🇮🇹', 'Italy', '.it'], 'Países Bajos': ['Europe', '🇳🇱', 'Netherlands', '.nl'], 'Suecia': ['Europe', '🇸🇪', 'Sweden', '.se'], 'Polonia': ['Europe', '🇵🇱', 'Poland', '.pl'], 'Bélgica': ['Europe', '🇧🇪', 'Belgium', '.com.be'], 'Irlanda': ['Europe', '🇮🇪', 'Ireland', '.ie'], 'Turquía': ['Europe', '🇹🇷', 'Turkey', '.com.tr'] };
 const AMZ_EU = ['Alemania', 'Francia', 'España', 'Italia', 'Países Bajos', 'Suecia', 'Polonia', 'Bélgica', 'Irlanda'];
-function amzCtyAll(A) { return [...new Set(Object.keys(A.dias || {}).concat((A.paises_mes || []).map((r) => r.pais)))]; }
+function amzCtyAll(A) { return [...new Set(Object.keys(A.dias || {}).concat((A.paises_mes || []).map((r) => r.pais), Object.keys((A.hist || {})['2025'] || {})))]; }
 function amzFilt(A) {
   if (!A) return A; const S = (state.amzCty || []).filter((c) => amzCtyAll(A).includes(c)); if (!S.length) return A;
   const inS = (p) => S.includes(p); const dias = Object.fromEntries(Object.entries(A.dias || {}).filter(([p]) => inS(p)));
   const eu = S.some((c) => AMZ_EU.includes(c));
   return Object.assign({}, A, { dias, paises_mes: A.paises_mes ? A.paises_mes.filter((r) => inS(r.pais)) : A.paises_mes, fba: (A.fba || []).filter((f) => inS(f.pais || 'Estados Unidos') || (eu && /Europa/.test(f.pais || ''))),
-    detalle_paises: Object.fromEntries(Object.entries(A.detalle_paises || {}).filter(([k, J]) => inS(k) || inS(J.stock_pais) || (k === 'Europa' && eu))), liquidaciones: inS('Estados Unidos') ? A.liquidaciones : [], depositos: inS('Estados Unidos') ? A.depositos : [], __cty: S });
+    detalle_paises: Object.fromEntries(Object.entries(A.detalle_paises || {}).filter(([k, J]) => inS(k) || inS(J.stock_pais) || (k === 'Europa' && eu))), liquidaciones: inS('Estados Unidos') ? A.liquidaciones : [], depositos: inS('Estados Unidos') ? A.depositos : [], hist: A.hist ? { '2025': Object.fromEntries(Object.entries(A.hist['2025'] || {}).filter(([p]) => inS(p))) } : A.hist, __cty: S });
 }
 function amzCtySel(A) {
   const tot = {}; Object.entries(A.dias || {}).forEach(([p, o]) => { const fx = (A.fx || {})[o.moneda] || 1; tot[p] = (tot[p] || 0) + (o.rows || []).reduce((s, r) => s + r[1] * fx, 0); });
-  (A.paises_mes || []).forEach((r) => { if (!(A.dias || {})[r.pais]) tot[r.pais] = (tot[r.pais] || 0) + (+r.usd || 0); });
+  Object.entries(((A.hist || {})['2025']) || {}).forEach(([p, ms]) => { Object.values(ms).forEach((v) => { tot[p] = (tot[p] || 0) + v[0] * ((A.fx || {})[v[2]] || 1); }); });
   const all = Object.keys(tot).filter((c) => tot[c] > 0.5).sort((x, y) => tot[y] - tot[x]);
   const S = (state.amzCty || []).filter((c) => all.includes(c));
   const chip = (attr, on, lab) => `<button class="ctyc" ${attr} aria-pressed="${on}" style="padding:0 10px;height:34px">${lab}</button>`;
@@ -2639,7 +2682,8 @@ function amzA(k) {
   const cat = (k) => L.flatMap((A, i) => (A[k] || []).map((x) => (typeof x === 'object' ? Object.assign({ _emp: ['HUNTER', 'JEER'][i] }, x) : x)));
   const sum = (k) => L.reduce((s, A) => s + (+A[k] || 0), 0);
   const np = L.map((A) => A.proximo_pago).filter(Boolean).sort()[0];
-  amzA.__c = { dias, fx, paises: cat('paises'), fba: cat('fba'), liquidaciones: cat('liquidaciones').sort((a, b) => ((b.periodo_fin || '') < (a.periodo_fin || '') ? -1 : 1)), depositos: cat('depositos'), paises_mes: cat('paises_mes').length ? cat('paises_mes') : null,
+  const hist = { '2025': {} }; L.forEach((A) => Object.entries(((A.hist || {})['2025']) || {}).forEach(([p, ms]) => { const d = (hist['2025'][p] = hist['2025'][p] || {}); Object.entries(ms).forEach(([m, v]) => { const c = (d[m] = d[m] || [0, 0, v[2]]); c[0] += v[0]; c[1] += v[1]; }); }));
+  amzA.__c = { hist, dias, fx, paises: cat('paises'), fba: cat('fba'), liquidaciones: cat('liquidaciones').sort((a, b) => ((b.periodo_fin || '') < (a.periodo_fin || '') ? -1 : 1)), depositos: cat('depositos'), paises_mes: cat('paises_mes').length ? cat('paises_mes') : null,
     detalle_paises: Object.assign({}, ...L.map((A) => A.detalle_paises || {})), saldo_amazon: sum('saldo_amazon'), pago_en_proceso: sum('pago_en_proceso'), saldo_diferido: sum('saldo_diferido'), proximo_pago: np,
     estado_cuenta: L.every((A) => A.estado_cuenta === 'En buen estado') ? 'En buen estado' : L.map((A) => A.estado_cuenta).join(' / '), valoracion: null, cuenta_amazon: 'HUNTER + JEER', banco_liq: 'Wells Fargo / Mercury', leido: L.map((A) => A.leido).sort().pop() };
   return amzA.__c;
@@ -2649,7 +2693,8 @@ function amzDays(A) {
   Object.entries(A.dias || {}).forEach(([pais, o]) => (o.rows || []).forEach(([f, v, u]) => out.push({ pais, mon: o.moneda, f, v, u, usd: v * (fx[o.moneda] || 1) })));
   return out;
 }
-function perMonths(P) { return /^\d{4}-\d\d(,\d{4}-\d\d)*$/.test(P || '') ? P.split(',') : []; }
+function perMonths(P) { return /^\d\d(,\d\d)*$/.test(P || '') ? P.split(',') : []; }
+function amzYrs() { const Y = (state.amzYrs || ['2026']).filter((y) => y === '2025' || y === '2026'); return Y.length ? Y.sort() : ['2026']; }
 function inPer(f, P, A) {
   if (P === 'ytd') return true;
   if (P === '30d') { const last = amzDays(A).reduce((m, r) => (r.f > m ? r.f : m), ''); const d0 = new Date(last); d0.setDate(d0.getDate() - 29); return f >= d0.toISOString().slice(0, 10); }
@@ -2858,9 +2903,10 @@ const AFTER = {
       document.querySelectorAll('[data-pacc]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.pagAcc = b.dataset.pacc; render(); scrollTo({ top: y }); }));
       return;
     }
+    document.querySelectorAll('[data-ayr]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.ayr; let L = amzYrs(); L = L.includes(k) ? L.filter((x) => x !== k) : L.concat(k); if (!L.length) L = [k]; state.amzYrs = L.sort(); const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-amet]').forEach((b) => b.addEventListener('click', () => { state.amzMet = b.dataset.amet; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { const cur = state.amz === 'BOTH' ? ['HUNTER', 'JEER'] : [state.amz]; const k = b.dataset.amz; let n = cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k); if (!n.length) n = [k]; state.amz = n.length === 2 ? 'BOTH' : n[0]; state.amzStockPais = ''; render(); } }));
-    document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { const v = b.dataset.per; if (/^\d{4}-\d\d$/.test(v)) { let L = perMonths(state.amzPer); L = L.includes(v) ? L.filter((x) => x !== v) : L.concat(v).sort(); state.amzPer = L.length ? L.join(',') : 'ytd'; } else state.amzPer = v; const y = scrollY; render(); scrollTo({ top: y }); }));
+    document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { const v = b.dataset.per; if (/^\d\d$/.test(v)) { let L = perMonths(state.amzPer); L = L.includes(v) ? L.filter((x) => x !== v) : L.concat(v).sort(); state.amzPer = L.length ? L.join(',') : 'ytd'; } else state.amzPer = v; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     document.querySelectorAll('[data-ctyd]').forEach((d) => d.addEventListener('toggle', () => { state.amzCtyOpen = d.open; }));
     const ctyRe = () => { const y = scrollY; render(); scrollTo({ top: y }); };
