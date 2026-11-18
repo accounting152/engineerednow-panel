@@ -144,7 +144,7 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .utbl{border-collapse:separate;border-spacing:3px;width:100%;font-size:13px;min-width:560px}
 .utbl th{font-weight:600;color:var(--muted);font-size:11.5px;text-align:center;padding:4px 2px;white-space:nowrap}
 .utbl th.l,.utbl td.l{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;padding-right:8px;white-space:nowrap;font-weight:600;color:var(--fg)}
-.utbl td{text-align:center;padding:7px 4px;border-radius:7px;font-family:var(--mono);font-variant-numeric:tabular-nums;position:relative}
+.utbl td{text-align:center;padding:6px 3px;border-radius:7px;white-space:nowrap;font-size:11.5px;font-family:var(--mono);font-variant-numeric:tabular-nums;position:relative}
 .utbl td.h{outline:2px solid var(--fg);outline-offset:-2px}
 .utbl tr.tot td{font-weight:700;border-top:1px solid var(--line)}
 .utbl td.t{background:var(--surface2);font-weight:700}
@@ -2543,7 +2543,7 @@ function unitsBlock(A, P) {
   const two = Y.length === 2, yN = Y[Y.length - 1], yO = Y[0];
   const SM = perMonths(P).filter((k) => mnum.includes(k)); const scopeM = SM.length ? SM : mnum;
   const col = COL[state.amz];
-  const cf = (x) => (S$ ? compact(x) : nf(0).format(x));
+  const cf = (x) => (S$ ? compact(x).replace(' ', '') : nf(0).format(x));
   const mt = (y, mm) => paises.reduce((s, p) => s + val(y, p, mm, K), 0);
   const sumY = (y, p, KK = K, ms = mnum) => ms.reduce((s, mm) => s + val(y, p, mm, KK), 0);
   const totY = (y, ms = scopeM, KK = K) => paises.reduce((s, p) => s + sumY(y, p, KK, ms), 0);
@@ -2551,10 +2551,10 @@ function unitsBlock(A, P) {
   const hl = (mm) => (SM.includes(mm) ? 'h' : '');
   const shade = (x) => `background:color-mix(in srgb, ${col} ${x > 0 ? Math.round(8 + x / max * 62) : 0}%, var(--surface2))`;
   const dlt = (a, b) => (b > 0 ? (a - b) / b * 100 : null);
-  const dTxt = (d) => (d == null ? '' : `<span class="${d < 0 ? 'bad' : 'ok'}" style="font-size:10.5px;font-weight:700">${d > 0 ? '+' : ''}${nf(0).format(d)}%</span>`);
+  const dTxt = (d0) => { if (d0 == null) return ''; const d = Math.round(d0) || 0; return `<span class="${d < 0 ? 'bad' : 'ok'}" style="font-size:10.5px;font-weight:700">${d > 0 ? '+' : ''}${nf(0).format(d)}%</span>`; };
   const cell1 = (x, mm) => `<td class="${hl(mm)}" style="${shade(x)}">${Math.round(x) ? cf(x) : '·'}</td>`;
   const cell2 = (p, mm) => { const a = val(yN, p, mm, K), b = val(yO, p, mm, K);
-    return `<td class="${hl(mm)}" style="${shade(a)};line-height:1.15"><div>${Math.round(a) ? cf(a) : '·'}</div><div class="mut" style="font-size:10.5px;font-weight:500">${Math.round(b) ? cf(b) : '·'}</div></td>`; };
+    return `<td class="${hl(mm)}" style="${shade(a)};line-height:1.15"><div>${Math.round(a) ? cf(a) : '·'}</div><div class="mut" style="font-size:9.5px;font-weight:500">${Math.round(b) ? cf(b) : '·'}</div></td>`; };
   const all = totY(yN, mnum);
   // like-for-like: months with 2026 data, without the current (partial) month
   const has26 = (mm) => paises.some((p) => val('2026', p, mm, 'u') || val('2026', p, mm, 'v'));
@@ -2565,7 +2565,7 @@ function unitsBlock(A, P) {
     const lead = `<td class="l"><i class="dot" style="background:${PCOL[i % PCOL.length]};margin-right:6px"></i>${ctyCode(p)}</td>`;
     if (!two) return `<tr>${lead}${mnum.map((mm) => cell1(val(yN, p, mm, K), mm)).join('')}<td class="t">${cf(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`;
     const to = sumY(yO, p); const dC = dlt(sumY(yN, p, K, LFL), sumY(yO, p, K, LFL));
-    return `<tr>${lead}${mnum.map((mm) => cell2(p, mm)).join('')}<td class="t" style="line-height:1.15"><div>${cf(t)}</div><div class="mut" style="font-size:10.5px;font-weight:500">${cf(to)}</div></td><td class="t">${dTxt(dC) || '—'}</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`; }).join('');
+    return `<tr>${lead}${mnum.map((mm) => cell2(p, mm)).join('')}<td class="t" style="line-height:1.15"><div>${cf(t)}</div><div class="mut" style="font-size:9.5px;font-weight:500">${cf(to)}</div></td><td class="t">${dTxt(dC) || '—'}</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`; }).join('');
   const TU = paises.reduce((s, p) => s + sumY(yN, p, 'u'), 0), TV = paises.reduce((s, p) => s + sumY(yN, p, 'v'), 0);
   let totRow = '';
   if (paises.length > 1 && !two) totRow = `<tr class="tot"><td class="l">Total</td>${mnum.map((mm) => `<td class="${hl(mm)}">${cf(mt(yN, mm))}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t">100%</td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>`;
