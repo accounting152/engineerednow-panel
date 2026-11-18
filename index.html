@@ -816,8 +816,8 @@ _amazonInner() {
 },
 _amazonMain() {
   const AM = D.amazon || {};
-  const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Not connected yet'}</span></div></button>`; };
-  const sel = `<div class="amzsel" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${btn('HUNTER', 'US and 12 more countries')}<button class="amzbtn" style="--cc:${COL.BOTH}" data-amz="BOTH" aria-pressed="${state.amz === 'BOTH'}"><span class="lg">+</span><div><b>HUNTER + JEER</b><span>Both accounts together</span></div></button>${btn('JEER', 'US, Canada, Mexico, Brazil')}</div>`;
+  const btn = (k, sub) => { const has = !!AM[k]; return `<button class="amzbtn" style="--cc:${COL[k]}" data-amz="${k}" aria-pressed="${state.amz === k || state.amz === 'BOTH'}" ${has ? '' : 'disabled'}><span class="lg">${k[0]}</span><div><b>${k}</b><span>${has ? sub : 'Not connected yet'}</span></div></button>`; };
+  const sel = `<div class="amzsel" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${btn('HUNTER', 'US and 12 more countries')}${btn('JEER', 'US, Canada, Mexico, Brazil')}</div>`;
   const A0 = amzA(state.amz);
   if (!A0) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
   const A = amzFilt(A0);
@@ -2858,7 +2858,7 @@ const AFTER = {
       document.querySelectorAll('[data-pacc]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; state.pagAcc = b.dataset.pacc; render(); scrollTo({ top: y }); }));
       return;
     }
-    document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { state.amz = b.dataset.amz; state.amzStockPais = ''; render(); } }));
+    document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { const cur = state.amz === 'BOTH' ? ['HUNTER', 'JEER'] : [state.amz]; const k = b.dataset.amz; let n = cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k); if (!n.length) n = [k]; state.amz = n.length === 2 ? 'BOTH' : n[0]; state.amzStockPais = ''; render(); } }));
     document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { const v = b.dataset.per; if (/^\d{4}-\d\d$/.test(v)) { let L = perMonths(state.amzPer); L = L.includes(v) ? L.filter((x) => x !== v) : L.concat(v).sort(); state.amzPer = L.length ? L.join(',') : '30d'; } else state.amzPer = v; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     document.querySelectorAll('[data-ctyd]').forEach((d) => d.addEventListener('toggle', () => { state.amzCtyOpen = d.open; }));
