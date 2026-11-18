@@ -438,7 +438,7 @@ async function decrypt(pw) {
 
 let D = null;
 let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
-const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: '30d', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
+const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: 'ytd', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -821,9 +821,9 @@ _amazonMain() {
   const A0 = amzA(state.amz);
   if (!A0) return sel + `<div class="card mut">No Amazon data yet for ${state.amz}.</div>`;
   const A = amzFilt(A0);
-  const P = state.amzPer || '30d';
+  const P = (state.amzPer && state.amzPer !== '30d' ? state.amzPer : 'ytd');
   const months = [...new Set(amzDays(A).map((r) => r.f.slice(0, 7)))].sort();
-  const perBtns = [['30d', '30 days'], ['ytd', 'Year']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v || perMonths(P).includes(v)}" data-per="${v}">${l}</button>`).join('');
+  const perBtns = [['ytd', 'Year']].concat(months.map((m) => [m, MES[+m.slice(5, 7) - 1]])).map(([v, l]) => `<button aria-pressed="${P === v || perMonths(P).includes(v)}" data-per="${v}">${l}</button>`).join('');
   const D2 = amzDays(A).filter((r) => inPer(r.f, P, A));
   const v = D2.reduce((s, r) => s + r.usd, 0), u = D2.reduce((s, r) => s + r.u, 0);
   const scope = Object.keys(A.dias || {}).length > 1 ? Object.keys(A.dias).join(', ') : 'US';
@@ -2859,7 +2859,7 @@ const AFTER = {
       return;
     }
     document.querySelectorAll('[data-amz]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { const cur = state.amz === 'BOTH' ? ['HUNTER', 'JEER'] : [state.amz]; const k = b.dataset.amz; let n = cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k); if (!n.length) n = [k]; state.amz = n.length === 2 ? 'BOTH' : n[0]; state.amzStockPais = ''; render(); } }));
-    document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { const v = b.dataset.per; if (/^\d{4}-\d\d$/.test(v)) { let L = perMonths(state.amzPer); L = L.includes(v) ? L.filter((x) => x !== v) : L.concat(v).sort(); state.amzPer = L.length ? L.join(',') : '30d'; } else state.amzPer = v; const y = scrollY; render(); scrollTo({ top: y }); }));
+    document.querySelectorAll('[data-per]').forEach((b) => b.addEventListener('click', () => { const v = b.dataset.per; if (/^\d{4}-\d\d$/.test(v)) { let L = perMonths(state.amzPer); L = L.includes(v) ? L.filter((x) => x !== v) : L.concat(v).sort(); state.amzPer = L.length ? L.join(',') : 'ytd'; } else state.amzPer = v; const y = scrollY; render(); scrollTo({ top: y }); }));
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     document.querySelectorAll('[data-ctyd]').forEach((d) => d.addEventListener('toggle', () => { state.amzCtyOpen = d.open; }));
     const ctyRe = () => { const y = scrollY; render(); scrollTo({ top: y }); };
@@ -2867,7 +2867,7 @@ const AFTER = {
     document.querySelectorAll('[data-ctyall]').forEach((c) => c.addEventListener('click', () => { state.amzCty = []; ctyRe(); }));
     document.querySelectorAll('[data-ctyb]').forEach((c) => c.addEventListener('click', () => { const all = [...document.querySelectorAll('[data-ctyb]')].map((x) => x.dataset.ctyb); const k = c.dataset.ctyb; let S = (state.amzCty || []).filter((x) => all.includes(x)); S = S.includes(k) ? S.filter((x) => x !== k) : S.concat(k); state.amzCty = S.length === all.length ? [] : S; ctyRe(); }));
     const A = amzFilt(amzA(state.amz)); if (!A) return;
-    const P = state.amzPer || '30d';
+    const P = (state.amzPer && state.amzPer !== '30d' ? state.amzPer : 'ytd');
     const days = amzDays(A);
     const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
     const sel = days.filter((r) => inPer(r.f, P, A));
