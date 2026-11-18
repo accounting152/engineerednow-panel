@@ -2527,14 +2527,33 @@ function unitsBlock(A, P) {
   const rows = paises.map((p, i) => { const t = tot(p); const v = months.reduce((s, k) => s + m[p][k].v, 0);
     return `<tr><td class="l"><i class="dot" style="background:${PCOL[i % PCOL.length]};margin-right:6px"></i>${esc(p)}</td>${months.map((k) => cell(m[p][k].u, k)).join('')}<td class="t">${nf(0).format(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${t ? money(v / t, 'USD', 0) : '—'}</td></tr>`; }).join('');
   const totRow = paises.length > 1 ? `<tr class="tot"><td class="l">Total</td>${months.map((k) => `<td class="${perMonths(P).includes(k) ? 'h' : ''}">${nf(0).format(mt(k))}</td>`).join('')}<td class="t">${nf(0).format(all)}</td><td class="t">100%</td><td class="t">${all ? money(paises.reduce((s, p) => s + months.reduce((a, k) => a + m[p][k].v, 0), 0) / all, 'USD', 0) : '—'}</td></tr>` : '';
-  // month-over-month for last complete month vs previous
-  const lastFull = months.length > 2 ? months[months.length - 2] : null, prev = months.length > 2 ? months[months.length - 3] : null;
-  const mom = lastFull ? (mt(lastFull) - mt(prev)) / Math.max(1, mt(prev)) * 100 : null;
-  const best = months.reduce((b, k) => (mt(k) > mt(b) ? k : b), months[0]);
-  const kp = `<div class="kpis" style="margin:4px 0 10px"><div class="kpi"><span class="l">Units 2026</span><span class="v">${nf(0).format(all)}</span><span class="l">${paises.length} ${paises.length === 1 ? 'country' : 'countries'}</span></div>
-    <div class="kpi"><span class="l">Best month</span><span class="v">${MES[+best.slice(5, 7) - 1]}</span><span class="l">${nf(0).format(mt(best))} units</span></div>
-    ${lastFull ? `<div class="kpi ${mom < -10 ? 'alert' : ''}"><span class="l">${MESL[+lastFull.slice(5, 7) - 1]} vs ${MESL[+prev.slice(5, 7) - 1]}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom > 0 ? '+' : ''}${nf(0).format(mom)}%</span><span class="l">${nf(0).format(mt(lastFull))} vs ${nf(0).format(mt(prev))} units</span></div>` : ''}
-    <div class="kpi"><span class="l">Monthly average</span><span class="v">${nf(0).format(all / Math.max(1, months.length))}</span><span class="l">units per month</span></div></div>`;
+  // KPIs follow the selection: company (A), countries (amzFilt) and period (P)
+  const SM = perMonths(P).filter((k) => months.includes(k));
+  const days = amzDays(A); const dU = (f0, f1) => days.filter((r) => r.f >= f0 && r.f <= f1).reduce((s, r) => s + r.u, 0);
+  const lastDay = days.reduce((x, r) => (r.f > x ? r.f : x), '');
+  const shift = (f, n) => { const d = new Date(f + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const prevM = (k) => { const d = new Date(k + '-01T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); };
+  const mU = (k) => (months.includes(k) ? mt(k) : 0);
+  let uSel, perLab, cmp = null, avgV, avgL;
+  const scopeM = SM.length ? SM : months;
+  if (P === '30d') {
+    const f0 = shift(lastDay, -29); uSel = dU(f0, lastDay); perLab = 'last 30 days';
+    const pv = dU(shift(f0, -30), shift(f0, -1)); cmp = { l: 'Last 30 days vs previous 30', a: uSel, b: pv };
+    avgV = uSel / 30; avgL = 'units per day';
+  } else {
+    uSel = scopeM.reduce((s, k) => s + mU(k), 0);
+    perLab = SM.length ? SM.map((k) => MES[+k.slice(5, 7) - 1]).join(', ') + ' 2026' : '2026';
+    const lk = SM.length ? SM[SM.length - 1] : (months.length > 1 ? months[months.length - 2] : null);
+    if (lk && months.includes(prevM(lk))) cmp = { l: `${MESL[+lk.slice(5, 7) - 1]} vs ${MESL[+prevM(lk).slice(5, 7) - 1]}`, a: mU(lk), b: mU(prevM(lk)) };
+    avgV = uSel / Math.max(1, scopeM.length); avgL = 'units per month';
+  }
+  const mom = cmp ? (cmp.a - cmp.b) / Math.max(1, cmp.b) * 100 : null;
+  const best = scopeM.reduce((b, k) => (mU(k) > mU(b) ? k : b), scopeM[0]);
+  const nC = P === '30d' ? new Set(days.filter((r) => r.u && r.f >= shift(lastDay, -29)).map((r) => r.pais)).size : paises.filter((p) => scopeM.some((k) => m[p][k].u)).length;
+  const kp = `<div class="kpis" style="margin:4px 0 10px"><div class="kpi"><span class="l">Units · ${esc(perLab)}</span><span class="v">${nf(0).format(uSel)}</span><span class="l">${nC} ${nC === 1 ? 'country' : 'countries'}</span></div>
+    <div class="kpi"><span class="l">Best month${SM.length ? ' (selected)' : ''}</span><span class="v">${best ? MES[+best.slice(5, 7) - 1] : '—'}</span><span class="l">${best ? nf(0).format(mU(best)) : 0} units</span></div>
+    ${cmp ? `<div class="kpi ${mom < -10 ? 'alert' : ''}"><span class="l">${esc(cmp.l)}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom > 0 ? '+' : ''}${nf(0).format(mom)}%</span><span class="l">${nf(0).format(cmp.a)} vs ${nf(0).format(cmp.b)} units</span></div>` : ''}
+    <div class="kpi"><span class="l">${P === '30d' ? 'Daily average' : 'Monthly average'}</span><span class="v">${nf(P === '30d' ? 1 : 0).format(avgV)}</span><span class="l">${avgL}</span></div></div>`;
   const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % PCOL.length]}"></i>${esc(p)}</span>`).join('')}</div>`;
   const note = A.paises_mes ? '<p class="hint" style="margin-top:8px">Countries that only appear in QuickBooks (Canada, Mexico, Brazil) have no units: QuickBooks records amounts, not units.</p>' : (A.nota_stock && /Canadá/.test(A.nota_stock) ? '' : '');
   return kp + leg + `<div class="chart" id="chUnits"></div>` +
