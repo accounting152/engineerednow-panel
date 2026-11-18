@@ -2555,24 +2555,25 @@ function unitsBlock(A, P) {
   const cell1 = (x, mm) => `<td class="${hl(mm)}" style="${shade(x)}">${Math.round(x) ? cf(x) : '·'}</td>`;
   const cell2 = (p, mm) => { const a = val(yN, p, mm, K), b = val(yO, p, mm, K);
     return `<td class="${hl(mm)}" style="${shade(a)};line-height:1.15"><div>${Math.round(a) ? cf(a) : '·'}</div><div class="mut" style="font-size:9.5px;font-weight:500">${Math.round(b) ? cf(b) : '·'}</div></td>`; };
-  const all = totY(yN, mnum);
+  const TM = SM.length ? SM : mnum; // months summed in Total / Change
+  const all = totY(yN, TM);
   // like-for-like: months with 2026 data, without the current (partial) month
   const has26 = (mm) => paises.some((p) => val('2026', p, mm, 'u') || val('2026', p, mm, 'v'));
   const m26 = mnum.filter(has26); const partial = Y.includes('2026') && m26.length ? m26[m26.length - 1] : null;
   const LFL = two ? (SM.length ? SM : m26.filter((mm) => mm !== partial)) : mnum;
   const lflLab = LFL.length ? (LFL.length === 1 ? MES[+LFL[0] - 1] : SM.length ? LFL.map((k) => MES[+k - 1]).join(', ') : `${MES[+LFL[0] - 1]}–${MES[+LFL[LFL.length - 1] - 1]}`) : '';
-  const rows = paises.map((p, i) => { const t = sumY(yN, p), tu = sumY(yN, p, 'u'), tv = sumY(yN, p, 'v');
+  const rows = paises.map((p, i) => { const t = sumY(yN, p, K, TM), tu = sumY(yN, p, 'u', TM), tv = sumY(yN, p, 'v', TM);
     const lead = `<td class="l"><i class="dot" style="background:${PCOL[i % PCOL.length]};margin-right:6px"></i>${ctyCode(p)}</td>`;
     if (!two) return `<tr>${lead}${mnum.map((mm) => cell1(val(yN, p, mm, K), mm)).join('')}<td class="t">${cf(t)}</td><td class="t">${all ? nf(0).format(t / all * 100) : 0}%</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`;
-    const to = sumY(yO, p); const dC = dlt(sumY(yN, p, K, LFL), sumY(yO, p, K, LFL));
+    const to = sumY(yO, p, K, TM); const dC = dlt(t, to);
     return `<tr>${lead}${mnum.map((mm) => cell2(p, mm)).join('')}<td class="t" style="line-height:1.15"><div>${cf(t)}</div><div class="mut" style="font-size:9.5px;font-weight:500">${cf(to)}</div></td><td class="t">${dTxt(dC) || '—'}</td><td class="t">${tu ? money(tv / tu, 'USD', 0) : '—'}</td></tr>`; }).join('');
-  const TU = paises.reduce((s, p) => s + sumY(yN, p, 'u'), 0), TV = paises.reduce((s, p) => s + sumY(yN, p, 'v'), 0);
+  const TU = paises.reduce((s, p) => s + sumY(yN, p, 'u', TM), 0), TV = paises.reduce((s, p) => s + sumY(yN, p, 'v', TM), 0);
   let totRow = '';
   if (paises.length > 1 && !two) totRow = `<tr class="tot"><td class="l">Total</td>${mnum.map((mm) => `<td class="${hl(mm)}">${cf(mt(yN, mm))}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t">100%</td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>`;
-  if (two) { const allO = totY(yO, mnum);
+  if (two) { const allO = totY(yO, TM);
     totRow = `<tr class="tot"><td class="l">Total ${yN}</td>${mnum.map((mm) => `<td class="${hl(mm)}">${yN !== '2026' || has26(mm) ? cf(mt(yN, mm)) : '—'}</td>`).join('')}<td class="t">${cf(all)}</td><td class="t"></td><td class="t">${TU ? money(TV / TU, 'USD', 0) : '—'}</td></tr>
-      <tr class="tot"><td class="l mut">Total ${yO}</td>${mnum.map((mm) => `<td class="${hl(mm)} mut">${cf(mt(yO, mm))}</td>`).join('')}<td class="t mut">${cf(allO)}</td><td class="t"></td><td class="t mut">${(() => { const u = paises.reduce((s, p) => s + sumY(yO, p, 'u'), 0), v = paises.reduce((s, p) => s + sumY(yO, p, 'v'), 0); return u ? money(v / u, 'USD', 0) : '—'; })()}</td></tr>
-      <tr class="tot"><td class="l">Change</td>${mnum.map((mm) => `<td class="${hl(mm)}">${has26(mm) ? (dTxt(dlt(mt(yN, mm), mt(yO, mm))) || '—') + (mm === partial ? '*' : '') : '—'}</td>`).join('')}<td class="t">${dTxt(dlt(totY(yN, LFL), totY(yO, LFL))) || '—'}</td><td class="t"></td><td class="t"></td></tr>`; }
+      <tr class="tot"><td class="l mut">Total ${yO}</td>${mnum.map((mm) => `<td class="${hl(mm)} mut">${cf(mt(yO, mm))}</td>`).join('')}<td class="t mut">${cf(allO)}</td><td class="t"></td><td class="t mut">${(() => { const u = paises.reduce((s, p) => s + sumY(yO, p, 'u', TM), 0), v = paises.reduce((s, p) => s + sumY(yO, p, 'v', TM), 0); return u ? money(v / u, 'USD', 0) : '—'; })()}</td></tr>
+      <tr class="tot"><td class="l">Change</td>${mnum.map((mm) => `<td class="${hl(mm)}">${has26(mm) ? (dTxt(dlt(mt(yN, mm), mt(yO, mm))) || '—') + (mm === partial ? '*' : '') : '—'}</td>`).join('')}<td class="t">${dTxt(dlt(all, allO)) || '—'}</td><td class="t"></td><td class="t"></td></tr>`; }
   // KPIs: follow company, countries, months, years and metric
   const mLab = SM.length ? SM.map((k) => MES[+k - 1]).join(', ') : 'all months';
   const uN = totY(yN), uO = two ? totY(yO) : 0;
@@ -2592,9 +2593,9 @@ function unitsBlock(A, P) {
     ${cmp ? `<div class="kpi ${mom != null && mom < -10 ? 'alert' : ''}"><span class="l">${esc(cmp.l)}</span><span class="v ${mom < 0 ? 'bad' : 'ok'}">${mom == null ? '—' : (mom > 0 ? '+' : '') + nf(0).format(mom) + '%'}</span><span class="l">${ufmt(cmp.a)} vs ${ufmt(cmp.b)}${unitW}</span></div>` : ''}
     <div class="kpi"><span class="l">Monthly average ${yN}</span><span class="v">${ufmt(avgV)}</span><span class="l">${S$ ? 'per month' : 'units per month'}</span></div></div>`;
   const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % PCOL.length]}"></i>${ctyCode(p)}</span>`).join('')}${two ? `<span style="margin-left:8px"><i style="background:${PCOL[0]}"></i>${yN}</span><span><i style="background:${PCOL[0]};opacity:.38"></i>${yO}</span>` : ''}</div>`;
-  const src = (two ? `<p class="hint" style="margin-top:8px">Change = ${yN} vs ${yO} for ${esc(lflLab)}${SM.length ? '' : ' (complete months of 2026)'}${partial ? `. * ${MESL[+partial - 1]} 2026 is still in progress` : ''}.</p>` : '') + (Y.includes('2025') ? `<p class="hint" style="margin-top:8px">2025: Amazon settlement reports (V2) by date the order was settled — product charges minus refunds, net units.${Y.includes('2026') ? ' 2026: Seller Central ordered sales/units.' : ''}</p>` : '') + (S$ ? '<p class="hint" style="margin-top:4px">US$ at the ECB rate of 8 Oct.</p>' : '');
+  const src = (two ? `<p class="hint" style="margin-top:8px">Total = sum of ${SM.length ? 'the selected months' : 'all months'} in each year; Change = ${yN} vs ${yO} for those months.${!SM.length ? ' Select months to compare like for like (2026 has no data for every month yet).' : ''}${partial ? ` * ${MESL[+partial - 1]} 2026 is still in progress.` : ''}</p>` : '') + (Y.includes('2025') ? `<p class="hint" style="margin-top:8px">2025: Amazon settlement reports (V2) by date the order was settled — product charges minus refunds, net units.${Y.includes('2026') ? ' 2026: Seller Central ordered sales/units.' : ''}</p>` : '') + (S$ ? '<p class="hint" style="margin-top:4px">US$ at the ECB rate of 8 Oct.</p>' : '');
   return kp + leg + `<div class="chart" id="chUnits"></div>` +
-    `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">Country</th>${mnum.map((mm) => `<th>${MES[+mm - 1]}</th>`).join('')}<th>Total</th><th>${two ? 'Change' : '% ' + (S$ ? 'sales' : 'units')}</th><th>US$/unit</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` + src +
+    `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">Country</th>${mnum.map((mm) => `<th>${MES[+mm - 1]}</th>`).join('')}<th>Total${SM.length ? ' ' + esc(SM.map((k) => MES[+k - 1]).join('+')) : ''}</th><th>${two ? 'Change' : '% ' + (S$ ? 'sales' : 'units')}</th><th>US$/unit</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` + src +
     (Y.includes('2026') && partial ? `<p class="hint" style="margin-top:6px">${MESL[+partial - 1]} 2026 runs to day ${fdate(amzDays(A).reduce((x, r) => (r.f > x ? r.f : x), '')).d}.</p>` : '');
 }
 function unitsChart(box, A, P) {
