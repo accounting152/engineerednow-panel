@@ -172,6 +172,7 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .cb{font-weight:700}.cb.sem{padding:2px 8px;border-radius:6px;color:var(--fg)}.cb-bad{color:var(--bad)}.cb-warn{color:var(--warn)}.cb-ok{color:var(--ok)}.cb-hi{color:var(--info)}
 p .cb{padding:1px 6px;border-radius:6px;background:var(--surface2)}
 .seg.wrap{flex-wrap:wrap;overflow:visible}
+.cseg{padding:3px;gap:3px;border-radius:12px}.cseg button{height:32px;border-radius:9px}
 .rtbl.plq-tbl{min-width:0;width:auto}
 .rtbl.plq-tbl th,.rtbl.plq-tbl td{padding:6px 8px}
 .rtbl.plq-tbl th{min-width:0;white-space:nowrap}
@@ -802,7 +803,7 @@ resultados() {
 
 amazon() {
   const ss = ['wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub) ? state.salesSub : 'amazon';
-  const salesNav = `<div class="seg" role="group" aria-label="Sales" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
+  const salesNav = `<div class="seg cseg" role="group" aria-label="Sales" style="margin:-4px 0 -10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + wsPage('Wholesalers');
   if (ss === 'innovad') return salesNav + wsPage('INNOVAD');
   if (ss === 'engineered') return salesNav + enPage();
@@ -810,7 +811,7 @@ amazon() {
   return salesNav + VIEWS._amazonInner();
 },
 _amazonInner() {
-  const amzNav = `<div class="seg" role="group" aria-label="Amazon" style="margin-bottom:8px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
+  const amzNav = `<div class="seg cseg" role="group" aria-label="Amazon" style="margin-bottom:-10px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
   return amzNav + VIEWS._amazonMain();
 },
@@ -866,7 +867,7 @@ _amazonMain() {
   const dep = (A.depositos || []).map((d) => `<div class="liq"><span>${esc(d.origen)}<div class="s">${nf(0).format(d.ingresos)} deposits in ${esc(d.cuenta)}</div></span><span class="v">${money(d.importe_usd, 'USD', 0)}</span></div>`).join('');
   const np = fdate(A.proximo_pago);
   const stockOpts = [['', 'All countries']].concat(stockPaises.map((x) => [x, x])).map(([val, l]) => `<option value="${esc(val)}" ${SP === val ? 'selected' : ''}>${esc(l)}</option>`).join('');
-  return `<style>.amzf{display:grid;gap:6px;margin:0 0 10px}.amzf .seg{padding:3px;gap:3px;border-radius:12px}.amzf .seg button{height:29px;padding:0 8px;font-size:13px;border-radius:9px}#units .kpis{gap:8px}#units .kpi{padding:8px 11px;border-radius:12px;gap:1px}#units .kpi .v{font-size:19px}#units .kpi .l{font-size:11.5px}#units>h3{margin-bottom:2px}#units .ulegend{margin:4px 0 0}</style><div class="amzf">` + sel + `
+  return `<style>.amzf{display:grid;gap:6px;margin:0 0 -6px}.amzf .seg{padding:3px;gap:3px;border-radius:12px}.amzf .seg button{height:29px;padding:0 8px;font-size:13px;border-radius:9px}#units .kpis{gap:8px}#units .kpi{padding:8px 11px;border-radius:12px;gap:1px}#units .kpi .v{font-size:19px}#units .kpi .l{font-size:11.5px}#units>h3{margin-bottom:2px}#units .ulegend{margin:4px 0 0}</style><div class="amzf">` + sel + `
   <div class="seg" role="group" aria-label="Period">${perBtns}</div>
   ${amzCtySel(A0)}</div>
   <div class="cols">
