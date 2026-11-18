@@ -83,7 +83,8 @@ main{max-width:1100px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-rig
 .cols{display:grid;gap:16px}
 .bkpm{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;border:1px solid currentColor;background:transparent;color:inherit;font:700 15px/1 system-ui;cursor:pointer;padding:0}
 .bk3{align-items:start}.bk3 .acc{padding:10px;gap:8px;grid-template-columns:32px 1fr auto}.bk3 .acc .amt{font-size:13px}.bk3 .group{display:grid;gap:8px;align-content:start}
-@media (min-width:860px){.cols.bk3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:860px){.cols.bk3{grid-template-columns:1fr}}
+.bkgrid{display:grid;gap:10px}@media (min-width:860px){.bkgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:860px){.cols{grid-template-columns:1fr 1fr}.span2{grid-column:1/-1}}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);min-width:0}
@@ -637,8 +638,8 @@ bancos() {
             diff ? `<span>QuickBooks <span class="mono">${money(b.saldo_qb, b.moneda)}</span> · ${b.pendientes_n} mov.</span>` : `<span>QuickBooks <span class="mono">${money(b.saldo_qb, b.moneda)}</span></span>`}
         </div></div>`;
     }).join('');
-    const cl = !!(state.bkClosed || {})[e];
-    return `<section class="group"><div class="group-h"><h4><button class="bkpm" data-bkt="${e}" aria-expanded="${!cl}" title="${cl ? 'Expandir' : 'Contraer'}">${cl ? '+' : '−'}</button><i class="dot" style="background:${COL[e]}"></i>${e}</h4><span class="t">${money(tot, 'USD', 0)} · ${acc.length} cuentas</span></div>${cl ? '' : items}</section>`;
+    const cl = !(state.bkOpen || {})[e];
+    return `<section class="group"><div class="group-h"><h4><button class="bkpm" data-bkt="${e}" aria-expanded="${!cl}" title="${cl ? 'Expandir' : 'Contraer'}">${cl ? '+' : '−'}</button><i class="dot" style="background:${COL[e]}"></i>${e}</h4><span class="t">${money(tot, 'USD', 0)} · ${acc.length} cuentas</span></div>${cl ? '' : `<div class="bkgrid">${items}</div>`}</section>`;
   }).join('');
   return `<div class="card" style="padding:14px 16px"><div style="font-size:14px">La diferencia entre banco y QuickBooks de cada cuenta coincide al céntimo con sus movimientos pendientes. Las tarjetas aparecen en negativo porque son deuda.</div></div>
   <div class="cols bk3">${groups}</div>`;
@@ -2850,7 +2851,7 @@ const AFTER = {
     const qi = document.querySelector('[data-mkq]'); if (qi) { let t; qi.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { state.mkQ = qi.value; state.mkPage = 0; render(); const n = document.querySelector('[data-mkq]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 250); }); }
     document.querySelectorAll('[data-mkcsv]').forEach((b) => b.addEventListener('click', () => downloadMkt()));
   },
-  bancos() { document.querySelectorAll('[data-bkt]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.bkt; state.bkClosed = Object.assign({}, state.bkClosed, { [k]: !(state.bkClosed || {})[k] }); render(); scrollTo({ top: y }); })); },
+  bancos() { document.querySelectorAll('[data-bkt]').forEach((b) => b.addEventListener('click', () => { const y = scrollY; const k = b.dataset.bkt; state.bkOpen = Object.assign({}, state.bkOpen, { [k]: !(state.bkOpen || {})[k] }); render(); scrollTo({ top: y }); })); },
   resumen() { document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go))); },
   pendientes() {
     document.querySelectorAll('[data-emp]').forEach((b) => b.addEventListener('click', () => { state.pendEmp = b.dataset.emp; document.querySelectorAll('[data-emp]').forEach((x) => x.setAttribute('aria-pressed', x === b)); drawMoves(); }));
