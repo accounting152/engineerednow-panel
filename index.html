@@ -562,6 +562,59 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     if (dl) { try { await dl.save({ filename: name, data: buf }); if (msg) msg.textContent = 'Downloaded: ' + name; } catch (err) { if (msg) msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
+/* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
+function tstInnovad() {
+  const R = wsMgRows('tstNone', 'INNOVAD'); const rows = R.rows.filter((r) => !r.tot && r.label !== 'Subtotal'); const tots = R.rows.filter((r) => r.tot);
+  const ys = [...new Set(rows.map((r) => r.y))];
+  const A = (o) => { const u = o.u || 1; return { u: o.u, price: o.p / u, ship: o.e / u, shipc: o.sc / u, pc: o.pc / u, mg: o.mg / u, mgp: o.p ? o.mg / (o.p + o.e) * 100 : 0, sales: o.p, margin: o.mg }; };
+  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const usd = (v) => '$' + n0(v);
+  const tot = (y) => A((tots.find((t) => t.y === y) || {}).o || {});
+  const delta = (a, b) => (b ? (a - b) / Math.abs(b) * 100 : null);
+  const dl = (d, inv) => (d == null ? '' : `<span style="font-size:11px;font-weight:700;color:${(inv ? -d : d) >= 0 ? 'var(--ok)' : 'var(--bad)'}">${d >= 0 ? '▲' : '▼'} ${n0(Math.abs(d))}%</span>`);
+  const css = `<style>
+  .tst h4{margin:0 0 2px;font-size:15px}.tst .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .tst .opt{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:2px 9px;margin-right:8px}
+  .t1g{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:10px}.t1c{border:1px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--surface)}
+  .t1k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.t1k b{display:block;font-size:20px;font-family:var(--mono,ui-monospace)}.t1k span{font-size:11px;color:var(--muted)}
+  .t1bar{display:flex;height:26px;border-radius:8px;overflow:hidden;font-size:11px;font-weight:700;color:#fff}.t1bar div{display:flex;align-items:center;justify-content:center;white-space:nowrap}
+  .t2{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;margin-top:8px}.t2 th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}.t2 th:first-child,.t2 td:first-child{text-align:left}
+  .t2 td{padding:10px;text-align:right;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);font-variant-numeric:tabular-nums}.t2 tr.yr td{background:color-mix(in srgb,var(--accent) 7%,var(--surface));font-weight:800;color:var(--accent);border-bottom:0}
+  .t2 tr.tt td{font-weight:800;border-top:2px solid var(--fg)}.pill2{display:inline-block;min-width:44px;padding:2px 8px;border-radius:999px;font-weight:800;font-size:12px}
+  .t3row{display:grid;grid-template-columns:70px 1fr 90px;gap:10px;align-items:center;margin:10px 0}.t3bar{display:flex;height:30px;border-radius:9px;overflow:hidden;background:var(--surface2)}.t3bar div{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
+  .t3leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}.t3leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .t4{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}.t4 th{text-align:right;font-size:12px;color:var(--muted);padding:8px 12px}.t4 th:first-child{text-align:left}.t4 td{padding:11px 12px;text-align:right;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.t4 td:first-child{text-align:left;color:var(--muted);font-weight:600}.t4 tr.big td{font-size:16px;font-weight:800}
+  .t5{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.t5 th{font-size:11px;color:var(--muted);text-align:right;padding:6px 8px;font-weight:700}.t5 th:first-child,.t5 td:first-child,.t5 th:nth-child(2),.t5 td:nth-child(2){text-align:left}.t5 td{padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;position:relative}
+  .t5 tbody tr:nth-child(odd) td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}.dbar{position:absolute;left:4px;top:4px;bottom:4px;border-radius:5px;opacity:.22}.t5 td span{position:relative}
+  </style>`;
+  const head = (n, t, d) => `<div style="margin-bottom:4px"><span class="opt">Option ${n}</span><b style="font-size:16px">${t}</b></div><p class="hint" style="margin:2px 0 6px">${d}</p>`;
+  // Option 1: cards per year
+  const o1 = `<section class="card tst">${head(1, 'Cards per year', 'One card per year: the key figures on top and a bar that splits each US$ of the selling price into product cost, shipping and margin.')}
+    <div class="t1g">${ys.map((y) => { const t = tot(y); const W = (v) => Math.max(0, Math.abs(v)) / (t.price + t.ship || 1) * 100; const prev = tot(String(+y - 1));
+      return `<div class="t1c"><div class="lab">${y}</div><div class="t1k"><div><b>${n0(t.u)}</b><span>units</span></div><div><b>${usd(t.price)}</b><span>avg. selling price</span></div><div><b style="color:var(--ok)">${usd(t.mg)}</b><span>avg. margin / unit ${ys.includes(String(+y - 1)) ? dl(delta(t.mg, prev.mg)) : ''}</span></div></div>
+        <div class="t1bar"><div style="width:${W(t.pc)}%;background:#8A94A3">Product ${usd(-t.pc)}</div><div style="width:${W(t.shipc)}%;background:var(--info)">${W(t.shipc) > 6 ? 'Ship ' + usd(-t.shipc) : ''}</div><div style="width:${W(t.mg)}%;background:var(--ok)">Margin ${usd(t.mg)} · ${n0(t.mgp)}%</div></div>
+        <div class="hint" style="margin-top:8px">Sales ${usd(t.sales)} · total margin ${usd(t.margin)}</div></div>`; }).join('')}</div></section>`;
+  // Option 2: clean grouped table with margin pill
+  const cols2 = ['Client / model', 'Units', 'Avg. price', 'Avg. shipping', 'Avg. ship. cost', 'Avg. product cost', 'Avg. margin', 'Margin %'];
+  const r2 = (lab, a, cl) => `<tr class="${cl || ''}"><td>${lab}</td><td>${n0(a.u)}</td><td>${usd(a.price)}</td><td>${usd(a.ship)}</td><td style="color:${a.shipc < -0.5 ? 'var(--bad)' : 'inherit'}">${a.shipc < -0.5 ? '−' + usd(-a.shipc) : '$0'}</td><td style="color:var(--bad)">−${usd(-a.pc)}</td><td><b>${usd(a.mg)}</b></td><td><span class="pill2" style="background:color-mix(in srgb,var(--ok) ${Math.min(40, 10 + a.mgp / 2)}%,transparent);color:var(--ok)">${n0(a.mgp)}%</span></td></tr>`;
+  const o2 = `<section class="card tst">${head(2, 'Clean table', 'Same table, lighter: year bands, aligned numbers, costs in red with a minus sign and the margin % as a coloured pill.')}
+    <div class="rtbl-wrap"><table class="t2"><thead><tr>${cols2.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${ys.map((y) => `<tr class="yr"><td colspan="8">${y}</td></tr>` + rows.filter((r) => r.y === y).map((r) => r2((r.cl ? esc(r.cl) + ' · ' : '') + esc(r.label), A(r.o))).join('') + r2('Total ' + y, tot(y), 'tt')).join('')}</tbody></table></div></section>`;
+  // Option 3: per-unit waterfall bars
+  const mx = Math.max(...ys.map((y) => tot(y).price + tot(y).ship), 1);
+  const o3 = `<section class="card tst">${head(3, 'Where each unit\'s money goes', 'A horizontal bar per year: the length is the average price per unit, split into product cost, shipping cost and margin. Numbers on the right.')}
+    ${ys.map((y) => { const t = tot(y); const w = (v) => Math.abs(v) / mx * 100;
+      return `<div class="t3row"><b>${y}</b><div class="t3bar"><div style="width:${w(t.pc)}%;background:#8A94A3">${usd(-t.pc)}</div><div style="width:${w(t.shipc)}%;background:var(--info)"></div><div style="width:${w(t.mg)}%;background:var(--ok)">${usd(t.mg)}</div></div><div style="text-align:right"><b>${usd(t.price + t.ship)}</b><div class="hint">${n0(t.u)} units</div></div></div>`; }).join('')}
+    <div class="t3leg"><span><i style="background:#8A94A3"></i>Product cost</span><span><i style="background:var(--info)"></i>Shipping cost</span><span><i style="background:var(--ok)"></i>Margin</span></div></section>`;
+  // Option 4: years as columns with change
+  const Y2 = ys.slice(-2); const met = [['Units', (t) => n0(t.u), 'u'], ['Avg. selling price', (t) => usd(t.price), 'price'], ['Avg. shipping charged', (t) => usd(t.ship), 'ship'], ['Avg. shipping cost', (t) => (t.shipc < -0.5 ? '−' : '') + usd(Math.abs(t.shipc)), 'shipc', 1], ['Avg. product cost', (t) => '−' + usd(-t.pc), 'pc', 1], ['Avg. margin / unit', (t) => usd(t.mg), 'mg'], ['Margin %', (t) => n0(t.mgp) + '%', 'mgp'], ['Total sales', (t) => usd(t.sales), 'sales'], ['Total margin', (t) => usd(t.margin), 'margin']];
+  const o4 = `<section class="card tst">${head(4, 'Year vs year', 'The years side by side as columns, one metric per row, and the change on the right. Easy to read like a financial statement.')}
+    <div class="rtbl-wrap"><table class="t4"><thead><tr><th></th>${Y2.map((y) => `<th>${y}</th>`).join('')}${Y2.length === 2 ? '<th>Change</th>' : ''}</tr></thead><tbody>${met.map(([l, f, k, inv]) => `<tr class="${/margin/i.test(l) && !/%/.test(l) ? 'big' : ''}"><td>${l}</td>${Y2.map((y) => `<td>${f(tot(y))}</td>`).join('')}${Y2.length === 2 ? `<td>${dl(k === 'mgp' ? tot(Y2[1]).mgp - tot(Y2[0]).mgp : delta(tot(Y2[1])[k], tot(Y2[0])[k]), inv)}</td>` : ''}</tr>`).join('')}</tbody></table></div></section>`;
+  // Option 5: compact table with in-cell data bars
+  const mu = Math.max(...rows.map((r) => r.o.u), 1), mm = Math.max(...rows.map((r) => A(r.o).mg), 1);
+  const o5 = `<section class="card tst">${head(5, 'Compact table with data bars', 'Small rows with soft stripes; the units and the margin carry a bar inside the cell so the big ones stand out at a glance.')}
+    <div class="rtbl-wrap"><table class="t5"><thead><tr><th>Year</th><th>Client · model</th><th>Units</th><th>Price</th><th>Product</th><th>Shipping</th><th>Margin</th><th>%</th></tr></thead><tbody>${rows.map((r) => { const a = A(r.o);
+      return `<tr><td><b>${r.y}</b></td><td>${(r.cl ? esc(r.cl) + ' · ' : '') + esc(r.label)}</td><td><div class="dbar" style="width:${a.u / mu * 92}%;background:var(--info)"></div><span>${n0(a.u)}</span></td><td>${usd(a.price)}</td><td style="color:var(--bad)">−${usd(-a.pc)}</td><td>${usd(a.ship + a.shipc)}</td><td><div class="dbar" style="width:${Math.max(0, a.mg) / mm * 92}%;background:var(--ok)"></div><span><b>${usd(a.mg)}</b></span></td><td>${n0(a.mgp)}%</td></tr>`; }).join('')}</tbody></table></div></section>`;
+  return `<section class="card"><h3>Testing · Innovad average margins</h3><p class="hint">Five ways to show "Innovad Margins by client and model · average · US$" with the same data (all years, all months). Tell me the option you like and I will use it in Margins.</p></section>${css}${o1}${o2}${o3}${o4}${o5}`;
+}
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
@@ -575,7 +628,7 @@ function a3Init() { if (A3.init) return; A3.init = true; a3Sel();
       first = false; if (state.tab === 'marketing') { const y = scrollY; render(); scrollTo({ top: y }); } }, () => { A3.mode = 'local'; A3.ref = null; });
   } catch (e) {} })(); }
 const VIEWS = {
-  testing() { return `<section class="card"><h3>Testing</h3><p class="hint">Area to try new table and chart formats before using them in the panel.</p></section>`; },
+  testing() { return tstInnovad(); },
   questions() {
     yqInit(); const T = yqData().topics; if (!T.find((t) => t.id === state.yqTopic)) state.yqTopic = T[0].id;
     const cur = T.find((t) => t.id === state.yqTopic); const open = cur.items.filter((x) => !x.done), done = cur.items.filter((x) => x.done);
