@@ -540,8 +540,27 @@ function todoBlock() {
   return `<details class="card" data-todos${state.tdOpen === true ? ' open' : ''} style="margin-bottom:12px"><summary style="cursor:pointer;font-weight:600;font-size:16px">Actions To do <span class="mut" style="font-weight:400;font-size:13px">· ${pend} pending of ${L.length}</span></summary>
     <p class="mut" style="margin:8px 0 10px;font-size:13px">Interested contacts from the email campaigns and Instagram. Tick the box when the action is done${TD.ref || (tdSyncCfg() && TDS.ok) ? ' (saved for everyone using the panel)' : (tdSyncCfg() && TDS.ok === false ? ' (could not reach the shared sheet; saved in this browser for now)' : ' (saved in this browser)')}.</p>
     <div class="rtbl-wrap"><table class="rtbl" style="min-width:1050px"><thead><tr><th>Done</th><th style="white-space:normal;min-width:70px">Email sent to Yohai</th><th style="white-space:normal;min-width:70px">Free sample sent</th><th style="white-space:normal;min-width:70px">Not interested</th><th class="l">Date</th><th class="l">Source</th><th class="l">Company</th><th class="l">Email</th><th class="l">What they want</th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="l mut">Nothing to do.</td></tr>'}</tbody></table></div></details>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px"><button class="btn" style="padding:7px 16px;font-size:14px;border-radius:8px;width:auto;min-height:0" data-todoupd${TDU.busy ? ' disabled' : ''}>${TDU.busy ? 'Updating…' : 'Update'}</button><span class="mut" style="font-size:13px">Last update: ${esc(D.todos_updated || '–')}</span></div>${TDU.msg ? `<p class="hint" style="margin:-6px 0 14px">${esc(TDU.msg)}</p>` : ''}`;
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px"><button class="btn" style="padding:7px 16px;font-size:14px;border-radius:8px;width:auto;min-height:0" data-todoupd${TDU.busy ? ' disabled' : ''}>${TDU.busy ? 'Updating…' : 'Update'}</button><button class="btn" style="padding:7px 16px;font-size:14px;border-radius:8px;width:auto;min-height:0" data-todoxls>Download Excel</button><span class="mut" style="font-size:13px">Last update: ${esc(D.todos_updated || '–')}</span><span class="mut" id="todoXlsMsg" style="font-size:13px"></span></div>${TDU.msg ? `<p class="hint" style="margin:-6px 0 14px">${esc(TDU.msg)}</p>` : ''}`;
 }
+async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.textContent = 'Preparing the Excel file…';
+  try { await loadExcelJS(); const L = D.todos || []; const dn = tdDone(), yh = tdMap('yohai'), sp = tdMap('sample'), ni = tdMap('notint');
+    const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Actions To do', { views: [{ state: 'frozen', ySplit: 3 }] });
+    const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
+    ws.getCell('A1').value = 'Engineered Now · Actions To do'; ws.getCell('A1').font = F({ bold: true, size: 13 });
+    ws.getCell('A2').value = `Last update: ${D.todos_updated || '–'} · exported ${new Date().toISOString().slice(0, 16).replace('T', ' ')} · ${L.filter((x) => !dn[x.id] && !ni[x.id]).length} pending of ${L.length}`; ws.getCell('A2').font = F({ color: { argb: 'FF666666' } });
+    const H = ['Status', 'Done', 'Email sent to Yohai', 'Free sample sent', 'Not interested', 'Date', 'Source', 'Company', 'Contact', 'Email', 'What they want'];
+    H.forEach((h, k) => { const c = ws.getCell(3, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; c.alignment = { vertical: 'middle', wrapText: true }; });
+    const yn = (v) => (v ? 'Yes' : '');
+    L.forEach((x, i) => { const r = 4 + i; const st = ni[x.id] ? 'Not interested' : dn[x.id] ? 'Done' : 'Pending';
+      [st, yn(dn[x.id]), yn(yh[x.id]), yn(sp[x.id]), yn(ni[x.id]), (x.fecha || '').slice(0, 16), x.fuente || '', x.empresa || '', x.contacto || '', x.email || '', x.quiere || ''].forEach((v, k) => { const c = ws.getCell(r, k + 1); c.value = v; c.font = F(k === 0 && st === 'Pending' ? { bold: true } : {}); c.alignment = { vertical: 'top', wrapText: k >= 7 }; });
+      if (x.email) ws.getCell(r, 10).value = { text: x.email, hyperlink: 'mailto:' + x.email }; });
+    [12, 7, 11, 11, 11, 16, 22, 30, 32, 32, 80].forEach((w, k) => (ws.getColumn(k + 1).width = w));
+    ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + L.length, column: H.length } };
+    const buf = await wb.xlsx.writeBuffer(); const name = `Actions_To_do_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { try { await dl.save({ filename: name, data: buf }); if (msg) msg.textContent = 'Downloaded: ' + name; } catch (err) { if (msg) msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
@@ -2930,6 +2949,7 @@ const AFTER = {
     document.querySelectorAll('details[data-emact]').forEach((d) => d.addEventListener('toggle', () => { state.emOpen = state.emOpen || {}; state.emOpen[d.dataset.emact] = d.open; }));
     document.querySelectorAll('details[data-todos]').forEach((d) => d.addEventListener('toggle', () => { state.tdOpen = d.open; }));
     document.querySelectorAll('[data-todoupd]').forEach((b) => b.addEventListener('click', () => tdUpdate()));
+    document.querySelectorAll('[data-todoxls]').forEach((b) => b.addEventListener('click', () => downloadTodos()));
     document.querySelectorAll('[data-todo]').forEach((c) => c.addEventListener('change', () => { tdPush(c.dataset.todo, c.dataset.tdk || 'done', c.checked); const d = tdMap(c.dataset.tdk || 'done'); if (c.checked) d[c.dataset.todo] = true; else delete d[c.dataset.todo]; tdSave(); const y = scrollY; render(); scrollTo({ top: y }); }));
     const a3r = () => { const y = scrollY; render(); scrollTo({ top: y }); };
     document.querySelectorAll('[data-a3c]').forEach((p) => p.addEventListener('click', () => { const s = a3Sel(), id = p.dataset.a3c, i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); a3Save(); a3r(); }));
