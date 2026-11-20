@@ -563,7 +563,31 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
+function tstInnovad() {
+  const n0 = (v) => nfE(0).format(Math.round(v) || 0);
+  const K = (v) => { const a = Math.abs(v); const t = a >= 100000 ? n0(a / 1000) + 'K' : a >= 1000 ? nfE(1).format(a / 1000) + 'K' : n0(a); return (v < -0.5 ? '−$' : '$') + t; };
+  const mgc = (v) => (v >= 0 ? '#1F8A5B' : '#C0392B');
+  const sec = (t, d, x) => `<section class="card"><div style="margin-bottom:4px"><b style="font-size:16px">${t}</b></div><p class="hint" style="margin:2px 0 10px">${d}</p><div class="wfg">${x || '<p class="mut">No data.</p>'}</div></section>`;
+  // Amazon
+  let amz = ''; const RA = (D.informes || {}).pagos_amazon_us;
+  if (RA) { const sv = [state.msY, state.msM]; state.msY = []; state.msM = []; let rows; try { rows = pagSumRows(RA); } finally { state.msY = sv[0]; state.msM = sv[1]; }
+    amz = rows.filter((r) => r.tot && !r.mcf && !r.total && !r.grand && r.o && r.o.units).map((r) => { const o = r.o; const pay = r.net + o.own + o.dist; const mg = pay + o.ship + o.cost;
+      return wfBlock(r.y, `Amazon · ${n0(o.units)} units`, [['Total sales (net of refunds)', r.net, 'start', '#3B6E9E'], ['Amazon order fees', o.own, 'neg', '#E0A04B'], ['Distributed costs', o.dist, 'neg', '#D16D6D'], ['= Amazon pays us', pay, 'sub', '#5B8DEF'], ['Duties & warehouse', o.ship, 'neg', '#B08BD9'], ['Product cost', o.cost, 'neg', '#8A94A3'], ['= Total margin', mg, 'sub', mgc(mg)]], K); }).join(''); }
+  // Shopify
+  let shp = ''; const RS = (D.informes || {}).shipping_check;
+  if (RS) { tvlAlloc(); const ys = (RS.anios || ['2025', '2026']).slice().sort(); const T = {}; ys.forEach((y) => { T[y] = { u: 0, prod: 0, env: 0, fee: 0, ship: 0, sdw: 0, pc: 0, mk: 0 }; });
+    RS.filas.forEach((r) => { const t = T[r.anio]; if (!t) return; t.u += /cancel/i.test(r.estado || '') ? 0 : r.uds || 0; t.prod += (r.neto || 0) - (r.envio_cobrado || 0); t.env += r.envio_cobrado || 0; t.fee += r.fee_shop || 0; t.ship -= r.total || 0; t.sdw += r.sdw || 0; t.pc += r.pcost || 0; t.mk += r.imk || 0; });
+    shp = ys.filter((y) => T[y].u).map((y) => { const t = T[y]; const paid = t.prod + t.env; const net = paid + t.fee + t.ship; const mg = net + t.sdw + t.pc + t.mk;
+      return wfBlock(y, `Shopify · ${n0(t.u)} units`, [['Product sales', t.prod, 'start', '#3B6E9E'], ['Shipping charged', t.env, 'pos', '#7FB0E8'], ['= Customers pay', paid, 'sub', '#5B8DEF'], ['Shopify fees', t.fee, 'neg', '#D16D6D'], ['Shipping costs', t.ship, 'neg', '#E0A04B'], ['= We receive', net, 'sub', '#5B8DEF'], ['Duties & warehouse', t.sdw, 'neg', '#B08BD9'], ['Product cost', t.pc, 'neg', '#8A94A3'], ['Marketing', t.mk, 'neg', '#C9A227'], ['= Total margin', mg, 'sub', mgc(mg)]], K); }).join(''); }
+  // Wholesalers & Innovad
+  const ws = (pre, src, name) => wsMgRows(pre, src).rows.filter((r) => r.tot && r.o.u).map((r) => { const o = r.o; const paid = o.p + o.e; const net = paid + o.sc; const mg = net + o.pc;
+    return wfBlock(r.y, `${name} · ${n0(o.u)} units`, [['Product sales', o.p, 'start', '#3B6E9E'], ['Shipping charged', o.e, 'pos', '#7FB0E8'], ['= Customers pay', paid, 'sub', '#5B8DEF'], ['Shipping costs', o.sc, 'neg', '#E0A04B'], ['= We receive', net, 'sub', '#5B8DEF'], ['Product cost', o.pc, 'neg', '#8A94A3'], ['= Total margin', mg, 'sub', mgc(mg)]], K); }).join('');
+  return `${WF_CSS}<section class="card"><h3>Testing · From sales to total margin</h3><p class="hint">Same step-by-step view as "From price to margin", but with totals in US$ (K = thousands): what we sell, minus what the platform keeps = what we receive, minus the rest of the costs = total margin. All months. Tell me which ones you like.</p></section>`
+    + sec('Amazon · from sales to total margin', 'Total sales net of refunds, minus Amazon order fees and distributed costs (ads, storage, subscriptions…) = what Amazon pays us; minus duties, warehouse and product = total margin. Amazon orders only (MCF orders are in Shopify).', amz)
+    + sec('Shopify · from sales to total margin', 'Product sales plus shipping charged = what customers pay; minus Shopify fees and shipping costs = what we receive; minus duties & warehouse, product and marketing = total margin. QuickBooks costs for 2026 cover January to September.', shp)
+    + sec('Wholesalers · from sales to total margin', 'All wholesalers together (Innovad not included). Shipping is charged at cost, so what we receive equals product sales; minus product cost = total margin.', ws('tstW', 'Wholesalers', 'Wholesalers'))
+    + sec('Innovad · from sales to total margin', 'All Innovad invoices. Shipping is charged at cost; minus product cost = total margin.', ws('tstI', 'INNOVAD', 'Innovad'));
+}
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
@@ -1858,11 +1882,11 @@ function wsAvgCards(pre) {
 }
 const WF_CSS = `<style>.wfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}.wfc{border:1px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--surface)}.wfc .lab{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px}
   .wfc .tpy{display:inline-block;color:#fff;border-radius:999px;font-size:12px;font-weight:800;padding:2px 9px;letter-spacing:0}.wfr{display:grid;grid-template-columns:180px 1fr 80px;gap:10px;align-items:center;margin:5px 0;font-size:13.5px}.wfr .t{position:relative;height:22px}.wfr .t div{position:absolute;top:0;bottom:0;border-radius:4px}.wfr .v{text-align:right;font-family:var(--mono,ui-monospace);font-weight:700}</style>`;
-function wfBlock(y, sub, steps) {
-  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const usd = (v) => (v < -0.5 ? '−$' + n0(-v) : '$' + n0(v)); const YC = { 2025: '#8A94A3', 2026: 'var(--ok)' };
+function wfBlock(y, sub, steps, fmt) {
+  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const usd = fmt || ((v) => (v < -0.5 ? '−$' + n0(-v) : '$' + n0(v))); const YC = { 2025: '#8A94A3', 2026: 'var(--ok)' };
   let run = 0, mx = 1; steps.forEach(([, v, k]) => { if (k === 'start' || k === 'sub') run = v; else run += v; mx = Math.max(mx, run, v); }); run = 0;
   const rows = steps.map(([t, v, k, c]) => { let l, w; if (k === 'start' || k === 'sub') { l = 0; w = Math.max(v, 0); run = v; } else if (v >= 0) { l = run; w = v; run += v; } else { l = run + v; w = -v; run += v; }
-    const col = k === 'neg' ? 'var(--bad)' : (k === 'sub' && /Margin/.test(t)) ? (v >= 0 ? 'var(--ok)' : 'var(--bad)') : 'inherit';
+    const col = k === 'neg' ? 'var(--bad)' : (k === 'sub' && /margin/i.test(t)) ? (v >= 0 ? 'var(--ok)' : 'var(--bad)') : 'inherit';
     return `<div class="wfr"><div${k === 'sub' ? ' style="font-weight:800"' : ''}>${t}</div><div class="t"><div style="left:${(Math.max(0, l) / mx * 100).toFixed(1)}%;width:${(w / mx * 100).toFixed(1)}%;background:${c}"></div></div><div class="v" style="color:${col}">${k === 'pos' ? '+' : ''}${usd(v)}</div></div>`; }).join('');
   return `<div class="wfc"><div class="lab"><span class="tpy" style="background:${YC[y] || 'var(--info)'}">${y}</span> &nbsp;${sub}</div>${rows}</div>`;
 }
