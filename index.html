@@ -563,7 +563,15 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
+function tstInnovad() {
+  const sv = [state.emY, state.emM]; state.emY = []; state.emM = []; let Dd; try { Dd = enMgData(); } finally { state.emY = sv[0]; state.emM = sv[1]; }
+  const CH = ['Amazon', 'Shopify', 'Wholesalers', 'Innovad']; const CC = { Amazon: '#E0A04B', Shopify: '#5B8DEF', Wholesalers: '#B08BD9', Innovad: '#1F8A5B', 'Engineered Now': '#3B6E9E' };
+  const ys = Dd.years.slice().sort(); const n0 = (v) => nfE(0).format(Math.round(v) || 0);
+  const blk = (y, c, o) => wfBlock(y, `${c} · ${n0(o.u)} units`, [['Revenue', o.rev, 'start', CC[c]], ['Channel fees', o.fee, 'neg', '#D16D6D'], ['Shipping & warehouse', o.log, 'neg', '#E0A04B'], ['Marketing', o.mkt, 'neg', '#C9A227'], ['Product', o.pc, 'neg', '#8A94A3'], ['= Total margin', o.mg, 'sub', o.mg >= 0 ? '#1F8A5B' : '#C0392B']], KFMT);
+  const body = ys.map((y) => { const T = Dd.Z(); const parts = CH.map((c) => { const o = (Dd.C[y] || {})[c]; if (!o || !o.u) return ''; Object.keys(T).forEach((k) => { T[k] += o[k]; }); return blk(y, c, o); }).join('');
+    return `<h4 style="margin:16px 0 8px;font-size:15px">${y}</h4><div class="wfg">${blk(y, 'Engineered Now', T)}${parts}</div>`; }).join('');
+  return `${WF_CSS}<section class="card"><h3>Testing · From revenue to total margin by channel</h3><p class="hint">Same waterfall as "From price to margin by channel", but with totals in US$ (K = thousands) instead of averages. First block per year = Engineered Now (all channels together), then one per channel. All months. Revenue includes shipping charged (Shopify, Wholesalers, Innovad); Amazon revenue is sales minus refunds. QuickBooks costs for 2026 cover January to September.</p>${body}</section>`;
+}
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
