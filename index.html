@@ -2338,7 +2338,7 @@ function umBodyInn(id) {
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">Excel with ${Y[Y.length - 1]} (latest selected year).</span></div></section>`;
 }
 function umBody(id) {
-  if (id === 'innovad_um') return umBodyInn(id);
+  if (id === 'innovad_um' || id === 'wholesalers_um') return umBodyInn(id);
   umUse(id); const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
     ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
