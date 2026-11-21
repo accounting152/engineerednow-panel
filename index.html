@@ -1157,7 +1157,7 @@ function amzCobModel(id) {
   const MKT = { USA: ['HJ-US', 'TVL-HJ'], UK: ['H-Unido', 'UKSCAN'], Europe: ['H-Europa', 'DEWH'], Japan: ['H-Japón', 'COVUE'] };
   const mkt = R.compacto && MKT[state.amzMkt] ? state.amzMkt : '';
   if (R.compacto) sel = AL.filter((a) => (mkt ? MKT[mkt].includes(a.id) : true) || ['TW', 'CN'].includes(a.id));
-  const per = (state.repPerBy || {})[id] || '90'; const P = R.periodos[per];
+  const per = R.compacto ? '90' : (state.repPerBy || {})[id] || '90'; const P = R.periodos[per];
   const vend = (a, p, c) => (a.ventas ? ((a.ventas[per][p] || {})[c] || 0) : null);
   const devu = (a, c) => (a.devueltas ? a.paises.reduce((x, p) => x + ((a.devueltas[per][p] || {})[c] || 0), 0) : null);
   const cob = (st, v) => (v ? st / (v / P.dias) : null);
@@ -1223,7 +1223,7 @@ function amzCobBody(id) {
   const M = amzCobModel(id); const { S, AL, sel, per, P, usada, vend, devu } = M; const CMP = !!R.compacto;
   const fmt = (v) => (v ? nfE(0).format(v) : '');
   const whChips = `<div class="seg wrap" role="group" aria-label="Amazon warehouses" style="margin:4px 0 8px">${AL.map((a) => { const on = sel.includes(a); return `<button aria-pressed="${on}" data-awh="${a.id}" data-rid="${id}" style="--cc:${COL[a.empresa]}">${on ? '✓ ' : ''}${a.etiqueta ? esc(a.etiqueta) : (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' · ' + esc(a.nombre.replace('Amazon ', ''))}</button>`; }).join('')}</div>`;
-  const perSeg = `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}" data-rid="${id}">Last ${k} days</button>`).join('')}</div>
+  const perSeg = `${CMP ? '' : `<div class="seg" role="group" aria-label="Sales period" style="margin:0 0 6px">${['30', '90', '180'].map((k) => `<button aria-pressed="${k === per}" data-aper="${k}" data-rid="${id}">Last ${k} days</button>`).join('')}</div>`}
     <p class="hint" style="margin:0 0 10px">Net sales from ${fdEN(P.desde).d} ${fdEN(P.desde).m} to ${fdEN(P.hasta).d} ${fdEN(P.hasta).m} ${P.hasta.slice(0, 4)} (${P.dias} days). ${CMP ? '' : 'Tap a warehouse to remove or add it.'}</p>`;
   const g1 = `<tr><th class="l" rowspan="2">Code</th>${sel.map((a) => `<th colspan="${a.solo_stock ? 1 : CMP ? 3 : a.paises.length + 4}" class="grp gs" style="border-bottom:3px solid ${COL[a.empresa]}">${a.etiqueta ? esc(a.etiqueta) : (a.empresa === 'HUNTER' ? 'Hunter' : a.empresa) + ' · ' + esc(a.nombre)}</th>`).join('')}</tr>`;
   const g2 = CMP ? `<tr>${sel.map((a) => (a.solo_stock ? '<th class="te gs">Stock</th>' : '<th class="te gs">Stock</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>')).join('')}</tr>` : `<tr>${sel.map((a) => `<th class="te gs">Stock</th>${a.paises.map((p) => `<th title="Net units sold in ${esc(PEN[p] || p)}">${esc(PAB[p] || p)}</th>`).join('')}<th title="Units returned (refunded) in the period, already deducted">Returned</th><th class="te">Net</th><th class="cbh">Coverage (days)</th>`).join('')}</tr>`;
