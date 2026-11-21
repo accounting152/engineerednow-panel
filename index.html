@@ -563,7 +563,11 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
+function tstInnovad() {
+  const id = 'amazon_cobertura'; const R = (D.informes || {})[id]; if (!R || !R.almacenes) return '<section class="card"><p class="mut">No data.</p></section>';
+  const sv0 = state.amzMkt; state.amzMkt = ''; let M; try { M = amzCobModel(id); } finally { state.amzMkt = sv0; }
+  return `<section class="card"><h3 style="margin:0 0 4px">Testing · Amazon models under 90 days</h3><p class="hint" style="margin:0 0 6px">Net sales from ${fdEN(M.P.desde).d} ${fdEN(M.P.desde).m} to ${fdEN(M.P.hasta).d} ${fdEN(M.P.hasta).m} ${M.P.hasta.slice(0, 4)} (${M.P.dias} days), stock at ${fdEN(M.usada).d} ${fdEN(M.usada).m} ${M.usada.slice(0, 4)}.</p>${amzRunway(M, true)}</section>`;
+}
 const A3 = { init: false, mode: 'local', ref: null, sel: null };
 function a3Sel() { if (!A3.sel) { try { A3.sel = JSON.parse(localStorage.getItem('enA3sel') || '[]'); } catch (e) { A3.sel = []; } } return A3.sel; }
 async function a3Save() { try { localStorage.setItem('enA3sel', JSON.stringify(a3Sel())); } catch (e) {}
@@ -1195,7 +1199,7 @@ function amzCobViews(M) {
   const o3 = `<p class="hint" style="margin:0 0 4px">Bar length = days of stock left at the current pace (up to 1 year). The thin lines mark 90 and 180 days. On the right, the date the stock would run out.</p>${WH.map((a) => wh(a) + `<div class="tl tlh"><span>Code</span><span>Stock</span><span>Sold ${d} d</span><span></span><span>Days · runs out</span></div>` + live(a).map((c) => { const i = info(a, c); const w = i.x == null ? 0 : Math.min(100, i.x / 365 * 100); return `<div class="tl"><b>${esc(c)}</b><span class="n">${i.s ? n0(i.s) : ''}</span><span class="n" style="color:var(--muted)">${i.v ? n0(i.v) : ''}</span><div class="t"><i style="width:${i.out ? 100 : w}%;background:${i.out ? OUT : sem(i.x)};${i.out ? 'opacity:.35' : ''}"></i><u style="left:${90 / 365 * 100}%"></u><u style="left:${180 / 365 * 100}%"></u></div><span style="text-align:right"><b>${i.txt || '–'}</b> <span class="hint">${i.x != null && i.s ? '· ' + addD(i.x) : ''}</span></span></div>`; }).join('')).join('')}`;
   return css + '<div class="tq">' + (WH.length ? o3 : '<p class="mut">Select at least one Amazon warehouse.</p>') + '</div>';
 }
-function amzRunway(M) {
+function amzRunway(M, u90) {
   const { S, AL, P, usada, vend, MKT } = M; const d = P.dias; const W = (x) => AL.find((a) => a.id === x);
   const codes = S.filas.map((f) => f.codigo).filter((c) => c !== 'CASTER');
   const st = (a, c) => (a ? ((S.filas.find((f) => f.codigo === c) || { valores: [] }).valores[a.ci] || 0) : 0); const sv = (a, c) => (a && a.ventas ? a.paises.reduce((x, p) => x + (vend(a, p, c) || 0), 0) : 0);
@@ -1222,7 +1226,7 @@ function amzRunway(M) {
   const under = MK.map((m) => { const L = live(m).filter((c) => { const v = sv(m.am, c); return v > 0 && st(m.am, c) / (v / d) < 90; }).sort((p, q) => st(m.am, p) / sv(m.am, p) - st(m.am, q) / sv(m.am, q));
     return `<div class="u90"><div style="margin-bottom:6px"><span class="ep" style="background:var(--accent)">${m.k}</span> <span class="hint">Amazon · ${L.length} model${L.length === 1 ? '' : 's'}</span></div>${L.length ? `<div class="rw2 rwh"><span>Code</span><span>Amz</span><span>Sold</span><span>0 → 90 days</span><span>Days</span></div>` + L.map((c) => rowU(m, c)).join('') : '<p class="hint">All models above 90 days at Amazon.</p>'}</div>`; }).join('');
   const o2 = `<h4 style="margin:22px 0 2px;font-size:15px">Models under 90 days at Amazon</h4><p class="hint" style="margin:0 0 8px">Only the models whose Amazon stock covers less than 90 days of sales, most urgent first, one panel per market. The bar shows the Amazon days against the 90-day target (full bar = 90 days).</p><div class="u90g">${under}</div>`;
-  return css + '<style>.u90g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media(max-width:900px){.u90g{grid-template-columns:1fr}}.u90{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}.rw2{display:grid;grid-template-columns:52px 36px 38px minmax(60px,1fr) 58px;gap:6px;align-items:center;margin:4px 0;font-size:12px}.rw2 .n{text-align:right;font-variant-numeric:tabular-nums}.rw2 .t{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--surface2)}.rw2.rwh{font-size:11px;color:var(--muted);font-weight:700}.rw2.rwh span:not(:first-child){text-align:right}</style><div class="tq">' + o1 + o2 + '</div>';
+  return css + '<style>.u90g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media(max-width:900px){.u90g{grid-template-columns:1fr}}.u90{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}.rw2{display:grid;grid-template-columns:52px 36px 38px minmax(60px,1fr) 58px;gap:6px;align-items:center;margin:4px 0;font-size:12px}.rw2 .n{text-align:right;font-variant-numeric:tabular-nums}.rw2 .t{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--surface2)}.rw2.rwh{font-size:11px;color:var(--muted);font-weight:700}.rw2.rwh span:not(:first-child){text-align:right}</style><div class="tq">' + (u90 ? o2 : o1) + '</div>';
 }
 function amzMktTable(M) {
   const { S, AL, P, usada, vend, MKT } = M; const d = P.dias; const W = (x) => AL.find((a) => a.id === x);
