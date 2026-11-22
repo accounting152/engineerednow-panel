@@ -1258,7 +1258,7 @@ _amazonMain() {
   <div class="seg" role="group" aria-label="Period">${perBtns}</div>
   ${amzCtySel(A0)}</div>
   <div class="cols">
-    <section class="card span2" id="units"><h3>${state.amzMet === 'sales' ? 'Sales (US$)' : 'Units sold'} by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · ${amzYrs().join(' vs ')} · Seller Central (ordered ${state.amzMet === 'sales' ? 'sales' : 'units'})${perMonths(P).length ? ' · Highlighted ' + perMonths(P).map((k) => MESL[+k - 1]).join(', ') : ''}. Tap a bar to see the detail.</p>
+    <section class="card span2" id="units"><h3>${state.amzMet === 'sales' ? 'Sales (US$)' : 'Units sold'} by country and month</h3><p class="hint">${esc(state.amz === 'BOTH' ? 'HUNTER + JEER' : state.amz)} · ${amzYrs().join(' vs ')} · Seller Central (ordered ${state.amzMet === 'sales' ? 'sales' : 'units'})${perMonths(P).length ? ' · Highlighted ' + perMonths(P).map((k) => MESL[+k - 1]).join(', ') : ''}. Hover a bar for the exact figure.</p>
       ${unitsBlock(A, P)}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="uXls" style="height:44px;padding:0 16px">Download units Excel</button><span class="mut" id="uMsg" style="font-size:13px"></span></div>
     </section>
@@ -3378,7 +3378,18 @@ function unitsBlock(A, P) {
     <div class="kpi"><span class="l">Monthly average ${yN}</span><span class="v">${ufmt(avgV)}</span><span class="l">${S$ ? 'per month' : 'units per month'}</span></div></div>`;
   const leg = `<div class="ulegend">${paises.map((p, i) => `<span><i style="background:${PCOL[i % PCOL.length]}"></i>${ctyCode(p)}</span>`).join('')}${two ? `<span style="margin-left:8px"><i style="background:${PCOL[0]}"></i>${yN}</span><span><i style="background:${PCOL[0]};opacity:.38"></i>${yO}</span>` : ''}</div>`;
   const src = (two ? `<p class="hint" style="margin-top:8px">Total = sum of ${SM.length ? 'the selected months' : 'all months'} in each year; Change = ${yN} vs ${yO} for those months.${!SM.length ? ' Select months to compare like for like (2026 has no data for every month yet).' : ''}${partial ? ` * ${MESL[+partial - 1]} 2026 is still in progress.` : ''}</p>` : '') + (Y.includes('2025') ? `<p class="hint" style="margin-top:8px">2025: Amazon settlement reports (V2) by date the order was settled — product charges minus refunds, net units.</p>` : '') + (Y.includes('2026') ? `<p class="hint" style="margin-top:4px">2026: net = Seller Central ordered sales/units minus refunds (settlement reports; US and Canada refunds updated to 19 Nov from the Transaction view, other countries up to late October).</p>` : '') + (S$ ? '<p class="hint" style="margin-top:4px">US$ at the ECB rate of 8 Oct.</p>' : '');
-  return kp + leg + `<div class="chart" id="chUnits"></div>` +
+  const bars = (() => { let last = ''; amzDays(A).forEach((r) => { if (r.f > last) last = r.f; }); const pm = last && +last.slice(8, 10) < new Date(+last.slice(0, 4), +last.slice(5, 7), 0).getDate() ? last.slice(0, 7) : '';
+    const CA = '#C9CED6', CB = '#B8692F'; const v = (y, mm) => mt(y, mm); const has = (y, mm) => paises.some((p) => val(y, p, mm, 'u') || val(y, p, mm, 'v'));
+    const mx = Math.max(1, ...Y.flatMap((y) => mnum.map((mm) => v(y, mm)))); const lbl = (x) => (S$ ? '$' + nf(0).format(Math.round(x / 1000)) + 'K' : nf(0).format(x));
+    const chip = (d) => `<span style="font-weight:700;color:${d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${d >= 0 ? '▲' : '▼'} ${nf(0).format(Math.abs(d))}%</span>`;
+    const lg = `<div style="display:flex;gap:14px;font-size:12.5px;margin:4px 0 8px">${Y.map((y) => `<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${two && y === yO ? CA : CB};margin-right:5px;vertical-align:-2px"></i>${y}</span>`).join('')}</div>`;
+    const n = mnum.length; const col2 = `grid-template-columns:repeat(${n},minmax(0,1fr))`;
+    return lg + `<div style="display:grid;${col2};gap:8px;align-items:end;height:230px;border-bottom:1px solid var(--line)">${mnum.map((mm) => { const dim = SM.length && !SM.includes(mm) ? 'opacity:.35;' : '';
+      return `<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%;${dim}">${Y.map((y) => { const x = v(y, mm); if (!has(y, mm)) return '<div style="flex:1 1 0;max-width:28px"></div>'; const old = two && y === yO;
+        return `<div title="${MES[+mm - 1]} ${y}: ${S$ ? '$' + nf(0).format(x) : nf(0).format(x) + ' units'}" style="flex:1 1 0;max-width:28px;height:${Math.max(0, x) / mx * 86}%;background:${old ? CA : CB};border-radius:6px 6px 0 0;position:relative"><i style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:10px;font-style:normal;font-weight:700;white-space:nowrap;padding-bottom:2px;${old ? 'color:var(--muted)' : ''}">${lbl(x)}</i></div>`; }).join('')}</div>`; }).join('')}</div>
+      <div style="display:grid;${col2};gap:8px;text-align:center;font-size:12px;color:var(--muted);margin-top:4px">${mnum.map((mm) => { const part = pm && pm === yN + '-' + mm; const a = v(yO, mm), b = v(yN, mm);
+        return `<span>${MES[+mm - 1]}<b style="display:block;font-size:11px">${two && has(yN, mm) ? (part ? '<span class="mut" style="font-weight:400">so far</span>' : a ? chip((b - a) / Math.abs(a) * 100) : '') : ''}</b></span>`; }).join('')}</div>`; })();
+  return kp + bars + `<div style="height:10px"></div>` +
     `<div class="utbl-wrap"><table class="utbl"><thead><tr><th class="l">Country</th>${mnum.map((mm) => `<th>${MES[+mm - 1]}</th>`).join('')}<th>Total</th><th>${two ? 'Change' : '% ' + (S$ ? 'sales' : 'units')}</th><th>US$/unit</th></tr></thead><tbody>${rows}${totRow}</tbody></table></div>` + src +
     (Y.includes('2026') && partial ? `<p class="hint" style="margin-top:6px">${MESL[+partial - 1]} 2026 runs to day ${fdate(amzDays(A).reduce((x, r) => (r.f > x ? r.f : x), '')).d}.</p>` : '');
 }
@@ -3713,7 +3724,7 @@ const AFTER = {
     const days = amzDays(A);
     const byKey = (rows, kf) => { const m = {}; rows.forEach((r) => { const k = kf(r); m[k] = m[k] || { k, v: 0, u: 0 }; m[k].v += r.usd; m[k].u += r.u; }); return Object.values(m).sort((a, b) => (a.k < b.k ? -1 : 1)); };
     const sel = days.filter((r) => inPer(r.f, P, A));
-    unitsChart($('#chUnits'), A, P); $('#uXls').addEventListener('click', downloadUnits);
+    if ($('#chUnits')) unitsChart($('#chUnits'), A, P); $('#uXls').addEventListener('click', downloadUnits);
   },
   marketing() {
     document.querySelectorAll('[data-mksub]').forEach((b) => b.addEventListener('click', () => { state.mkSub = b.dataset.mksub; render(); }));
