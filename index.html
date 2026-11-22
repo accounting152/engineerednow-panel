@@ -418,7 +418,7 @@ $('#themeBtn').addEventListener('click', () => {
 const CUR = { USD: 'US$', EUR: '€', GBP: '£', CAD: 'C$', CHF: 'CHF', JPY: '¥', SGD: 'S$', SEK: 'kr', PLN: 'zł', MXN: 'MX$', BRL: 'R$' };
 const nf = (d) => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always' });
 const money = (v, c = 'USD', d = 2) => (v === '' || v == null || isNaN(+v)) ? '—' : (+v < 0 ? '−' : '') + nf(d).format(Math.abs(+v)) + ' ' + (CUR[c] || c);
-const compact = (v) => { const a = Math.abs(v); const s = v < 0 ? '−' : ''; if (a >= 1e6) return s + nf(2).format(a / 1e6) + ' M'; if (a >= 1e3) return s + nf(1).format(a / 1e3) + ' K'; return s + nf(0).format(a); };
+const compact = (v) => { const a = Math.abs(v); const s = v < 0 ? '−' : ''; if (a >= 1e6) return s + nf(2).format(a / 1e6) + ' M'; if (a >= 1e3) return s + nf(0).format(a / 1e3) + ' K'; return s + nf(0).format(a); };
 const MES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fdate = (s) => { const [y, m, d] = String(s).split('-'); return { d: +d, m: MES[+m - 1] || '', y }; };
 const PCOL = ['#B8692F', '#3A6E9E', '#2F8C7F', '#8B5FBF', '#C2496A', '#5E8A2E', '#D69A1E', '#4A5D9C', '#8A6B52', '#2A9BB5', '#9B4F96'];
@@ -440,7 +440,7 @@ async function decrypt(pw) {
 
 let D = null;
 let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
-const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'JEER', amzPer: 'ytd', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
+const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'BOTH', amzYrs: ['2025', '2026'], amzMet: 'sales', amzPer: 'ytd', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -3365,8 +3365,8 @@ function unitsChart(box, A, P) {
   box.innerHTML = s + '</svg>';
   const tip = tipFor(box); const unit = K === 'v' ? '' : ' units';
   box.querySelectorAll('rect[data-i]').forEach((el) => { const show = () => { const i = +el.dataset.i, mm = mnum[i], sc = box.clientWidth / W;
-      const rowsT = two ? paises.map((p, j) => [PCOL[j % PCOL.length], `${(AMZ_CTY[p] || [0, 0, p])[2]}`, `${ufmt(val(Y[1], p, mm, K))} · ${Y[0]}: ${ufmt(val(Y[0], p, mm, K))}`]).concat([[null, 'Total', `${ufmt(tot(Y[1], mm))} · ${Y[0]}: ${ufmt(tot(Y[0], mm))}`]])
-        : paises.map((p, j) => [PCOL[j % PCOL.length], (AMZ_CTY[p] || [0, 0, p])[2], ufmt(val(Y[0], p, mm, K)) + unit]).concat([[null, 'Total', ufmt(tot(Y[0], mm)) + unit]]);
+      const rowsT = two ? [[null, Y[1], ufmt(tot(Y[1], mm)) + unit], [null, Y[0], ufmt(tot(Y[0], mm)) + unit]]
+        : [[null, 'Total', ufmt(tot(Y[0], mm)) + unit]];
       tip.show((ml + step * i + step / 2) * sc, y(Math.max(...Y.map((yy) => tot(yy, mm)))) * sc, `${MESL[+mm - 1]} ${two ? Y[1] + ' vs ' + Y[0] : Y[0]}`, rowsT); };
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
