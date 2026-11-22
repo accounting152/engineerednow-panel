@@ -563,8 +563,9 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() { const I = D.informes || {}; if (!I.innovad_um && I.ws_lineas) I.innovad_um = wsUMBuild(I.ws_lineas, 'INNOVAD', 'Innovad · units and sales by model and month'); const R = I.innovad_um; if (!R) return '<section class="card"><p class="mut">No data.</p></section>';
-  return `<section class="card"><h3 style="margin:0 0 4px">Testing · Innovad · 2026 vs 2025</h3><p class="hint" style="margin:0 0 12px">The same two reports as on top of Sales → Shopify, with Innovad Inc. invoices (units invoiced and sales incl. shipping charged, by invoice month). Innovad buys in a few big orders, so the comparison uses the same months of 2025 up to the last month with a 2026 invoice.</p>${umShpViz(R, 'top', { byModel: true, note: 'Innovad Inc. invoices only: units invoiced; sales = product + shipping charged (USD, by invoice month). Model mix by model code.' })}</section>`; }
+function innTopViz() { const I = D.informes || {}; if (!I.innovad_um && I.ws_lineas) I.innovad_um = wsUMBuild(I.ws_lineas, 'INNOVAD', 'Innovad · units and sales by model and month'); const R = I.innovad_um; if (!R) return '';
+  return `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">Innovad · 2026 vs 2025</h3>${umShpViz(R, 'top', { byModel: true, note: 'Innovad Inc. invoices only: units invoiced; sales = product + shipping charged (USD, by invoice month). Innovad buys in a few big orders, so the comparison uses the same months of 2025 up to the last month with a 2026 invoice. Model mix by model code.' })}</section>`; }
+function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
 function umShpViz(R, part, op) { op = op || {};
   const ya = '2025', yb = '2026'; const recs = R.recs.filter((x) => !/^CASTER/i.test(x[2]) && (x[0] === ya || x[0] === yb));
   const cm = Math.max(...recs.filter((x) => x[0] === yb).map((x) => x[1])); const cut = (x) => x[1] <= cm;
@@ -1050,7 +1051,7 @@ amazon() {
   const ss = ['wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub) ? state.salesSub : 'amazon';
   const salesNav = `<div class="seg cseg" role="group" aria-label="Sales" style="margin:-4px 0 -10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + wsPage('Wholesalers');
-  if (ss === 'innovad') return salesNav + innSalesCards('is');
+  if (ss === 'innovad') return salesNav + innTopViz() + innSalesCards('is');
   if (ss === 'engineered') return salesNav + enPage();
   if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
