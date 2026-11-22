@@ -563,7 +563,57 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
+function tstInnovad() { return innSalesCards('is'); }
+function innSalesCards(pre) {
+  const W = (D.informes || {}).ws_lineas; if (!W) return '<section class="card"><p class="mut">No data loaded yet.</p></section>';
+  const R = wsMgRows(pre, 'INNOVAD'); const L = W.filas.filter((x) => x.fuente === 'INNOVAD');
+  const ys = R.ys; const selY = (state[pre + 'Y'] || []).filter((y) => ys.includes(y)); const years = selY.length ? selY : ys; const selM = (state[pre + 'M'] || []).filter((m) => /^\d\d$/.test(m));
+  const inM = (x) => !selM.length || selM.includes(x.fecha.slice(5, 7));
+  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const usd = (v) => '$' + n0(v); const kk = (v) => '$' + (Math.abs(v) >= 1e6 ? nfE(2).format(v / 1e6) + 'M' : n0(v / 1000) + 'K');
+  const YC = { 2024: '#C9B48A', 2025: '#8DB8E2', 2026: '#1F8A5B' }; const yc = (y) => YC[y] || '#B08BD9';
+  const agg = (fn) => { const o = { u: 0, s: 0, p: 0, e: 0, inv: new Set(), cl: new Set() }; L.forEach((x) => { if (!fn(x)) return; o.u += x.uds || 0; o.s += x.usd || 0; o.p += x.producto || 0; o.e += x.envio || 0; if (x.pedido) o.inv.add(x.pedido); if (x.cliente) o.cl.add(x.cliente); }); return o; };
+  const Y = {}; ys.forEach((y) => { Y[y] = agg((x) => x.fecha.slice(0, 4) === y && inM(x)); });
+  const now = new Date(); const CY = String(now.getFullYear()); const cut = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const prevOf = (y) => (selM.length || y !== CY ? Y[String(+y - 1)] : agg((x) => x.fecha.slice(0, 4) === String(+y - 1) && x.fecha.slice(5) <= cut));
+  const dl = (a, b) => { if (!b) return ''; const d = (a - b) / Math.abs(b) * 100; return ` <span style="font-weight:700;color:${d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${d >= 0 ? '▲' : '▼'} ${n0(Math.abs(d))}%</span>`; };
+  const css = `<style>.isg{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}.isc{border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--surface);border-top:4px solid var(--c)}.isc .lab{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .isk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}.isk b{display:block;font-size:24px;font-family:var(--mono,ui-monospace)}.isk span{font-size:12.5px;color:var(--muted)}
+  .ist{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.ist b{display:block;font-size:17px;font-family:var(--mono,ui-monospace)}.ist span{font-size:12.5px;color:var(--muted)}
+  .wmfc{display:flex;gap:8px;align-items:stretch;margin:0 0 8px;overflow-x:auto}.wmfc .seg{flex-wrap:nowrap}.wmfc .seg:first-child{flex:0 0 auto}.wmfc .seg:last-child{flex:1 1 auto;min-width:0}.wmfc button{padding:0 8px;min-height:32px;font-size:12.5px;white-space:nowrap}
+  .imc{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:end;height:190px;padding:0 2px;border-bottom:1px solid var(--line)}.imc .mo{display:flex;gap:2px;align-items:flex-end;height:100%;justify-content:center}.imc .mo div{flex:1 1 0;max-width:22px;border-radius:5px 5px 0 0;position:relative;min-height:1px}.imc .mo div i{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:9.5px;font-style:normal;font-weight:700;white-space:nowrap;color:var(--muted)}
+  .iml{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;font-size:11.5px;color:var(--muted);text-align:center;margin-top:4px}.ilg{display:flex;gap:14px;font-size:12.5px;margin:0 0 10px}.ilg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+  .imr{display:grid;grid-template-columns:70px minmax(160px,1fr) 64px 84px 52px;gap:8px;align-items:center;font-size:13px;margin:4px 0}.imr .n{text-align:right;font-variant-numeric:tabular-nums}.imr .bb{height:20px;border-radius:6px;background:var(--surface2);overflow:hidden;display:flex;flex-direction:column;gap:2px;padding:2px 0;background:transparent}.imr .bb div{border-radius:4px;flex:1}.imh{font-size:11.5px;color:var(--muted);font-weight:700}
+  .is5{width:100%;border-collapse:collapse;font-size:14px}.is5 th{font-size:12px;color:var(--muted);text-align:right;padding:6px 8px;font-weight:700}.is5 th:first-child,.is5 td:first-child,.is5 th:nth-child(2),.is5 td:nth-child(2){text-align:left}.is5 td{padding:8px;text-align:right;font-variant-numeric:tabular-nums;position:relative}
+  .is5 tbody tr:nth-child(odd) td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}.is5 .dbar{position:absolute;left:4px;top:4px;bottom:4px;border-radius:5px;opacity:.22}.is5 td span{position:relative}.is5 tr.tt td{font-weight:800;border-top:2px solid var(--line);background:transparent}</style>`;
+  // 1 year cards
+  const cards = years.map((y) => { const t = Y[y]; const pv = prevOf(y); const hp = pv && pv.u;
+    return `<div class="isc" style="--c:${yc(y)}"><div class="lab">${y}</div><div class="isk"><div><b>${n0(t.u)}</b><span>units${hp ? dl(t.u, pv.u) : ''}</span></div><div><b style="color:var(--ok)">${kk(t.s)}</b><span>sales${hp ? dl(t.s, pv.s) : ''}</span></div><div><b>${usd(t.u ? t.p / t.u : 0)}</b><span>avg. price / unit</span></div></div>
+      <div class="ist"><div><b>${kk(t.p)}</b><span>product sales</span></div><div><b>${kk(t.e)}</b><span>shipping charged</span></div><div><b>${n0(t.inv.size)}</b><span>invoices · ${n0(t.cl.size)} client${t.cl.size === 1 ? '' : 's'}</span></div></div></div>`; }).join('');
+  // 2 monthly chart
+  const met = state[pre + 'Met'] === 'u' ? 'u' : 's';
+  const MV = {}; years.forEach((y) => { MV[y] = MON3.map((_, i) => { const k = String(i + 1).padStart(2, '0'); return agg((x) => x.fecha.slice(0, 7) === y + '-' + k); }); });
+  const mx = Math.max(1, ...years.flatMap((y) => MV[y].map((o) => (met === 'u' ? o.u : o.s))));
+  const metSeg = `<div class="seg" role="group" aria-label="Metric" style="margin:0 0 10px;max-width:260px"><button aria-pressed="${met === 's'}" data-ismet="${pre}|s">Sales</button><button aria-pressed="${met === 'u'}" data-ismet="${pre}|u">Units</button></div>`;
+  const chart = `${metSeg}<div class="ilg">${years.map((y) => `<span><i style="background:${yc(y)}"></i>${y}</span>`).join('')}</div><div class="imc">${MON3.map((mn, i) => { const k = String(i + 1).padStart(2, '0'); const dim = selM.length && !selM.includes(k);
+    return `<div class="mo" style="${dim ? 'opacity:.25' : ''}">${years.map((y) => { const o = MV[y][i]; const v = met === 'u' ? o.u : o.s; return `<div title="${mn} ${y}: ${n0(o.u)} units · ${usd(o.s)}" style="height:${v / mx * 88}%;background:${yc(y)}">${v && years.length < 3 ? `<i>${met === 'u' ? n0(v) : n0(v / 1000) + 'K'}</i>` : ''}</div>`; }).join('')}</div>`; }).join('')}</div><div class="iml">${MON3.map((m) => `<span>${m}</span>`).join('')}</div>`;
+  // 3 by model
+  const fams = [...new Set(L.map((x) => x.modelo || 'Other'))];
+  const FM = fams.map((f) => ({ f, y: Object.fromEntries(years.map((y) => [y, agg((x) => (x.modelo || 'Other') === f && x.fecha.slice(0, 4) === y && inM(x))])) })).filter((r) => years.some((y) => r.y[y].u));
+  FM.sort((a, b) => years.reduce((t, y) => t + b.y[y].s, 0) - years.reduce((t, y) => t + a.y[y].s, 0));
+  const mxs = Math.max(1, ...FM.flatMap((r) => years.map((y) => r.y[y].s))); const totS = Object.fromEntries(years.map((y) => [y, Y[y].s || 1]));
+  const byModel = `<div class="imr imh"><span>Model</span><span>Sales by year</span><span class="n">Units</span><span class="n">Sales</span><span class="n">Share</span></div>` + FM.map((r) => `<div class="imr"><b>${esc(r.f)}</b><div class="bb" style="height:${years.length * 12 + 4}px">${years.map((y) => `<div title="${esc(r.f)} ${y}: ${n0(r.y[y].u)} units · ${usd(r.y[y].s)}" style="width:${r.y[y].s / mxs * 100}%;background:${yc(y)}"></div>`).join('')}</div><span class="n">${years.map((y) => n0(r.y[y].u)).join('<br>')}</span><span class="n"><b>${years.map((y) => kk(r.y[y].s)).join('<br>')}</b></span><span class="n" style="color:var(--muted)">${years.map((y) => n0(r.y[y].s / totS[y] * 100) + '%').join('<br>')}</span></div>`).join('');
+  // 4 client and model table
+  const rows = R.rows.filter((r) => !r.tot && r.label !== 'Subtotal'); const tots = R.rows.filter((r) => r.tot);
+  const mu = Math.max(1, ...rows.map((r) => r.o.u)); const ms = Math.max(1, ...rows.map((r) => r.o.p + r.o.e));
+  const tbl = `<div class="rtbl-wrap"><table class="is5"><thead><tr><th>Year</th><th>Client · model</th><th>Units</th><th>Avg. price</th><th>Product sales</th><th>Shipping</th><th>Sales</th><th>Share</th></tr></thead><tbody>${years.map((y) => { const T = (tots.find((t) => t.y === y) || {}).o; const ts = T ? T.p + T.e : 1;
+    return rows.filter((r) => r.y === y).map((r) => { const o = r.o; const s = o.p + o.e; return `<tr><td><b>${r.y}</b></td><td>${(r.cl ? esc(r.cl) + ' · ' : '') + esc(r.label)}</td><td><div class="dbar" style="width:${o.u / mu * 92}%;background:var(--info)"></div><span>${n0(o.u)}</span></td><td>${usd(o.u ? o.p / o.u : 0)}</td><td>${usd(o.p)}</td><td style="color:var(--muted)">${usd(o.e)}</td><td><div class="dbar" style="width:${s / ms * 92}%;background:var(--ok)"></div><span><b>${usd(s)}</b></span></td><td>${n0(s / ts * 100)}%</td></tr>`; }).join('') + (T ? `<tr class="tt"><td>${y}</td><td>Total</td><td>${n0(T.u)}</td><td>${usd(T.u ? T.p / T.u : 0)}</td><td>${usd(T.p)}</td><td>${usd(T.e)}</td><td>${usd(ts)}</td><td>100%</td></tr>` : ''); }).join('') || '<tr><td colspan="8">No invoices in the selected period.</td></tr>'}</tbody></table></div>`;
+  return `${css}<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 10px">Innovad Sales · US$</h3>${R.filtC}<p class="hint" style="margin:0 0 10px">Showing ${esc(R.per)} (invoice date). Tap the years or months to add or remove them. ▲▼ = change against the same period of the previous year (for the current year: 1 Jan up to today's date).</p>
+    <h4 style="margin:6px 0 8px;font-size:15px">By year</h4><div class="isg">${cards || '<p class="mut">No invoices in the selected period.</p>'}</div>
+    <h4 style="margin:20px 0 8px;font-size:15px">By month</h4>${chart}
+    <h4 style="margin:20px 0 8px;font-size:15px">By model</h4>${byModel}
+    <h4 style="margin:20px 0 4px;font-size:15px">By client and model</h4>${tbl}
+    <p class="hint" style="margin-top:10px">Innovad Inc. invoices only. Sales = product sales + shipping charged (US$, invoice date). Avg. price = product sales ÷ units (shipping excluded). Share = % of the year's sales. K = thousands, M = millions of US$.</p></section>`;
+}
 function planClean(R, rows) {
   const n0 = (v) => nfE(0).format(v || 0); const fmt = (v) => (v ? n0(v) : '');
   const fd = (s) => (s ? `${fdEN(s).d} ${fdEN(s).m} ${s.slice(2, 4)}` : '');
@@ -3269,6 +3319,13 @@ const AFTER = {
     $('#invEstado').addEventListener('change', (e) => keep(() => { state.invEstado = e.target.value; }));
     let t; const qi = $('#invQ'); qi.addEventListener('input', (e) => { clearTimeout(t); t = setTimeout(() => { keep(() => { state.invQ = e.target.value; }); const n = $('#invQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 400); });
     $('#xlsBtn').addEventListener('click', downloadStock);
+  },
+  testing() {
+    const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
+    const tog = (arr, v) => (!v ? [] : (arr || []).includes(v) ? (arr || []).filter((x) => x !== v) : (arr || []).concat(v).sort());
+    document.querySelectorAll('[data-wmyc]').forEach((b) => b.addEventListener('click', kp(() => { const [pr, v, all] = b.dataset.wmyc.split('|'); const A = all.split(','); const cur = (state[pr + 'Y'] || []).filter((y) => A.includes(y)); let n = cur.length ? cur.slice() : A.slice(); n = n.includes(v) ? n.filter((y) => y !== v) : n.concat(v); state[pr + 'Y'] = !n.length || n.length === A.length ? [] : n; })));
+    document.querySelectorAll('[data-wmm]').forEach((b) => b.addEventListener('click', kp(() => { const [pr, v] = b.dataset.wmm.split('|'); state[pr + 'M'] = tog(state[pr + 'M'], v); })));
+    document.querySelectorAll('[data-ismet]').forEach((b) => b.addEventListener('click', kp(() => { const [pr, v] = b.dataset.ismet.split('|'); state[pr + 'Met'] = v; })));
   },
   margins() {
     const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); };
