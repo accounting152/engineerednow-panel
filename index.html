@@ -1986,10 +1986,8 @@ function shBody(R) {
   const head = `<tr><th class="l">Date</th><th style="text-align:left">Order</th><th style="text-align:left">Type</th><th style="text-align:left">Status</th><th>Country</th><th>State</th><th style="text-align:left">Channel</th><th style="text-align:left">Fulfilled by</th><th style="text-align:left">SKU</th><th>Model</th>${SH_NUM.map(([, l]) => `<th class="gs" style="min-width:92px">${l}</th>`).join('')}<th style="text-align:left">Discount code</th></tr>`;
   const tr = `<tr class="tot"><td class="l" colspan="10">Total (${rows.length} lines)</td>${SH_NUM.map(([k]) => `<td class="gs">${k === 'uds' ? nfE(0).format(S[k]) : fm(S[k])}</td>`).join('')}<td></td></tr>`;
   const body = rows.map((x) => `<tr class="sub"><td class="l">${esc(x.fecha)}</td><td style="text-align:left">${esc(x.pedido)}</td><td style="text-align:left">${esc(x.tipo)}${x.extra ? ' <span class="mut">' + esc(x.extra) + '</span>' : ''}</td><td style="text-align:left">${esc(x.estado)}</td><td>${esc(x.pais)}</td><td>${esc(x.region)}</td><td style="text-align:left">${esc(x.canal)}</td><td style="text-align:left">${esc(x.envio_por)}</td><td style="text-align:left">${esc(x.sku)}</td><td>${esc(x.modelo)}</td>${SH_NUM.map(([k]) => `<td class="gs"${x[k] < 0 ? ' style="color:var(--bad)"' : ''}>${k === 'uds' ? (x[k] || '') : fm(x[k])}</td>`).join('')}<td style="text-align:left">${esc(x.codigo)}</td></tr>`).join('');
-  return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}<section class="kpis" style="margin:6px 0 12px">${kp}</section>
-    <div class="rtbl-wrap"><table class="rtbl cobt" style="min-width:1900px"><thead>${head}</thead><tbody>${tr}${body}</tbody></table></div>
-    <p class="hint" style="margin-top:8px">${esc(R.nota)}</p>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-shxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-shopify" style="font-size:13px"></span><span class="hint">All lines of 2025 and 2026 in one sheet, ready to filter.</span></div></section>`;
+  return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><button class="btn" data-shxls style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-shopify" style="font-size:13px"></span><span class="hint">${nfE(0).format(rows.length)} lines match the filters (${y}${t !== 'All' ? ' · ' + t : ''}${f !== 'All' ? ' · ' + esc(f) : ''}${state.shQ ? ' · “' + esc(state.shQ) + '”' : ''}). The file has a Summary sheet and a Line detail sheet with those lines, ready to filter in Excel.</span></div></section>`;
 }
 async function downloadShopify() {
   const msg = $('#repMsg-shopify'); msg.textContent = 'Preparing the Excel file…';
@@ -2005,12 +2003,12 @@ async function downloadShopify() {
     const pre = [['anio', 'Year'], ['fecha', 'Date'], ['pedido', 'Order'], ['tipo', 'Type'], ['extra', 'Note / refund reason'], ['estado', 'Status'], ['pais', 'Country'], ['region', 'State'], ['canal', 'Channel'], ['envio_por', 'Fulfilled by'], ['mcf_cuenta', 'MCF Amazon account'], ['sku', 'SKU'], ['modelo', 'Model'], ['producto', 'Product name']];
     const post = [['codigo', 'Discount code'], ['pago', 'Payment gateway']]; const H = pre.concat(SH_NUM, post);
     H.forEach(([, h], k) => { const c = ws.getCell(1, k + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11181D' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
-    ws.getRow(1).height = 40; const rows = R.filas.slice().sort((a, b) => (a.fecha + a.pedido).localeCompare(b.fecha + b.pedido));
+    ws.getRow(1).height = 40; const rows = shRows(R).slice().sort((a, b) => (a.fecha + a.pedido).localeCompare(b.fecha + b.pedido));
     rows.forEach((x, i) => { const r = i + 2; H.forEach(([k], j) => { const c = ws.getCell(r, j + 1); let v = x[k]; if (k === 'fecha') v = new Date(v + 'T00:00:00Z'); c.value = v === '' ? null : v; c.font = F();
       if (k === 'fecha') c.numFmt = 'dd-mmm-yyyy'; if (SH_NUM.some(([kk]) => kk === k) && k !== 'uds') c.numFmt = MF; if (k === 'uds') c.numFmt = '0;[Red]-0;;@'; }); });
     [6, 11, 8, 13, 16, 18, 7, 7, 11, 16, 12, 16, 8, 40].forEach((w, k) => { ws.getColumn(k + 1).width = w; }); for (let k = pre.length + 1; k <= H.length; k++) ws.getColumn(k).width = 13;
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: H.length } };
-    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_orders_refunds_line_detail_2025-2026.xlsx';
+    const buf = await wb.xlsx.writeBuffer(); const name = 'Shopify_orders_refunds_line_detail_' + (state.shYear || '2026') + ((state.shType || 'All') !== 'All' ? '_' + state.shType : '') + '.xlsx';
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
