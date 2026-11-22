@@ -564,7 +564,7 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
 function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
-function umShpViz(R) {
+function umShpViz(R, part) {
   const ya = '2025', yb = '2026'; const recs = R.recs.filter((x) => !/^CASTER/i.test(x[2]) && (x[0] === ya || x[0] === yb));
   const cm = Math.max(...recs.filter((x) => x[0] === yb).map((x) => x[1])); const cut = (x) => x[1] <= cm;
   const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => '$' + n0(v); const kk = (v) => '$' + nfE(1).format(v / 1000) + 'K';
@@ -619,6 +619,9 @@ function umShpViz(R) {
   const avg = (y, mo) => { const u = modTot(y, mo, y === ya); return u > 0 ? sum((x) => x[0] === y && x[2] === mo && (y !== ya || cut(x)), 6) / u : null; };
   const o5 = head(5, 'Average price per unit', `Net sales ÷ net units, by month and by model (models with 5+ units in ${yb}). Shows if discounts or the mix are moving the price.`) +
     `<div class="u2g"><div class="u2c"><h5>By month</h5><div class="ulg"><span><i style="background:${YC[ya]}"></i>${ya}</span><span><i style="background:${YC[yb]}"></i>${yb}</span></div>${lines([{ n: ya, c: YC[ya], v: ap(ya) }, { n: yb, c: YC[yb], v: apB }], u0)}</div><div class="u2c"><h5>By model · ${per}</h5><table class="upt"><thead><tr><th class="l">Model</th><th>${ya}</th><th>${yb}</th><th>Change</th><th>Units ${yb}</th></tr></thead><tbody>${modsP.map((mo) => { const a = avg(ya, mo), b = avg(yb, mo); return `<tr><td class="l"><b>${esc(mo)}</b></td><td style="color:var(--muted)">${a == null ? '–' : u0(a)}</td><td><b>${b == null ? '–' : u0(b)}</b></td><td>${a && b ? dl(b, a) : ''}</td><td>${n0(modTot(yb, mo))}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  const nt = `<p class="hint" style="margin:8px 0 0">${yb} data up to ${MON3[cm]}; comparisons use the same months of ${ya}. Casters excluded. Net units = sold − returned; net sales = product + shipping charged − refunds (USD, by order or refund month).</p>`;
+  if (part === 'top') return css + o1 + o3.replace('margin:22px 0 2px', 'margin:22px 0 2px') + nt;
+  if (part === 'hm') return css + o2.replace('margin:22px 0 2px', 'margin:4px 0 2px') + nt;
   return css + o1 + o3 + o2 + `<p class="hint" style="margin:8px 0 18px">${yb} data up to ${MON3[cm]}; comparisons use the same months of ${ya}. Casters excluded. Net units = sold − returned; net sales = product + shipping charged − refunds (USD, by order or refund month).</p>`;
 }
 function shSumViz(S) { const ys = S.ys, V = S.V; const RL = D.informes.shopify_lineas;
@@ -1946,7 +1949,8 @@ function shopifyInformes() {
     sm = `<section class="card rep-item${op3 ? ' open' : ''}"><button class="rep-head" data-shtoggle3 aria-expanded="${op3}"><span class="rep-pm" aria-hidden="true">${op3 ? '−' : '+'}</span><span class="rep-t"><b>Shopify summary · orders, refunds and fees</b><span class="mut">${esc(sub3)}</span></span></button></section>${op3 ? `<div class="rep-body">${shSumBody()}</div>` : ''}`; }
   let sc = ''; const RS = (D.informes || {}).shipping_check; if (RS) { const op4 = !!(state.repOpen || {}).shipping_check; const sub4 = RS.anios.map((y) => { const f = RS.filas.filter((r) => r.anio === y); return `${y}: ${moneyE(f.reduce((t, r) => t + r.total, 0), 'USD', 0)} shipping paid · ${new Set(f.filter((r) => r.doble).map((r) => r.pedido)).size} orders paid in more than one platform`; }).join(' · ');
     sc = `<section class="card rep-item${op4 ? ' open' : ''}"><button class="rep-head" data-shtoggle4 aria-expanded="${op4}"><span class="rep-pm" aria-hidden="true">${op4 ? '−' : '+'}</span><span class="rep-t"><b>Checking shipping costs</b><span class="mut">${esc(sub4)}</span></span></button></section>${op4 ? `<div class="rep-body">${scBody(RS)}</div>` : ''}`; }
-  return c + sm + ln + sc + um + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
+  const top = R2 ? `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">Shopify · ${'2026'} vs ${'2025'}</h3>${umShpViz(R2, 'top')}</section>` : '';
+  return top + c + sm + ln + sc + um + '<p class="hint" style="margin-top:6px">Tap (+) to open a report and (−) to close it.</p>';
 }
 // ---- Shopify payouts: sales, refunds and Shopify fees per payout, reconciled with Wells Fargo (Hunter)
 const SP_ST = { 'Confirmed in bank': 'var(--ok)', 'In transit': 'var(--info)', Scheduled: 'var(--info)', Withdrawal: 'var(--warn)', 'Not found in bank': 'var(--bad)' };
@@ -2766,7 +2770,7 @@ function umBodyInn(id) {
 }
 function umBody(id) {
   if (id === 'innovad_um' || id === 'wholesalers_um') return umBodyInn(id);
-  if (id === 'shopify_um') { const R0 = D.informes[id]; return `<section class="card"><h3>${esc(R0.titulo)}</h3>${umShpViz(R0)}</section>`; }
+  if (id === 'shopify_um') { const R0 = D.informes[id]; return `<section class="card"><h3>${esc(R0.titulo)}</h3>${umShpViz(R0, 'hm')}</section>`; }
   umUse(id); const R = D.informes[id]; const U = umData(R); const usd = U.m === 'usd'; const f = (v) => (Math.abs(v) >= 0.5 ? nfE(0).format(v) : '');
   const filt = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><div class="seg" role="group" aria-label="Value"><button aria-pressed="${!usd}" data-umm="units">Net units</button><button aria-pressed="${usd}" data-umm="usd">Net sales (USD)</button></div><div class="seg" role="group" aria-label="Year">${R.anios.map((y) => `<button aria-pressed="${y === U.y}" data-umy="${y}">${y}</button>`).join('')}</div>
     ${R.empresas.length > 1 ? `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%">${['All'].concat(R.empresas).map((e) => `<button aria-pressed="${e === U.e}" data-ume="${esc(e)}">${e === 'All' ? 'All companies' : esc(e)}</button>`).join('')}</div>` : ''}
