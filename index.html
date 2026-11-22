@@ -574,7 +574,7 @@ function wcmBind() { const kp = (fn) => () => { const y = scrollY; fn(); render(
 function wsClientMonth() {
   const W = (D.informes || {}).ws_lineas; if (!W) return '<section class="card"><p class="mut">No data.</p></section>';
   const L = W.filas.filter((x) => x.fuente === 'Wholesalers' && !/^CASTER/i.test(x.modelo || '')); const ya = '2025', yb = '2026';
-  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => '$' + n0(v); const kk = (v) => '$' + nfE(1).format(v / 1000) + 'K';
+  const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => '$' + n0(v); const kk = (v) => '$' + n0(v / 1000) + 'K';
   const dl = (a, b) => { if (!b) return a ? '<span style="font-weight:700;color:var(--ok)">new</span>' : ''; const d = (a - b) / Math.abs(b) * 100; return `<span style="font-weight:700;color:${d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${d >= 0 ? '▲' : '▼'} ${n0(Math.abs(d))}%</span>`; };
   const cm = Math.max(...L.filter((x) => x.fecha.startsWith(yb)).map((x) => +x.fecha.slice(5, 7))); const per = `Jan–${MON3[cm - 1]}`; const inP = (x) => +x.fecha.slice(5, 7) <= cm;
   const YC = { 2025: '#8A94A3', 2026: '#1F8A5B' }; const PAL = ['#1F8A5B', '#5B8DEF', '#B8692E', '#B08BD9', '#E0A04B', '#4AA3DF', '#E5484D', '#7FC8A9', '#8C5A2B', '#6B7685', '#F0A3B8', '#2F4B7C', '#D4B000', '#9C27B0', '#00A3A3'];
@@ -589,7 +589,7 @@ function wsClientMonth() {
   .w24{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;align-items:end;height:210px;border-bottom:1px solid var(--line);position:relative}.w24 div.c{border-radius:4px 4px 0 0;position:relative}.w24 div.c i{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:9.5px;font-style:normal;font-weight:700;color:var(--muted);white-space:nowrap}.w24l{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;font-size:10px;color:var(--muted);text-align:center;margin-top:3px}.ulg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:0 0 8px}.ulg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}</style>`;
   // 1 client x month heatmap (both years, 24 cols)
   const YS = [ya, yb]; const selY = (state.wcmY || []).filter((y) => YS.includes(y)); const years = selY.length ? selY : YS; const met = state.wcmMet === 's' ? 's' : 'u';
-  const fv = (v) => (met === 's' ? (Math.abs(v) >= 1000 ? '$' + nfE(v >= 10000 ? 0 : 1).format(v / 1000) + 'K' : '$' + n0(v)) : n0(v));
+  const fv = (v) => (met === 's' ? (Math.abs(v) >= 1000 ? '$' + n0(v / 1000) + 'K' : '$' + n0(v)) : n0(v));
   const months = years.flatMap((y) => MON3.map((m, i) => [y, i + 1]));
   const cu = (c, y, m) => agg((x) => cl(x) === c && x.fecha.startsWith(y + '-' + String(m).padStart(2, '0')))[met];
   const ct = (c, y) => agg((x) => cl(x) === c && x.fecha.startsWith(y))[met];
