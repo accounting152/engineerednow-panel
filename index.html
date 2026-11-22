@@ -1268,7 +1268,7 @@ amazon() {
   const salesNav = `<div class="seg cseg" role="group" aria-label="Sales" style="margin:-4px 0 -10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + wsTopViz() + wsPage('Wholesalers');
   if (ss === 'innovad') return salesNav + innTopViz() + innSalesCards('is');
-  if (ss === 'engineered') return salesNav + '<div style="height:14px"></div>' + consRT() + consViz([1, 2, 5]) + enPage();
+  if (ss === 'engineered') return salesNav + '<div style="height:14px"></div>' + consRT() + consViz([1, 2, 5]);
   if (ss === 'shopify') return salesNav + `<div class="seg" role="group" aria-label="Shopify" style="margin-bottom:12px"><button aria-pressed="true">Reports</button></div>` + shopifyInformes();
   return salesNav + VIEWS._amazonInner();
 },
