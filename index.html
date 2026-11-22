@@ -1806,7 +1806,7 @@ async function downloadPlan(id) {
 }
 function amzInformesView() {
   const RS = D.informes || {}; if (RS.pagos_amazon_us && !RS.unidades_modelo) RS.unidades_modelo = umBuild(RS.pagos_amazon_us);
-  const list = [{ id: 'pagos_amazon_us', body: () => pagosBody('pagos_amazon_us') }, { id: 'unidades_modelo', body: () => umBody('unidades_modelo') }].filter((x) => RS[x.id]);
+  const list = [{ id: 'pagos_amazon_us', body: () => pagosBody('pagos_amazon_us') }].filter((x) => RS[x.id]);
   if (!list.length) return '<div class="card mut">No reports yet.</div>';
   return list.map(({ id, body }) => { const R = RS[id]; const open = !!(state.repOpen || {})[id];
     const sub = id === 'unidades_modelo' ? R.anios.map((y) => `${y}: ${nfE(0).format(R.tot_anio[y] || 0)} net units · ${moneyE(R.tot_usd[y] || 0, 'USD', 0)} net sales`).join(' · ') : (R.anios || ['2026']).map((y) => `${y}: ${(R.n_anio || {})[y] || 0} transfers · ${moneyE((R.total_anio || {})[y] || 0, 'USD', 0)}`).join(' · ');
