@@ -563,8 +563,8 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
-function tstInnovad() {
-  const R = (D.informes || {}).shopify_um; if (!R) return '<section class="card"><p class="mut">No data.</p></section>';
+function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
+function umShpViz(R) {
   const ya = '2025', yb = '2026'; const recs = R.recs.filter((x) => !/^CASTER/i.test(x[2]) && (x[0] === ya || x[0] === yb));
   const cm = Math.max(...recs.filter((x) => x[0] === yb).map((x) => x[1])); const cut = (x) => x[1] <= cm;
   const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => '$' + n0(v); const kk = (v) => '$' + nfE(1).format(v / 1000) + 'K';
@@ -572,7 +572,7 @@ function tstInnovad() {
   const sum = (f, i) => recs.filter(f).reduce((t, x) => t + x[i], 0);
   const dl = (a, b) => { if (!b) return ''; const d = (a - b) / Math.abs(b) * 100; return `<span style="font-weight:700;color:${d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${d >= 0 ? '▲' : '▼'} ${n0(Math.abs(d))}%</span>`; };
   const per = `Jan–${MON3[cm]}`;
-  const head = (n, t, x) => `<div style="margin:26px 0 4px"><span class="opt" style="margin-right:8px">Option ${n}</span><b style="font-size:16px">${t}</b></div><p class="hint" style="margin:2px 0 10px">${x}</p>`;
+  const head = (n, t, x) => `<h4 style="margin:${n === 1 ? 4 : 22}px 0 2px;font-size:15px">${t}</h4><p class="hint" style="margin:2px 0 10px">${x}</p>`;
   const css = `<style>.ukg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}@media(max-width:900px){.ukg{grid-template-columns:repeat(2,minmax(0,1fr))}}.ukg>div{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--surface)}.ukg .l{font-size:12px;color:var(--muted)}.ukg b{display:block;font-size:24px;font-family:var(--mono,ui-monospace);margin:4px 0}.ukg .p{font-size:12px;color:var(--muted)}
   .u2g{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:820px){.u2g{grid-template-columns:1fr}}.u2c{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:var(--surface)}.u2c h5{margin:0 0 6px;font-size:13.5px}.ulg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:0 0 6px}.ulg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
   .uhm{width:100%;border-collapse:separate;border-spacing:3px;font-size:12.5px}.uhm th{font-size:11px;color:var(--muted);font-weight:700;padding:4px}.uhm td{text-align:center;padding:6px 2px;border-radius:6px;font-variant-numeric:tabular-nums}.uhm td.l{text-align:left;font-weight:700;padding-left:4px}.uhm td.t{font-weight:800;background:var(--surface2)}
@@ -619,7 +619,7 @@ function tstInnovad() {
   const avg = (y, mo) => { const u = modTot(y, mo, y === ya); return u > 0 ? sum((x) => x[0] === y && x[2] === mo && (y !== ya || cut(x)), 6) / u : null; };
   const o5 = head(5, 'Average price per unit', `Net sales ÷ net units, by month and by model (models with 5+ units in ${yb}). Shows if discounts or the mix are moving the price.`) +
     `<div class="u2g"><div class="u2c"><h5>By month</h5><div class="ulg"><span><i style="background:${YC[ya]}"></i>${ya}</span><span><i style="background:${YC[yb]}"></i>${yb}</span></div>${lines([{ n: ya, c: YC[ya], v: ap(ya) }, { n: yb, c: YC[yb], v: apB }], u0)}</div><div class="u2c"><h5>By model · ${per}</h5><table class="upt"><thead><tr><th class="l">Model</th><th>${ya}</th><th>${yb}</th><th>Change</th><th>Units ${yb}</th></tr></thead><tbody>${modsP.map((mo) => { const a = avg(ya, mo), b = avg(yb, mo); return `<tr><td class="l"><b>${esc(mo)}</b></td><td style="color:var(--muted)">${a == null ? '–' : u0(a)}</td><td><b>${b == null ? '–' : u0(b)}</b></td><td>${a && b ? dl(b, a) : ''}</td><td>${n0(modTot(yb, mo))}</td></tr>`; }).join('')}</tbody></table></div></div>`;
-  return `<section class="card"><h3 style="margin:0 0 4px">Testing · Shopify net units and net sales</h3><p class="hint" style="margin:0">Five ideas for "Net units and net sales by model and month (Shopify)". ${yb} data up to ${MON3[cm]}; comparisons use the same months of ${ya}. Casters excluded.</p>${css}${o1}${o2}${o3}${o4}${o5}</section>`;
+  return css + o1 + o3 + o2 + `<p class="hint" style="margin:8px 0 18px">${yb} data up to ${MON3[cm]}; comparisons use the same months of ${ya}. Casters excluded. The buttons below only change the reports underneath.</p>`;
 }
 function shSumViz(S) { const ys = S.ys, V = S.V; const RL = D.informes.shopify_lineas;
   const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => (v < 0 ? '−$' : '$') + n0(Math.abs(v)); const u2 = (v) => (v < 0 ? '−$' : '$') + nfE(2).format(Math.abs(v)); const kk = (v) => (v < 0 ? '−$' : '$') + nfE(1).format(Math.abs(v) / 1000) + 'K';
@@ -2773,7 +2773,7 @@ function umBody(id) {
   const tot = U.col.reduce((a, b) => a + b, 0);
   const body = U.mods.map((m) => { const t = U.M[m].reduce((a, b) => a + b, 0); return `<tr><td class="l"><b>${esc(m)}</b></td>${U.M[m].map((v) => `<td${v < 0 ? ' style="color:var(--bad)"' : ''}>${f(v)}</td>`).join('')}<td class="te"><b>${f(t)}</b></td></tr>`; }).join('');
   const table = U.mods.length ? `<div class="rtbl-wrap"><table class="rtbl" style="min-width:900px"><thead><tr><th class="l">Model${usd ? ' · USD' : ' · units'}</th>${UM_MES.map((m) => `<th>${m}</th>`).join('')}<th class="te">Total</th></tr></thead><tbody>${body}<tr class="tot"><td class="l">Total</td>${U.col.map((v) => `<td>${f(v)}</td>`).join('')}<td class="te">${f(tot)}</td></tr></tbody></table></div>` : '<p class="mut">No units for this selection.</p>';
-  return `<section class="card"><h3>${esc(R.titulo)}</h3>${filt}
+  return `<section class="card"><h3>${esc(R.titulo)}</h3>${id === 'shopify_um' ? umShpViz(R) : ''}${filt}
     ${(() => { const A = umSeries(R, '2025', U.e, U.c), Bs = umSeries(R, '2026', U.e, U.c); const scope = `2025 vs 2026 · ${U.e === 'All' ? 'all companies' : U.e} · ${U.c === 'All' ? 'all ' + (R.dims || 'countries') : U.c} · casters excluded`;
       const k = (v, full) => (full ? moneyE(v, 'USD', 0) : Math.abs(v) >= 1000 ? nfE(0).format(v / 1000) + 'k' : nfE(0).format(v));
       return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 12px">${umChart2('Headrests sold per month (net units)', A.u, Bs.u, (v) => nfE(0).format(v), scope)}${umChart2('Headrest sales per month (net, USD)', A.d, Bs.d, k, scope)}</div>` + umCountrySection(R); })()}
