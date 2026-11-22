@@ -3161,7 +3161,7 @@ function pagosBody(id, ttl) {
       <p class="hint" style="margin-top:8px">${esc(R.nota_desglose)}</p>`;
   }
   return `<section class="card"><h3>${esc(TT)}</h3>${tabs}${accSeg}
-    ${id === 'stock_amazon' ? amzCobViews(M) : CMP ? amzU90('amazon_cobertura') + amzMktTable(M) + amzRunway(M) : `<section class="kpis" style="margin:6px 0 12px">${kp}</section>`}${main}
+    <section class="kpis" style="margin:6px 0 12px">${kp}</section>${main}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" data-rxls="${id}" style="height:44px;padding:0 16px">Download Excel</button><span class="mut" id="repMsg-${id}" style="font-size:13px"></span><span class="hint">One file with two sheets: Transfers and Line detail (one row per transaction, ready to filter).</span></div>
   </section>`;
 }
