@@ -563,6 +563,15 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
+function amzTopViz() { const I = D.informes || {}; if (I.pagos_amazon_us && !I.unidades_modelo) I.unidades_modelo = umBuild(I.pagos_amazon_us); const A = amzA('BOTH'); if (!A) return '';
+  const fx = A.fx || { USD: 1 }; const C = {}; const add = (y, p, m, u, v) => { const k = y + '|' + p + '|' + m; const o = C[k] = C[k] || [y, m, 'ALL', '', p, 0, 0]; o[5] += u; o[6] += v; };
+  let last = ''; amzDays(A).forEach((r) => { if (r.f.slice(0, 4) !== '2026') return; add('2026', r.pais, +r.f.slice(5, 7) - 1, r.u, r.usd); if (r.f > last) last = r.f; });
+  Object.entries(((A.hist || {}).ref2026) || {}).forEach(([p, ms]) => Object.entries(ms).forEach(([m, v]) => add('2026', p, +m.slice(5, 7) - 1, v[1], v[0] * (fx[v[2]] || 1))));
+  Object.entries(((A.hist || {})['2025']) || {}).forEach(([p, ms]) => Object.entries(ms).forEach(([m, v]) => add('2025', p, +m.slice(5, 7) - 1, v[1], v[0] * (fx[v[2]] || 1))));
+  const recs = Object.values(C); const paises = [...new Set(recs.map((x) => x[4]))];
+  let cm = 11; if (last) { const d = new Date(last + 'T00:00:00'); const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); cm = d.getDate() >= end ? d.getMonth() : d.getMonth() - 1; }
+  const R = { recs }; const RM = I.unidades_modelo;
+  return `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">Amazon · 2026 vs 2025 · all companies and territories</h3>${umShpViz(R, 'top', { cm, mixRecs: RM ? RM.recs : [], mixNote: 'Model detail is only available from the North America payouts (Hunter + JEER), so the mix covers those marketplaces.', note: 'Running total: every Amazon sale of HUNTER and JEER in all ' + paises.length + ' marketplaces (' + esc(paises.join(', ')) + '), in USD. 2026 = units and sales ordered (Seller Central, daily); 2025 = settled sales (V2 settlement reports). The current month is left out of the comparison until it ends.' })}</section>`; }
 function wsTopViz() { const I = D.informes || {}; if (!I.wholesalers_um && I.ws_lineas) I.wholesalers_um = wsUMBuild(I.ws_lineas, 'Wholesalers', 'Wholesalers · units and sales by model and month'); const R = I.wholesalers_um; if (!R) return '';
   return `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">Wholesalers · 2026 vs 2025</h3>${umShpViz(R, 'top', { note: 'Invoices to distributors (Innovad not included, it has its own menu): units invoiced; sales = product + shipping charged (USD, by invoice month). Casters excluded.' })}</section>`; }
 function innTopViz() { const I = D.informes || {}; if (!I.innovad_um && I.ws_lineas) I.innovad_um = wsUMBuild(I.ws_lineas, 'INNOVAD', 'Innovad · units and sales by model and month'); const R = I.innovad_um; if (!R) return '';
@@ -608,7 +617,7 @@ function wsClientMonth() {
 }
 function umShpViz(R, part, op) { op = op || {};
   const ya = '2025', yb = '2026'; const recs = R.recs.filter((x) => !/^CASTER/i.test(x[2]) && (x[0] === ya || x[0] === yb));
-  const cm = Math.max(...recs.filter((x) => x[0] === yb).map((x) => x[1])); const cut = (x) => x[1] <= cm;
+  const cm = Math.min(op.cm != null ? op.cm : 11, Math.max(...recs.filter((x) => x[0] === yb).map((x) => x[1]))); const cut = (x) => x[1] <= cm;
   const n0 = (v) => nfE(0).format(Math.round(v) || 0); const u0 = (v) => '$' + n0(v); const kk = (v) => '$' + nfE(1).format(v / 1000) + 'K';
   const YC = { 2025: '#A3ACB8', 2026: '#B8692E' }; const PAL = ['#B8692E', '#5B8DEF', '#1F8A5B', '#B08BD9', '#E0A04B', '#4AA3DF', '#E5484D', '#8A94A3', '#2E9D6B', '#C9853A', '#6B7685', '#F0A3B8'];
   const sum = (f, i) => recs.filter(f).reduce((t, x) => t + x[i], 0);
@@ -629,7 +638,7 @@ function umShpViz(R, part, op) { op = op || {};
   const mon = (y, i) => MON3.map((_, m) => sum((x) => x[0] === y && x[1] === m, i));
   const cum = (a, upto) => { let t = 0; return a.map((v, m) => (m > upto ? null : (t += v))); };
   const uA = mon(ya, 5), uB = mon(yb, 5), sA = mon(ya, 6), sB = mon(yb, 6);
-  const UA = sum((x) => x[0] === ya && cut(x), 5), UB = sum((x) => x[0] === yb, 5), SA = sum((x) => x[0] === ya && cut(x), 6), SB = sum((x) => x[0] === yb, 6);
+  const UA = sum((x) => x[0] === ya && cut(x), 5), UB = sum((x) => x[0] === yb && cut(x), 5), SA = sum((x) => x[0] === ya && cut(x), 6), SB = sum((x) => x[0] === yb && cut(x), 6);
   const o1 = head(1, 'Running total · are we ahead of last year?', `Cumulative net units and net sales month by month, ${ya} vs ${yb}. Cards compare ${per} of both years.`) +
     `<div class="ukg"><div><span class="l">Net units ${yb} · ${per}</span><b>${n0(UB)}</b><span class="p">${ya}: ${n0(UA)} ${dl(UB, UA)}</span></div><div><span class="l">Net sales ${yb} · ${per}</span><b>${kk(SB)}</b><span class="p">${ya}: ${kk(SA)} ${dl(SB, SA)}</span></div><div><span class="l">Avg. price per unit ${yb}</span><b>${u0(UB ? SB / UB : 0)}</b><span class="p">${ya}: ${u0(UA ? SA / UA : 0)} ${dl(UB ? SB / UB : 0, UA ? SA / UA : 0)}</span></div><div><span class="l">Full year ${ya}</span><b>${n0(sum((x) => x[0] === ya, 5))}</b><span class="p">units · ${kk(sum((x) => x[0] === ya, 6))}</span></div></div>` +
     `<div class="u2g"><div class="u2c"><h5>Cumulative net units</h5><div class="ulg"><span><i style="background:${YC[ya]}"></i>${ya}</span><span><i style="background:${YC[yb]}"></i>${yb}</span></div>${lines([{ n: ya, c: YC[ya], v: cum(uA, 11) }, { n: yb, c: YC[yb], v: cum(uB, cm) }], n0)}</div><div class="u2c"><h5>Cumulative net sales (USD)</h5><div class="ulg"><span><i style="background:${YC[ya]}"></i>${ya}</span><span><i style="background:${YC[yb]}"></i>${yb}</span></div>${lines([{ n: ya, c: YC[ya], v: cum(sA, 11) }, { n: yb, c: YC[yb], v: cum(sB, cm) }], (v) => '$' + nfE(0).format(v / 1000) + 'K')}</div></div>`;
@@ -641,12 +650,13 @@ function umShpViz(R, part, op) { op = op || {};
   const o2 = head(2, `Heatmap · model × month (${yb}, net units)`, `The darker the cell, the more units. Right: ${yb} total, same months of ${ya} and the change.`) +
     `<div class="rtbl-wrap"><table class="uhm" style="min-width:820px"><thead><tr><th style="text-align:left">Model</th>${MON3.map((m) => `<th>${m}</th>`).join('')}<th>${yb}</th><th>${ya} ${per}</th><th>Change</th></tr></thead><tbody>${modsB.map((mo) => `<tr><td class="l">${esc(mo)}</td>${MON3.map((_, m) => { const v = MU(yb, m, mo); return `<td style="${m > cm ? 'opacity:.3;' : ''}${v > 0 ? `background:color-mix(in srgb,${YC[yb]} ${Math.round(10 + 80 * v / hmx)}%,transparent);${v / hmx > .45 ? 'color:#fff;font-weight:700' : ''}` : v < 0 ? 'color:var(--bad)' : ''}">${v ? n0(v) : ''}</td>`; }).join('')}<td class="t">${n0(modTot(yb, mo))}</td><td style="color:var(--muted)">${n0(modTot(ya, mo, 1))}</td><td>${dl(modTot(yb, mo), modTot(ya, mo, 1))}</td></tr>`).join('')}</tbody></table></div>`;
   // 3 model mix
-  const famOf = (m) => (op.byModel ? m : pagFam(m)); const fams = [...new Set(recs.map((x) => famOf(x[2])))].sort((a, b) => { const o = (f) => { const i = FAM_ORDER.indexOf(f); return i < 0 ? 99 : i; }; return o(a) - o(b); });
+  const recsM = op.mixRecs ? op.mixRecs.filter((x) => !/^CASTER/i.test(x[2]) && (x[0] === ya || x[0] === yb)) : recs; const sumM = (f, i) => recsM.filter(f).reduce((t, x) => t + x[i], 0);
+  const famOf = (m) => (op.byModel ? m : pagFam(m)); const fams = [...new Set(recsM.map((x) => famOf(x[2])))].sort((a, b) => { const o = (f) => { const i = FAM_ORDER.indexOf(f); return i < 0 ? 99 : i; }; return o(a) - o(b); });
   const FC = Object.fromEntries(fams.map((f, i) => [f, PAL[i % PAL.length]]));
-  const mix = (y, i) => { const T = sum((x) => x[0] === y && cut(x), i) || 1; return fams.map((f) => [f, sum((x) => x[0] === y && cut(x) && famOf(x[2]) === f, i), T]); };
+  const mix = (y, i) => { const T = sumM((x) => x[0] === y && cut(x), i) || 1; return fams.map((f) => [f, sumM((x) => x[0] === y && cut(x) && famOf(x[2]) === f, i), T]); };
   const p1 = (x) => (x > 99.95 || x < 0.05 || Math.abs(x - Math.round(x)) < 0.05 ? n0(x) : nfE(1).format(x)) + '%';
   const mixBar = (y, i, fmt) => `<div class="umx"><b>${y}</b><div class="bar">${mix(y, i).filter((p) => p[1] > 0).map(([f, v, T]) => `<div title="${y} · ${esc(f)}: ${fmt(v)} (${p1(v / T * 100)})" style="width:${v / T * 100}%;min-width:6px;background:${FC[f]}">${v / T > .18 ? esc(f) + ' ' + p1(v / T * 100) : v / T > .07 ? p1(v / T * 100) : ''}</div>`).join('')}</div></div>` + (op.byModel ? `<div class="hint" style="margin:-4px 0 6px 60px">${mix(y, i).filter((p) => p[1] > 0 && p[1] / p[2] <= .07).map(([f, v, T]) => `${esc(f)}: ${fmt(v)} (${p1(v / T * 100)})`).join(' · ')}</div>` : '');
-  const o3 = head(3, 'Model mix', `Share of each headrest family in net units and in net sales, ${per} of each year. Hover a piece for the figure.`) +
+  const o3 = head(3, 'Model mix', `Share of each headrest family in net units and in net sales, ${per} of each year. Hover a piece for the figure.${op.mixNote ? ' ' + op.mixNote : ''}`) +
     `<div class="ulg">${fams.map((f) => `<span><i style="background:${FC[f]}"></i>${esc(f)}</span>`).join('')}</div><div class="u2g"><div class="u2c"><h5>Net units</h5>${mixBar(ya, 5, n0)}${mixBar(yb, 5, n0)}</div><div class="u2c"><h5>Net sales (USD)</h5>${mixBar(ya, 6, u0)}${mixBar(yb, 6, u0)}</div></div>`;
   // 4 countries
   const ctry = [...new Set(recs.map((x) => x[4]))]; const cs = (y, c) => sum((x) => x[0] === y && cut(x) && x[4] === c, 6); const cu = (y, c) => sum((x) => x[0] === y && cut(x) && x[4] === c, 5);
@@ -1100,7 +1110,7 @@ amazon() {
 _amazonInner() {
   const amzNav = `<div class="seg cseg" role="group" aria-label="Amazon" style="margin-bottom:-10px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
-  return amzNav + VIEWS._amazonMain();
+  return amzNav + '<div style="height:14px"></div>' + amzTopViz() + VIEWS._amazonMain();
 },
 _amazonMain() {
   const AM = D.amazon || {};
