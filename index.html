@@ -615,7 +615,7 @@ function bsViz(SEL) {
   const tree = (nd, d, path) => { const vis = kids(nd).filter((x) => Math.abs(S(x, b)) >= 500 || Math.abs(S(x, p)) >= 500); return rowT(nd, d, d === 0 ? 's' : '', path) + (OPN(path, d) ? vis.map((c) => tree(c, d + 1, path + '/' + c.n)).join('') : ''); };
   const sec = (nd) => tree(nd, 0, nd.n);
   const o3 = head(3, 'Summary by group', 'Groups and subtotals; click a line with + to open its detail down to each account. Both dates, the change in $ and %.') +
-    `<div class="rtbl-wrap"><table class="bt bts" style="min-width:600px"><thead><tr><th class="l">Group</th><th>${esc(lb(b))}</th><th>${esc(lb(p))}</th><th>Change</th><th>%</th></tr></thead><tbody>${sec(A)}${sec(L)}${sec(E)}<tr class="g"><td class="l">Liabilities + equity</td><td>${k(S(L, b) + S(E, b))}</td><td>${k(S(L, p) + S(E, p))}</td><td>${dif(S(L, p) + S(E, p), S(L, b) + S(E, b))}</td><td></td></tr></tbody></table></div>`;
+    `@@SEG@@<div class="rtbl-wrap"><table class="bt bts" style="min-width:600px"><thead><tr><th class="l">Group</th><th>${esc(lb(b))}</th><th>${esc(lb(p))}</th><th>Change</th><th>%</th></tr></thead><tbody>${sec(A)}${sec(L)}${sec(E)}<tr class="g"><td class="l">Liabilities + equity</td><td>${k(S(L, b) + S(E, b))}</td><td>${k(S(L, p) + S(E, p))}</td><td>${dif(S(L, p) + S(E, p), S(L, b) + S(E, b))}</td><td></td></tr></tbody></table></div>`;
   // 4 companies matrix
   const grp = [A].concat(kids(A)).concat([L]).concat(kids(L)).concat([E]);
   const mx4 = Math.max(1, ...BS_CO.map((c) => Math.abs(SA(A, p, c))));
@@ -628,7 +628,7 @@ function bsViz(SEL) {
   const o5 = head(5, 'Cash in each bank account', `Every bank account, grouped by company: ${esc(lb(b))} (grey) vs ${esc(lb(p))} (company colour), with the change. Total cash: ${k(cash(b))} → <b>${k(cash(p))}</b>.`) +
     `<div class="bcash" style="font-size:11px;color:var(--muted);font-weight:700"><span>Account</span><span></span><span class="n">${esc(lb(b))}</span><span class="n">${esc(lb(p))}</span><span class="n">Change</span></div>${acc.map((x) => `<div class="bcash"><span><b>${esc(x.n)}</b> <span class="mut" style="font-size:10.5px">· ${x.co}</span></span><div class="b"><div style="width:${Math.abs(x.a) / mx5 * 100}%;background:#C9CED6"></div><div style="width:${Math.abs(x.c) / mx5 * 100}%;background:${x.c < 0 ? 'var(--bad)' : CC[x.co] || '#888'}"></div></div><span class="n" style="color:var(--muted)">${k(x.a)}</span><span class="n"><b style="${x.c < 0 ? 'color:var(--bad)' : ''}">${k(x.c)}</b></span><span class="n">${dif(x.c, x.a)}</span></div>`).join('')}`;
   const seg = `<div class="seg" role="group" aria-label="Company" style="flex-wrap:wrap;max-width:100%;margin:0 0 12px">${[['', 'Engineered Now (total)']].concat(BS_CO.map((c) => [c, c])).map(([v, l]) => `<button aria-pressed="${CO === v}" data-bsco="${v}">${l}</button>`).join('')}</div>`;
-  const O = { 1: o1, 2: o2, 3: o3, 4: o4, 5: o5 };
+  const O = { 1: o1, 2: o2, 3: o3.replace('@@SEG@@', seg.replace('margin:0 0 12px', 'margin:4px 0 8px')), 4: o4, 5: o5 };
   return `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 4px">Balance Sheet · ${CO ? esc(CO) : 'Engineered Now'} · ${esc(lb(b))} vs ${esc(lb(p))}</h3><p class="hint" style="margin:0 0 12px">Cash basis, US$, the four companies. The 2026 date is the one chosen in the detailed table below. Pick a company or Engineered Now (all four together); "By company" always shows the four.</p>${seg}${css}${SEL.map((n) => O[n]).join('')}</section>`;
 }
 function plQTable() {
