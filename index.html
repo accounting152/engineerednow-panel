@@ -357,8 +357,8 @@ details.ig-act>summary::-webkit-details-marker{display:none}
       <label for="pw">Password</label>
       <input id="pw" name="password" type="password" autocomplete="current-password" required placeholder="xxxx-xxxx-xxxx">
     </div>
-    <label class="check"><input type="checkbox" id="remember" checked> Recordar en este dispositivo</label>
-    <button class="btn" type="submit" id="unlockBtn">Entrar</button>
+    <label class="check"><input type="checkbox" id="remember" checked> Remember on this device</label>
+    <button class="btn" type="submit" id="unlockBtn">Log in</button>
     <div class="err" id="err" role="alert"></div>
   </form>
 </section>
@@ -450,7 +450,7 @@ async function unlock(pw, remember) {
   } catch (e) {
     store.del('en-pw');
     $('#err').textContent = e.message === 'net' ? 'Could not download the data. Check the connection.' : 'Wrong password.';
-  } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+  } finally { btn.disabled = false; btn.textContent = 'Log in'; }
 }
 $('#lockForm').addEventListener('submit', (e) => { e.preventDefault(); unlock($('#pw').value.trim(), $('#remember').checked); });
 $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $('#main').innerHTML = ''; $('#pw').value = ''; $('#app').hidden = true; $('#lock').hidden = false; });
@@ -471,9 +471,10 @@ function go(tab) {
   render(); scrollTo({ top: 0 });
 }
 addEventListener('scroll', () => $('#top').classList.toggle('scrolled', scrollY > 4), { passive: true });
-const TR_EN = [['Estados Unidos', 'United States'], ['Reino Unido', 'United Kingdom'], ['Alemania', 'Germany'], ['Japón', 'Japan'], ['Francia', 'France'], ['España', 'Spain'], ['Italia', 'Italy'], ['Países Bajos', 'Netherlands'], ['Suecia', 'Sweden'], ['Polonia', 'Poland'], ['Canadá', 'Canada'], ['México', 'Mexico'], ['Brasil', 'Brazil'], ['Bélgica', 'Belgium'], ['Irlanda', 'Ireland'], ['Australia', 'Australia'], ['Singapur', 'Singapore'], ['Emiratos Árabes Unidos', 'United Arab Emirates'], ['Arabia Saudí', 'Saudi Arabia'], ['Turquía', 'Turkey'], ['India', 'India'], ['Corea del Sur', 'South Korea'], ['Suiza', 'Switzerland'], ['Europa', 'Europe'], ['stock UE', 'EU stock'],
-  ['Reponer ya', 'Restock now'], ['Agotado', 'Out of stock'], ['Vigilar', 'Watch'], ['Exceso', 'Excess'], ['Correcto', 'OK'], ['Cobrado ✓', 'Received ✓'], ['En camino', 'On its way'], ['No llegó', 'Not received'], ['ya en camino', 'already on its way'], ['retenidos', 'held'], ['Resaltado el mes elegido.', 'Selected month highlighted.'], ['Vendidas 90 d', 'Sold 90 d'], ['Disponible', 'Available'], ['Cobertura', 'Coverage'], ['En buen estado', 'Good standing'], ['Preparando el Excel…', 'Preparing the Excel…']];
+const TR_EN = [['Chase tarjeta', 'Chase card'], ['Poco stock', 'Low stock'], ['Sin stock', 'No stock'], ['Negativo', 'Negative'], ['Accesorio', 'Accessory'], ['Estados Unidos', 'United States'], ['Reino Unido', 'United Kingdom'], ['Alemania', 'Germany'], ['Japón', 'Japan'], ['Francia', 'France'], ['España', 'Spain'], ['Italia', 'Italy'], ['Países Bajos', 'Netherlands'], ['Suecia', 'Sweden'], ['Polonia', 'Poland'], ['Canadá', 'Canada'], ['México', 'Mexico'], ['Brasil', 'Brazil'], ['Bélgica', 'Belgium'], ['Irlanda', 'Ireland'], ['Australia', 'Australia'], ['Singapur', 'Singapore'], ['Emiratos Árabes Unidos', 'United Arab Emirates'], ['Arabia Saudí', 'Saudi Arabia'], ['Turquía', 'Turkey'], ['India', 'India'], ['Corea del Sur', 'South Korea'], ['Suiza', 'Switzerland'], ['Europa', 'Europe'], ['stock UE', 'EU stock'],
+  ['Reponer ya', 'Restock now'], ['Agotado', 'Out of stock'], ['Vigilar', 'Watch'], ['Exceso', 'Excess'], ['Correcto', 'OK'], ['Cobrado ✓', 'Received ✓'], ['En camino', 'On its way'], ['No llegó', 'Not received'], ['ya en camino', 'already on its way'], ['retenidos', 'held'], ['Resaltado el mes elegido.', 'Selected month highlighted.'], ['Vendidas 90 d', 'Sold 90 d'], ['Disponible', 'Available'], ['Cobertura', 'Coverage'], ['En buen estado', 'Good standing'], ['Preparing the Excel…', 'Preparing the Excel…']];
 const TR_RE = new RegExp(TR_EN.map(([a]) => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((x, y) => y.length - x.length).join('|'), 'g'); const TR_MAP = Object.fromEntries(TR_EN);
+function xEN(v) { if (typeof v !== 'string' || !v) return v; TR_RE.lastIndex = 0; return v.replace(TR_RE, (m) => TR_MAP[m]); }
 function trEN(root) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (TR_RE.test(n.nodeValue)) { TR_RE.lastIndex = 0; n.nodeValue = n.nodeValue.replace(TR_RE, (m) => TR_MAP[m]).replace(/\bel (\d{1,2} [A-Z][a-z]{2})/g, 'on $1'); } TR_RE.lastIndex = 0; } }
 function render() { $('#main').innerHTML = `<div class="view">${VIEWS[state.tab]()}</div>`; AFTER[state.tab] && AFTER[state.tab](); try { trEN($('#main')); } catch (e) {} }
 
@@ -1336,9 +1337,9 @@ bancos() {
 
 pendientes() {
   const seg = [['', 'Todas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER'], ['IPAI', 'IPAI']].map(([v, l]) => `<button aria-pressed="${state.pendEmp === v}" data-emp="${v}">${l}</button>`).join('');
-  return `<div class="seg" role="group" aria-label="Sociedad">${seg}</div>
+  return `<div class="seg" role="group" aria-label="Company">${seg}</div>
     <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Buscar concepto, cuenta o categoría" value="${esc(state.pendQ)}" aria-label="Buscar"></label>
+      <input id="q" type="search" placeholder="Search item, account or category" value="${esc(state.pendQ)}" aria-label="Search"></label>
     <div id="mvlist" style="display:grid;gap:8px"></div>`;
 },
 
@@ -1456,12 +1457,12 @@ resultados() {
   const p = D.pyg.find((x) => x.empresa === state.plEmp);
   const max = Math.max(+p.ingresos, 1);
   const row = (l, v, c) => `<div class="plrow"><span>${l}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.abs(v) / max * 100)}%;background:${c}"></div><span class="val">${money(v, p.moneda, 0)}</span></div></div>`;
-  return `<div class="seg" role="group" aria-label="Sociedad">${seg}</div>
+  return `<div class="seg" role="group" aria-label="Company">${seg}</div>
   <div class="cols">
     <section class="card">
       <div class="eyebrow">${state.plEmp} · 1 ene – ${fdate(D.corte).d} ${fdate(D.corte).m} 2026</div>
       <div class="big num" style="font-size:clamp(26px,7vw,36px);font-weight:600;margin:6px 0 2px"><span class="${+p.resultado < 0 ? 'bad' : 'ok'}">${money(p.resultado, p.moneda, 0)}</span></div>
-      <p class="hint">Resultado · margen bruto ${nf(1).format(p.margen_pct * 100)} %${p.moneda !== 'USD' ? ` · ${money(p.resultado_usd, 'USD', 0)}` : ''}</p>
+      <p class="hint">Result · gross margin ${nf(1).format(p.margen_pct * 100)} %${p.moneda !== 'USD' ? ` · ${money(p.resultado_usd, 'USD', 0)}` : ''}</p>
       <div class="pl">
         ${row('Ingresos', +p.ingresos, COL[state.plEmp])}
         ${row('Coste ventas', +p.coste_ventas, 'color-mix(in srgb,var(--bad) 55%,var(--surface2))')}
@@ -1471,7 +1472,7 @@ resultados() {
       <p class="hint" style="margin:12px 0 0">Per QuickBooks, cash basis.</p>
     </section>
     <section class="card">
-      <h3>Hunter mes a mes</h3>
+      <h3>Hunter month by month</h3>
       <p class="hint">Income and net result. Months in red match stock purchases and Amazon fees.</p>
       <div class="chart" id="chMonthly"></div>
     </section>
@@ -1590,11 +1591,11 @@ inventarioStock() {
   const sum = (r, k) => r.reduce((s, f) => s + (+f[k] || 0), 0);
   const seg = [['', 'Todas'], ['HUNTER', 'Hunter'], ['JEER', 'JEER']].concat(CH ? [['IPAI', 'IPAI']] : []).map(([v, l]) => `<button aria-pressed="${E === v}" data-ie="${v}">${l}</button>`).join('');
   const cards = ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => { const r = AM[e].fba.map((f) => ({ ...f, pais: f.pais || 'Estados Unidos' })); const o = own(r);
-    return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgentes</span></div>
+    return `<button class="co" style="--cc:${COL[e]}" data-ie="${e}"><div class="name">${e}<span class="pill ${r.some(urgent) ? 'bad' : 'ok'}">${r.filter(urgent).length} urgent</span></div>
       <dl class="rows"><dt>Units available</dt><dd>${nf(0).format(sum(o, 'disponible'))}</dd><dt>En camino a Amazon</dt><dd>${nf(0).format(sum(o, 'en_camino'))}</dd><dt>Items in stock</dt><dd>${o.filter((f) => +f.disponible > 0).length}</dd><dt>Sold 90 days</dt><dd>${nf(0).format(sum(o, 'unidades_90d'))}</dd>${WHall.filter((w) => w.e === e).map((w) => `<dt>${esc(w.o.nombre)}</dt><dd>${nf(0).format(w.o.rows.filter((x) => x.modelo !== 'CASTER' && x.modelo !== 'Accesorios').reduce((s, x) => s + (x.total_uds || 0), 0))} headrests</dd>`).join('')}</dl></button>`; }).join('');
   const chSum = (k) => CH ? CH.rows.reduce((s, r) => s + r[k], 0) : 0;
   const cardsAll = cards + (CH ? `<button class="co" style="--cc:${COL.IPAI}" data-ie="IPAI"><div class="name">IPAI<span class="pill info">China</span></div>
-      <dl class="rows"><dt>Stock en China</dt><dd>${nf(0).format(chSum('stock'))} units</dd>${['H3', 'H4', 'H6'].map((m) => `<dt>${m}</dt><dd>${nf(0).format(CH.rows.filter((r) => r.modelo === m).reduce((s, r) => s + r.stock, 0))}</dd>`).join('')}</dl></button>` : '');
+      <dl class="rows"><dt>Stock in China</dt><dd>${nf(0).format(chSum('stock'))} units</dd>${['H3', 'H4', 'H6'].map((m) => `<dt>${m}</dt><dd>${nf(0).format(CH.rows.filter((r) => r.modelo === m).reduce((s, r) => s + r.stock, 0))}</dd>`).join('')}</dl></button>` : '');
   const cls = { 'Reponer ya': 'bad', 'Agotado': 'bad', 'Vigilar': 'warn', 'Exceso': 'info', 'Correcto': 'ok', 'No sales': 'mut', 'No sales data': 'mut', 'US stock': 'info', 'No sales or stock': 'mut' };
   const ord = { 'Reponer ya': 0, 'Agotado': 1, 'Vigilar': 2, 'Exceso': 3, 'Correcto': 4, 'US stock': 5, 'No sales': 6, 'No sales data': 7, 'No sales or stock': 8 };
   const shown = rows.filter((f) => f.estado !== 'No sales or stock').sort((a, b) => (ord[a.estado] - ord[b.estado]) || ((+b.unidades_90d || 0) - (+a.unidades_90d || 0)));
@@ -1639,17 +1640,17 @@ inventarioStock() {
   const notas = emps.map((e) => AM[e].nota_stock ? `<b>${e}:</b> ${esc(AM[e].nota_stock)}` : '').filter(Boolean).join(' ');
   const selStyle = 'height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px;flex:1 1 160px;min-width:0';
   const leido = emps.map((e) => `${e} ${fdate(AM[e].leido.slice(0, 10)).d} ${fdate(AM[e].leido.slice(0, 10)).m} ${AM[e].leido.slice(11)} h`).join(' · ');
-  return `<div class="seg" role="group" aria-label="Sociedad">${seg}</div>
+  return `<div class="seg" role="group" aria-label="Company">${seg}</div>
   <section class="cos" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))">${cardsAll}</section>
   <section class="card">
     <h3>${(isWhPA(PA) || PA === CHN || E === 'IPAI') ? 'Inventario' : 'Inventory in Amazon warehouses'}</h3>
     ${E === 'IPAI' ? '' : `<p class="hint">Coverage = available ÷ daily sales over the last 90 days. ${notas}</p>`}
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <select id="invPais" aria-label="Country" style="${selStyle}"><option value="">All countries</option>${paises.map((x) => `<option ${PA === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
-      <select id="invEstado" aria-label="Estado" style="${selStyle}">${[['', 'All statuses'], ['urg', 'Urgent (out of stock or restock)'], ['Vigilar', 'Vigilar'], ['Correcto', 'Correcto'], ['Exceso', 'Exceso'], ['No sales', 'No sales']].map(([v, l]) => `<option value="${v}" ${ES === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <select id="invEstado" aria-label="Status" style="${selStyle}">${[['', 'All statuses'], ['urg', 'Urgent (out of stock or restock)'], ['Vigilar', 'Watch'], ['Correcto', 'OK'], ['Exceso', 'Excess'], ['No sales', 'No sales']].map(([v, l]) => `<option value="${v}" ${ES === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     </div>
     <label class="search" style="margin-bottom:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="invQ" type="search" placeholder="Search code or SKU" value="${esc(state.invQ || '')}" aria-label="Buscar producto"></label>
+      <input id="invQ" type="search" placeholder="Search code or SKU" value="${esc(state.invQ || '')}" aria-label="Search product"></label>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
       <button class="btn" id="xlsBtn" style="height:44px;padding:0 16px">Download Excel</button>
       <span class="mut" style="font-size:13px">${(isWhPA(PA) || PA === CHN || E === 'IPAI') ? (tvShow ? tvRows.length + ' items in own warehouses' : '') + (tvShow && chShow ? ' · ' : '') + (chShow ? chRows.length + ' en China' : '') + ' (abajo)' : rows.length + ' Amazon items with these filters' + (tvShow ? ' · ' + tvRows.length + ' in own warehouses' : '') + (chShow ? ' · ' + chRows.length + ' en China' : '')}</span>
@@ -3719,7 +3720,7 @@ function unitsChart(box, A, P) {
     el.addEventListener('mouseenter', show); el.addEventListener('click', show); el.addEventListener('mouseleave', () => tip.hide()); });
 }
 async function downloadUnits() {
-  const msg = $('#uMsg'); msg.textContent = 'Preparando el Excel…';
+  const msg = $('#uMsg'); msg.textContent = 'Preparing the Excel…';
   try {
     await loadXLSX();
     const wb = XLSX.utils.book_new(); const AM = D.amazon;
@@ -3729,23 +3730,23 @@ async function downloadUnits() {
       const aoa = [['Country'].concat(months.map((k) => MESL[+k.slice(5, 7) - 1]), ['Total', '% units', 'Sales US$', 'US$ per unit'])];
       const all = paises.reduce((s, p) => s + tot(p), 0);
       paises.forEach((p) => { const v = months.reduce((s, k) => s + m[p][k].v, 0); const t = tot(p);
-        aoa.push([p].concat(months.map((k) => m[p][k].u), [t, all ? +(t / all * 100).toFixed(1) : 0, +v.toFixed(2), t ? +(v / t).toFixed(2) : null]));
-        months.forEach((k) => flat.push({ 'Empresa': e, 'Country': p, 'Mes': k, 'Unidades': m[p][k].u, 'Sales US$': +m[p][k].v.toFixed(2), 'Moneda local': A.dias[p].moneda })); });
+        aoa.push([xEN(p)].concat(months.map((k) => m[p][k].u), [t, all ? +(t / all * 100).toFixed(1) : 0, +v.toFixed(2), t ? +(v / t).toFixed(2) : null]));
+        months.forEach((k) => flat.push({ 'Company': e, 'Country': xEN(p), 'Month': k, 'Units': m[p][k].u, 'Sales US$': +m[p][k].v.toFixed(2), 'Local currency': A.dias[p].moneda })); });
       const vt = paises.reduce((s, p) => s + months.reduce((a, k) => a + m[p][k].v, 0), 0);
       aoa.push(['Total'].concat(months.map((k) => paises.reduce((s, p) => s + m[p][k].u, 0)), [all, 100, +vt.toFixed(2), all ? +(vt / all).toFixed(2) : null]));
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 16 }].concat(months.map(() => ({ wch: 10 })), [{ wch: 9 }, { wch: 11 }, { wch: 13 }, { wch: 13 }]);
       XLSX.utils.book_append_sheet(wb, ws, e + ' by country and month');
     });
     const wf = XLSX.utils.json_to_sheet(flat); wf['!cols'] = [10, 16, 10, 10, 12, 12].map((w) => ({ wch: w })); wf['!autofilter'] = { ref: wf['!ref'] };
-    XLSX.utils.book_append_sheet(wb, wf, 'Detalle');
-    const info = XLSX.utils.aoa_to_sheet([['Fuente', 'Amazon Seller Central · Informes de negocio (unidades pedidas por día)'], ['Periodo', '1 January 2026 to the latest reading'], ['Leído', ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => e + ' ' + AM[e].leido).join(' · ')], ['Tipo de cambio', 'ECB, 8 Oct 2026, to convert local currencies to US$'], ['Nota', 'Hunter: Canadá, México y Brasil solo constan en QuickBooks (sin unidades) y no aparecen aquí.']]);
-    info['!cols'] = [{ wch: 16 }, { wch: 70 }]; XLSX.utils.book_append_sheet(wb, info, 'Información');
-    const name = `Unidades_Amazon_por_pais_y_mes_${(D.corte || '').slice(0, 10)}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, wf, 'Detail');
+    const info = XLSX.utils.aoa_to_sheet([['Source', 'Amazon Seller Central · Business reports (units ordered per day)'], ['Period', '1 January 2026 to the latest reading'], ['Read', ['HUNTER', 'JEER'].filter((e) => AM[e]).map((e) => e + ' ' + AM[e].leido).join(' · ')], ['Exchange rate', 'ECB, 8 Oct 2026, to convert local currencies to US$'], ['Note', 'Hunter: Canada, Mexico and Brazil are only in QuickBooks (no units) and do not appear here.']]);
+    info['!cols'] = [{ wch: 16 }, { wch: 70 }]; XLSX.utils.book_append_sheet(wb, info, 'Information');
+    const name = `Amazon_units_by_country_and_month_${(D.corte || '').slice(0, 10)}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) { const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-      try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Descargado: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'Could not download here.'; } return; }
-    XLSX.writeFile(wb, name); msg.textContent = 'Descargado: ' + name;
-  } catch (e) { msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'No se pudo generar el Excel en este navegador.'; }
+      try { await dl.save({ filename: name, data: buf }); msg.textContent = 'Downloaded: ' + name; } catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; } return; }
+    XLSX.writeFile(wb, name); msg.textContent = 'Downloaded: ' + name;
+  } catch (e) { msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'Could not create the Excel in this browser.'; }
 }
 const AMZ_CTY = { 'Estados Unidos': ['America', '🇺🇸', 'United States', '.com'], 'Canadá': ['America', '🇨🇦', 'Canada', '.ca'], 'México': ['America', '🇲🇽', 'Mexico', '.com.mx'], 'Brasil': ['America', '🇧🇷', 'Brazil', '.com.br'],
   'Japón': ['Asia Pacific', '🇯🇵', 'Japan', '.co.jp'], 'Australia': ['Asia Pacific', '🇦🇺', 'Australia', '.com.au'], 'India': ['Asia Pacific', '🇮🇳', 'India', '.in'], 'Singapur': ['Asia Pacific', '🇸🇬', 'Singapore', '.sg'],
@@ -3804,16 +3805,16 @@ function loadXLSX() {
 async function downloadStock() {
   const AM = D.amazon; const E = state.invEmp || ''; const SP = state.invPais || ''; const ES = state.invEstado || ''; const q = (state.invQ || '').toLowerCase();
   const urgent = (f) => f.estado === 'Reponer ya' || f.estado === 'Agotado';
-  const msg = $('#xlsMsg'); msg.textContent = 'Preparando el Excel…';
+  const msg = $('#xlsMsg'); msg.textContent = 'Preparing the Excel…';
   try {
     await loadXLSX();
     const rows = ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e)).flatMap((e) => AM[e].fba.map((f) => ({ ...f, empresa: e, pais: f.pais || 'Estados Unidos' })))
       .filter((f) => (!SP || f.pais === SP) && (!ES || (ES === 'urg' ? urgent(f) : f.estado === ES)) && (!q || `${f.producto} ${f.sku}`.toLowerCase().includes(q)))
       .map((f) => ({
-      'Empresa': f.empresa, 'Country': f.pais, 'Código': f.producto, 'Referencias Amazon (FNSKU/ASIN)': f.sku,
-      'Disponible': f.disponible, 'En camino a Amazon': f.en_camino, 'Reservado': f.reservado,
-      'Sold 90 days': f.unidades_90d, 'Ventas 90 días (moneda local)': f.ventas_90d, 'Stock compartido': f.compartido || 'No',
-      'Cobertura (días)': f.cobertura_dias === '' ? null : +f.cobertura_dias, 'Estado': f.estado, 'Recomendación de Amazon': f.recomendacion_amazon,
+      'Company': f.empresa, 'Country': xEN(f.pais), 'Product': f.producto, 'Amazon references (FNSKU/ASIN)': f.sku,
+      'Available': f.disponible, 'On its way to Amazon': f.en_camino, 'Reserved': f.reservado,
+      'Sold 90 days': f.unidades_90d, 'Sales 90 days (local currency)': f.ventas_90d, 'Shared stock': xEN(f.compartido || 'No'),
+      'Coverage (days)': f.cobertura_dias === '' ? null : +f.cobertura_dias, 'Status': xEN(f.estado), 'Amazon recommendation': f.recomendacion_amazon,
     }));
     const A = { leido: ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e)).map((e) => e + ' ' + AM[e].leido).join(' · '), nota_stock: ['HUNTER', 'JEER'].filter((e) => AM[e] && (!E || E === e) && AM[e].nota_stock).map((e) => e + ': ' + AM[e].nota_stock).join(' ') };
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -3825,31 +3826,31 @@ async function downloadStock() {
     const whLab = ['HUNTER', 'JEER'].flatMap((e) => Object.values((D.almacenes || {})[e] || {}).map((o) => o.filtro || o.nombre));
     if (!whLab.includes(SP) && SP !== 'China (IPAI)' && E !== 'IPAI') XLSX.utils.book_append_sheet(wb, ws, 'Amazon inventory');
     if (tvIn) {
-      const tr = whE.flatMap(({ e, o }) => o.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': e, 'Almacén': o.nombre, 'Familia': r.modelo, 'Código': r.producto, 'Origin warehouse': (r.lineas || [r.codigo]).join(' + '), 'Cartones': r.cartones, 'Units per carton': r.uds_carton, 'Units in cartons': r.uds_en_cartones, 'Loose units': r.sueltas, 'Total units': r.total_uds, 'Estado': r.estado })));
+      const tr = whE.flatMap(({ e, o }) => o.rows.filter((r) => !q || `${r.producto} ${r.codigo} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Company': e, 'Warehouse': xEN(o.nombre), 'Model': r.modelo, 'Product': r.producto, 'Origin warehouse': (r.lineas || [r.codigo]).join(' + '), 'Cartons': r.cartones, 'Units per carton': r.uds_carton, 'Units in cartons': r.uds_en_cartones, 'Loose units': r.sueltas, 'Total units': r.total_uds, 'Status': xEN(r.estado) })));
       const wt = XLSX.utils.json_to_sheet(tr); wt['!cols'] = [10, 14, 11, 24, 34, 10, 12, 14, 12, 12, 12].map((w) => ({ wch: w })); wt['!autofilter'] = { ref: wt['!ref'] };
-      XLSX.utils.book_append_sheet(wb, wt, 'Almacenes propios');
+      XLSX.utils.book_append_sheet(wb, wt, 'Own warehouses');
     }
     const CHx = D.almacenes && D.almacenes.IPAI && D.almacenes.IPAI.CHINA;
     if (CHx && (!E || E === 'IPAI') && (!SP || SP === 'China (IPAI)')) {
-      const cr = CHx.rows.filter((r) => !q || `${r.producto} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Empresa': 'IPAI', 'Almacén': 'China', 'Familia': r.modelo, 'Código': r.producto, 'Stock (uds)': r.stock, 'Estado': r.estado }));
+      const cr = CHx.rows.filter((r) => !q || `${r.producto} ${r.modelo}`.toLowerCase().includes(q)).map((r) => ({ 'Company': 'IPAI', 'Warehouse': 'China', 'Model': r.modelo, 'Product': r.producto, 'Stock (units)': r.stock, 'Status': xEN(r.estado) }));
       const wc = XLSX.utils.json_to_sheet(cr); wc['!cols'] = [8, 10, 8, 22, 12, 12].map((w) => ({ wch: w })); wc['!autofilter'] = { ref: wc['!ref'] };
       XLSX.utils.book_append_sheet(wb, wc, 'China IPAI');
     }
-    const info = XLSX.utils.aoa_to_sheet([['Empresa', E || 'Todas'], ['Country', SP || 'Todos'], ['Status filter', ES === 'urg' ? 'Urgentes' : (ES || 'Todos')], ['Inventory snapshot', A.leido], ['Fuente', 'Amazon Seller Central · FBA inventory' + (tvIn ? ' · ' + [...new Set(whE.map((w) => w.o.fuente))].join(' · ') : '')], ['Almacenes propios', tvIn ? [...new Set(whE.map((w) => w.o.nombre + ': ' + w.o.nota))].join(' ') : ''], ['Cobertura', 'Available ÷ daily sales over the last 90 days'], ['Nota', A.nota_stock || '']]);
+    const info = XLSX.utils.aoa_to_sheet([['Company', E || 'All'], ['Country', xEN(SP) || 'All'], ['Status filter', ES === 'urg' ? 'Urgent' : (xEN(ES) || 'All')], ['Inventory snapshot', A.leido], ['Source', 'Amazon Seller Central · FBA inventory' + (tvIn ? ' · ' + [...new Set(whE.map((w) => w.o.fuente))].join(' · ') : '')], ['Own warehouses', tvIn ? [...new Set(whE.map((w) => w.o.nombre + ': ' + w.o.nota))].join(' ') : ''], ['Coverage', 'Available ÷ daily sales over the last 90 days'], ['Note', A.nota_stock || '']]);
     info['!cols'] = [{ wch: 20 }, { wch: 50 }];
-    XLSX.utils.book_append_sheet(wb, info, 'Información');
-    const name = `Inventario_${E || 'TODAS'}_${(SP || 'Todos').replace(/\s+/g, '_')}_${(D.corte || '').slice(0, 10)}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, info, 'Information');
+    const name = `Inventory_${E || 'ALL'}_${(xEN(SP) || 'All').replace(/\s+/g, '_')}_${(D.corte || '').slice(0, 10)}.xlsx`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (dl) {
       const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-      try { await dl.save({ filename: name, data: buf }); msg.textContent = `Descargado: ${name} (${rows.length} referencias)`; }
-      catch (err) { msg.textContent = err && err.code === 'declined' ? 'Descarga cancelada.' : 'Could not download here.'; }
+      try { await dl.save({ filename: name, data: buf }); msg.textContent = `Downloaded: ${name} (${rows.length} items)`; }
+      catch (err) { msg.textContent = err && err.code === 'declined' ? 'Download cancelled.' : 'Could not download here.'; }
       return;
     }
     XLSX.writeFile(wb, name);
-    msg.textContent = `Descargado: ${name} (${rows.length} referencias)`;
+    msg.textContent = `Downloaded: ${name} (${rows.length} items)`;
   } catch (e) {
-    msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'No se pudo generar el Excel en este navegador.';
+    msg.textContent = e.message === 'lib' ? 'Could not load the Excel generator. Check the connection.' : 'Could not create the Excel in this browser.';
   }
 }
 
@@ -4089,7 +4090,7 @@ function chartMonthly(box) {
   const y = (v) => mt + ih - (v - y0) / (y1 - y0) * ih;
   const step = iw / rows.length, bw = Math.min(26, step * .6);
   const cx = (i) => ml + step * i + step / 2;
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingresos y resultado de Hunter por mes">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hunter income and result by month">`;
   ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t === 0 ? '' : 'stroke-dasharray="2 4"'}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${compact(t)}</text>`; });
   rows.forEach((r, i) => { s += `<rect x="${cx(i) - bw / 2}" y="${y(r.ing)}" width="${bw}" height="${y(0) - y(r.ing)}" rx="5" fill="var(--c-hunter)" opacity=".9"/>`;
     s += `<text x="${cx(i)}" y="${H - 8}" text-anchor="middle">${MES[+r.m.slice(5, 7) - 1]}</text>`; });
@@ -4111,7 +4112,7 @@ function chartHist(box) {
   const ticks = niceTicks(0, Math.max(...data.map((d) => d.t)), 4); const top = ticks[ticks.length - 1];
   const iw = W - ml - mr, ih = H - mt - mb; const y = (v) => mt + ih - v / top * ih;
   const step = iw / data.length, bw = Math.min(64, step * .55);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ventas enero a septiembre por año y sociedad">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sales January to September by year and company">`;
   ticks.forEach((t) => { s += `<line x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t ? 'stroke-dasharray="2 4"' : ''}/><text x="${ml - 8}" y="${y(t) + 3.5}" text-anchor="end">${nf(0).format(t)}K</text>`; });
   data.forEach((d, i) => { const x = ml + step * i + (step - bw) / 2; let acc = 0;
     emps.forEach((e) => { if (!d[e]) return; const h = y(acc) - y(acc + d[e]); s += `<rect x="${x}" y="${y(acc + d[e])}" width="${bw}" height="${Math.max(0, h - 1.5)}" rx="4" fill="${COL[e]}"/>`; acc += d[e]; });
