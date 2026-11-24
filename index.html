@@ -656,6 +656,40 @@ const TRN_DAYS = [
   ['w', '23 – 31 Dec', 'Buffer'],
   ['2026-12-23', 'You run operations', 'You run everything every day while Yohai is still here. Repeat what was hardest and catch up any day that slipped.', 'On 1 January you need nobody.'],
 ];
+const TRN_STEPS = {
+  '2026-11-25': { n: 1, title: 'Seller Central and product codes', goal: 'Find your way around Seller Central and the three codes of one product. Look and take notes only: change nothing.',
+    steps: [
+      ['Check the account and country', 'In the top bar of Seller Central there is a selector with the account name and country. Make sure it says HUNTER and United States. If another country shows (Canada, Mexico…), switch it there. Everything today is in HUNTER · United States.'],
+      ['Walk through the main menu (20 min)', 'Click the ☰ icon top left. Open these sections one by one and look inside without touching anything: Catalog, Inventory, Pricing, Orders, Advertising, Reports, Performance and Brands. Write one line per section with what you think it is for. This is the start of your operations guide.'],
+      ['Find the H3G in the inventory', 'Go to ☰ › Inventory › Manage All Inventory and type H3G in the search box. Each row shows the product name, the SKU (our internal code) and the ASIN (Amazon\'s code, starts with B0). Note both for one variant, e.g. one colour.'],
+      ['Find its FNSKU', 'Go to ☰ › Inventory › FBA Inventory and search for the same SKU. The FNSKU shows there: the code on the label of every unit in Amazon warehouses (usually starts with X0). Note it next to the other two.'],
+      ['Check your notifications', 'Click the gear ⚙ top right › Notification Preferences. Check which email each alert goes to (account, orders, returns, customer messages). Many will still go to Yohai: note which ones, but change nothing yet.'],
+      ['Look at account health', 'To finish, go to ☰ › Performance › Account Health and note just two things: the Account Health Rating number and whether anything shows red or yellow. This is your first daily routine; tomorrow we go through it in depth.'],
+    ],
+    notes: [
+      '<b>Codes found (H3 Remastered, Graphite):</b> SKU <code>H3RE-GRAPHITE</code> · ASIN <code>B077GHT4LX</code> · FNSKU <code>X001MN4TU7</code> · status Active.',
+      '<b>SKU is ours, the ASIN is Amazon\'s, the FNSKU is stuck on the box.</b> The ASIN is the product page (amazon.com/dp/B077GHT4LX); the SKU is our offer on that page; the FNSKU tells Amazon each unit belongs to HUNTER and to that SKU. A wrong label from the warehouse = stock booked to the wrong colour.',
+      '<b>Notification Preferences:</b> Merchant Default Contact and Emergency Notifications are still Yohai\'s email (yohai@engineerednow.com) and his +972 phone. Reminder set for 1 Jan 2027, 9:00, to change both to Francisco (Edit › Apply to all stores) in HUNTER and JEER; support-case emails are changed separately in Manage support cases. Suggested: change Emergency Notifications in the last week of December and keep Yohai\'s mailbox forwarding to Francisco for a few months.',
+    ] },
+  '2026-11-26': { n: 2, title: 'Account health and policies', goal: 'Understand what Amazon measures on the account and what would put it at risk. Look and take notes only: change nothing and answer no warning without checking with me first.',
+    steps: [
+      ['Read the Account Health page', 'Go to ☰ › Performance › Account Health. It has three blocks: Customer Service Performance (the Order Defect Rate, target under 1%), Policy Compliance (the Account Health Rating and the list of policy categories) and Shipping Performance (mainly for orders we ship ourselves; with FBA, Amazon ships). Note the figures in each block.'],
+      ['Understand the Account Health Rating', 'It runs from 0 to 1,000. 200 or more = healthy (green); 100 to 199 = at risk; under 100 = the account can be deactivated. Click "Learn more" next to it and read how it is calculated.'],
+      ['Open every category above zero', 'In Policy Compliance, open each line with a number above 0 (for example intellectual-property complaints, listing policy violations, product condition or safety complaints). For each one note the ASIN, the date, the reason and the status. If everything is 0, note that too.'],
+      ['Read the policies that matter for us', 'Our listings say the headrest fits Herman Miller Aeron chairs, so brand names are our biggest risk: a trademark complaint can take a listing down. In Seller Central Help, read the Intellectual Property policy, the product detail page rules and the Customer Product Reviews policy (never offer anything in exchange for a review).'],
+      ['Read Performance Notifications', 'Go to ☰ › Performance › Performance Notifications and read the messages of the last 3 months. Note any that asked for an action and whether it was answered.'],
+      ['Read Yohai\'s cases with Amazon', 'Open Help (top right) and go to the Case Log. Read the open cases and the ones from the last months: what Yohai asked Amazon, about what, and how it ended. These cases are the best record of the problems he handled.'],
+    ],
+    notes: [] },
+};
+function trnDayCard(d) {
+  const S = TRN_STEPS[d]; if (!S) return '';
+  const R = TRN_DAYS.find((r) => r[0] === d) || []; const x = new Date(d + 'T12:00:00Z'); const fd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MON3[x.getUTCMonth()];
+  return `<section class="card"><h3>Day ${S.n} · ${fd} · ${esc(S.title)}</h3><p class="hint" style="margin:2px 0 12px">${esc(S.goal)}</p>
+    <ol class="tsteps">${S.steps.map(([t, b], i) => `<li><span class="tn">${i + 1}</span><div><b>${esc(t)}</b><p>${esc(b)}</p></div></li>`).join('')}</ol>
+    ${R[3] ? `<p style="margin:14px 0 0;font-size:14px"><b>Done when:</b> ${esc(R[3])}</p>` : ''}</section>
+    <section class="card"><h3>Notes</h3>${S.notes.length ? `<ul class="tnotes">${S.notes.map((n) => `<li>${n}</li>`).join('')}</ul>` : '<p class="hint">Nothing yet: what you find today goes here.</p>'}</section>`;
+}
 function trainingView() {
   const n0 = (v) => nfE(0).format(v); const today = new Date().toISOString().slice(0, 10);
   let done = {}; try { done = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { done = {}; }
@@ -669,7 +703,11 @@ function trainingView() {
   const sd = (d) => { const x = new Date(d + 'T12:00:00Z'); return x.getUTCDate() + ' ' + MON3[x.getUTCMonth()]; };
   const tl = `<div class="gan">${PH.map(([n, a, b, k]) => { const l = P(a), w = P(b) + 100 / (hi - lo) - l; const st = k === 1 ? 'background:color-mix(in srgb,#5B8DEF 22%,transparent);border:2px solid #5B8DEF' : k === 2 ? 'border:1.5px dashed var(--muted)' : 'background:color-mix(in srgb,var(--line) 60%,transparent);border:1.5px solid var(--muted)'; return `<div style="font-weight:${k === 1 ? 800 : 500}">${n}</div><div class="bar"><span style="left:${l}%;width:${w}%;${st}" title="${sd(a)} – ${sd(b)}">${w > 12 ? sd(a) + ' – ' + sd(b) : ''}</span>${w > 12 ? '' : `<span style="left:calc(${l + w}% + 6px);color:var(--muted)">${sd(a)} – ${sd(b)}</span>`}</div>`; }).join('')}<div style="font-weight:800">Yohai leaves</div><div class="bar"><span style="left:calc(${P('2027-01-01')}% - 40px);width:40px;color:var(--bad);font-weight:800">1 Jan ◆</span></div></div>
     <p class="hint" style="margin-top:6px">Blue = top priority (account, customers, stock). The first two weeks cover what matters most; week 3 adds listings and advertising, week 4 the other accounts and marketplaces.</p>`;
-  let h = css + `<div class="trn">
+  const css2 = `<style>.trn .tsteps{list-style:none;margin:0;padding:0;display:grid;gap:10px}.trn .tsteps li{display:grid;grid-template-columns:34px 1fr;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}.trn .tsteps .tn{width:30px;height:30px;border-radius:50%;background:#5B8DEF;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}.trn .tsteps p{margin:4px 0 0;font-size:14px;line-height:1.5}.trn .tnotes{margin:0;padding-left:18px;line-height:1.6;font-size:14px}.trn .tnotes li{margin-bottom:6px}.trn code{font-family:var(--mono,ui-monospace);background:color-mix(in srgb,var(--line) 50%,transparent);padding:1px 5px;border-radius:4px}</style>`;
+  const subs = [['plan', 'Plan']].concat(Object.keys(TRN_STEPS).map((k) => [k, 'Day ' + TRN_STEPS[k].n])); const sub = subs.some(([v]) => v === state.trnSub) ? state.trnSub : 'plan';
+  const nav = `<div class="seg" role="group" aria-label="Training" style="flex-wrap:wrap;max-width:100%;margin:0 0 12px">${subs.map(([v, l]) => `<button aria-pressed="${v === sub}" data-trnsub="${v}">${l}</button>`).join('')}</div>`;
+  if (sub !== 'plan') return css + css2 + `<div class="trn">${nav}${trnDayCard(sub)}</div>`;
+  let h = css + css2 + `<div class="trn">${nav}
   <section class="card"><h3>Amazon operations · training plan</h3><p class="hint" style="margin:2px 0 10px">Everything ready by 22 December, with 9 days of buffer before Yohai leaves on 1 January. 20 working days, 3–4 hours a day: 30 minutes of routine plus 2.5–3 hours of hands-on practice, one topic per day. US first (HUNTER from day 1, JEER from day 16).</p>
     <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="pg"><div style="width:${nDone / days.length * 100}%"></div></div></div><b>${n0(nDone)} of ${n0(days.length)} days done</b>${curr ? `<span class="mut">Next: <b>${fd(curr[0])} · ${esc(curr[1])}</b></span>` : ''}</div>
     <h4>Timeline</h4>${tl}</section>
@@ -3929,7 +3967,7 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
-  training() { document.querySelectorAll('[data-trn]').forEach((b) => b.addEventListener('change', () => { let d = {}; try { d = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { d = {}; } if (b.checked) d[b.dataset.trn] = 1; else delete d[b.dataset.trn]; try { localStorage.setItem('en-training', JSON.stringify(d)); } catch (e) {} const y = scrollY; render(); scrollTo({ top: y }); })); },
+  training() { document.querySelectorAll('[data-trnsub]').forEach((b) => b.addEventListener('click', () => { state.trnSub = b.dataset.trnsub; render(); scrollTo({ top: 0 }); })); document.querySelectorAll('[data-trn]').forEach((b) => b.addEventListener('change', () => { let d = {}; try { d = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { d = {}; } if (b.checked) d[b.dataset.trn] = 1; else delete d[b.dataset.trn]; try { localStorage.setItem('en-training', JSON.stringify(d)); } catch (e) {} const y = scrollY; render(); scrollTo({ top: y }); })); },
   testing() { const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); }; document.querySelectorAll('[data-plqent]').forEach((b) => b.addEventListener('click', kp(() => { state.plqEnt = b.dataset.plqent; }))); document.querySelectorAll('[data-cy]').forEach((b) => b.addEventListener('click', kp(() => { state.cY = b.dataset.cy; }))); document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', kp(() => { state.cMet = b.dataset.cm; }))); document.querySelectorAll('[data-mapm]').forEach((b) => b.addEventListener('click', kp(() => { state.mapMet = b.dataset.mapm; }))); document.querySelectorAll('[data-mapy]').forEach((b) => b.addEventListener('click', kp(() => { state.mapY = b.dataset.mapy; }))); },
   questions() {
     const T = () => yqData().topics, cur = () => T().find((t) => t.id === state.yqTopic);
