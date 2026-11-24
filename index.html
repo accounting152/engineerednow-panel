@@ -440,7 +440,7 @@ async function decrypt(pw) {
 
 let D = null;
 let _ro = {}; try { _ro = JSON.parse(localStorage.getItem('enRepOpen') || '{}') || {}; } catch (e) {}
-const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', amz: 'BOTH', amzYrs: ['2025', '2026'], amzMet: 'sales', amzPer: 'ytd', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
+const state = { bsFecha: (() => { try { return localStorage.getItem('enBsFecha') || ''; } catch (e) { return ''; } })(), bsClosed: {}, bsCal: false, tab: 'resumen', pendEmp: '', pendQ: '', plEmp: 'HUNTER', salesSub: 'engineered', amz: 'BOTH', amzYrs: ['2025', '2026'], amzMet: 'sales', amzPer: 'ytd', amzStockPais: '', invEmp: '', invPais: '', invEstado: '', invQ: '', invSub: 'informes', amzSub: 'resumen', repFecha: '', repMes: '', repEmps: ['HUNTER', 'JEER', 'IPAI'], repOpen: _ro };
 
 async function unlock(pw, remember) {
   const btn = $('#unlockBtn'); btn.disabled = true; btn.textContent = 'Abriendo…'; $('#err').textContent = '';
@@ -1433,7 +1433,7 @@ resultados() {
 },
 
 amazon() {
-  const ss = ['wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub) ? state.salesSub : 'amazon';
+  const ss = ['amazon', 'wholesalers', 'shopify', 'innovad', 'engineered'].includes(state.salesSub) ? state.salesSub : 'engineered';
   const salesNav = `<div class="seg cseg" role="group" aria-label="Sales" style="margin:-4px 0 -10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${[['engineered', 'Engineered Now'], ['amazon', 'Amazon'], ['wholesalers', 'Wholesalers'], ['shopify', 'Shopify'], ['innovad', 'Innovad']].map(([k, t]) => `<button aria-pressed="${ss === k}" data-ssub="${k}" style="padding-left:4px;padding-right:4px;font-size:clamp(11px,3vw,15px);min-width:0;overflow:hidden;text-overflow:ellipsis">${t}</button>`).join('')}</div>`;
   if (ss === 'wholesalers') return salesNav + wsTopViz() + wsPage('Wholesalers');
   if (ss === 'innovad') return salesNav + innTopViz() + innSalesCards('is');
