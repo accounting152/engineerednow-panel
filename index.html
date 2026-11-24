@@ -387,6 +387,7 @@ details.ig-act>summary::-webkit-details-marker{display:none}
       <button data-tab="finances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.6M12 6v2M12 16v2"/></svg>Finances</button>
       <button data-tab="competitors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14.5 14.6A5 5 0 0 1 21 19"/></svg>Competitors</button>
       <button data-tab="marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Marketing</button>
+      <button data-tab="training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg>Training</button>
     </div>
   </nav>
 </div>
@@ -457,7 +458,7 @@ $('#lockBtn').addEventListener('click', () => { store.del('en-pw'); D = null; $(
 const saved = store.get('en-pw'); if (saved) unlock(saved, true);
 
 /* ---------- navigation ---------- */
-const TITLES = { resumen: 'Summary', bancos: 'Banks', pendientes: 'Pending', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventory', margins: 'Margins', testing: 'Testing', questions: 'Questions Yohai' };
+const TITLES = { resumen: 'Summary', bancos: 'Banks', pendientes: 'Pending', competitors: 'Competitors', marketing: 'Marketing', finances: 'Finances', amazon: 'Sales', inventario: 'Inventory', margins: 'Margins', testing: 'Testing', questions: 'Questions Yohai', training: 'Training' };
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(tab) {
   if (tab === 'marketing' && state.tab !== 'marketing') { state.emOpen = {}; state.igOpen = {}; state.tdOpen = false; }
@@ -625,6 +626,64 @@ function summaryView() {
   h += sec('P&amp;L summary') + plViz([2]);
   h += sec('Balance Sheet') + bsViz([2]);
   h += sec('Competitors') + sumCompetitors();
+  return h;
+}
+const TRN_DAYS = [
+  ['w', 'Week 1 · 25 Nov – 1 Dec', 'Account and customers'],
+  ['2026-11-25', 'Seller Central and product codes', 'Walk through the HUNTER US menus. Find a model (e.g. H3G) and locate its ASIN, SKU and FNSKU. Set up your email notifications.', 'You can explain ASIN vs SKU vs FNSKU with one of our products.'],
+  ['2026-11-26', 'Account health and policies', 'Go through Account Health line by line. Read the product and intellectual-property policies that affect us. Open the Case Log and read Yohai\'s cases.', 'You know what the Account Health Rating measures and what to do with a warning.'],
+  ['2026-11-27', 'Customer messages', 'Answer the day\'s messages yourself (Black Friday: expect traffic). Write 4 template replies: where is my order, fit with the chair, return, faulty product.', 'You answer everything within 24 h without help.'],
+  ['2026-11-30', 'Returns and claims', 'Review the last 3 months of returns and their reasons. See how an A-to-z claim works on FBA orders.', 'You know what Amazon handles and what is yours in each case.'],
+  ['2026-12-01', 'Reviews and recap', 'Read recent negative reviews and note repeated problems. Do the full routine alone and start your operations guide.', 'You do the daily routine without looking at the plan.'],
+  ['w', 'Week 2 · 2 – 8 Dec', 'Inventory and shipments'],
+  ['2026-12-02', 'FBA inventory', 'Read FBA Inventory and the Restock Inventory report. Compare with the Inventory tab of this app. Check this month\'s capacity limits.', 'You know the days of stock per model and when to restock.'],
+  ['2026-12-03', 'Send to Amazon, inside', 'Follow 2 or 3 existing shipments: boxes, labels, carrier and receiving status.', 'You understand every step of the flow end to end.'],
+  ['2026-12-04', 'Our warehouse', 'Talk to our own warehouse: what they need from us, how they label and pack, who books the pickup. Write it in the guide.', 'You know what instructions to send the warehouse and when.'],
+  ['2026-12-07', 'Create a real shipment', 'Create a restock shipment yourself, with me checking each screen before you confirm, and send the instructions to the warehouse. January stock then arrives before you are on your own.', 'You create a full shipment alone.'],
+  ['2026-12-08', 'Stock problems', 'Review stranded inventory, removal orders and lost or damaged units, and how to claim them.', 'You spot stock that cannot sell and claim what Amazon loses.'],
+  ['w', 'Week 3 · 9 – 15 Dec', 'Listings, advertising and prices'],
+  ['2026-12-09', 'Product listings', 'Review our model listings: title, bullets, images and colour variations. Fix a listing with issues if there is one.', 'You know why a listing goes inactive or suppressed and how to fix it.'],
+  ['2026-12-10', 'Brand Registry and Brand Analytics', 'Look at the A+ content and the brand store. Open Brand Analytics with the "aeron headrest" searches (the ones the Competitors tab uses).', 'You know where the competitor data in this app comes from.'],
+  ['2026-12-11', 'Advertising, inside', 'Read Yohai\'s active campaigns: budgets, keywords and bids. Work out last month\'s ACoS and TACoS.', 'You can explain which campaigns run, what they cost and what they sell.'],
+  ['2026-12-14', 'Optimising advertising', 'Review the search term report. Make the first small change: add a negative keyword or lower a bid.', 'You do the weekly advertising review alone.'],
+  ['2026-12-15', 'Prices, promotions and payments', 'Review active prices, coupons and promotions. Download the Payments report and check it against this app.', 'You can change a price and create a coupon safely.'],
+  ['w', 'Week 4 · 16 – 22 Dec', 'Other accounts and marketplaces'],
+  ['2026-12-16', 'JEER account', 'Repeat the daily routine and the stock, listings and advertising review in JEER.', 'You run both accounts at once.'],
+  ['2026-12-17', 'Canada and Mexico', 'See how these marketplaces look from the North America account: stock, prices and sales.', 'You check Canada and Mexico in the routine.'],
+  ['2026-12-18', 'UK and Europe', 'Review the European account: active marketplaces, stock in Europe, messages in other languages.', 'You check UK and Europe in the routine.'],
+  ['2026-12-21', 'Japan and Shopify MCF', 'Review Japan. See how Shopify orders ship from FBA stock (MCF) and what to do if one gets stuck.', 'You follow a Shopify order shipped by Amazon end to end.'],
+  ['2026-12-22', 'Dry run and wrap-up', 'Run a full day alone: routine for every account, messages, stock and advertising. Finish your operations guide.', 'Your guide is written and you no longer need the plan.'],
+  ['w', '23 – 31 Dec', 'Buffer'],
+  ['2026-12-23', 'You run operations', 'You run everything every day while Yohai is still here. Repeat what was hardest and catch up any day that slipped.', 'On 1 January you need nobody.'],
+];
+function trainingView() {
+  const n0 = (v) => nfE(0).format(v); const today = new Date().toISOString().slice(0, 10);
+  let done = {}; try { done = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { done = {}; }
+  const fd = (d) => { const x = new Date(d + 'T12:00:00Z'); return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MON3[x.getUTCMonth()]; };
+  const days = TRN_DAYS.filter((r) => r[0] !== 'w' && r[0] !== '2026-12-23'); const nDone = days.filter((r) => done[r[0]]).length;
+  const curr = days.find((r) => !done[r[0]]) || null;
+  const css = `<style>.trn h4{margin:18px 0 6px;font-size:15px}.trn .tt{width:100%;border-collapse:collapse;font-size:13px}.trn .tt th{font-size:11px;color:var(--muted);font-weight:700;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}.trn .tt td{padding:7px 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);vertical-align:top;text-align:left}.trn .wk td{background:color-mix(in srgb,var(--line) 35%,transparent);font-weight:800;padding-top:9px}.trn tr.now td{background:color-mix(in srgb,#5B8DEF 12%,transparent)}.trn tr.ok td{opacity:.55}.trn .chk{width:20px;height:20px;cursor:pointer;accent-color:#2F8C7F}.trn ol,.trn ul{margin:4px 0 0;padding-left:20px;line-height:1.55;font-size:14px}.trn .gan{display:grid;grid-template-columns:260px 1fr;gap:6px 10px;align-items:center;font-size:13px}.trn .gan .bar{position:relative;height:22px}.trn .gan .bar span{position:absolute;top:2px;height:18px;border-radius:5px;font-size:11px;display:flex;align-items:center;justify-content:center;white-space:nowrap}.trn .pg{height:10px;border-radius:5px;background:color-mix(in srgb,var(--line) 70%,transparent);overflow:hidden}.trn .pg div{height:100%;background:#2F8C7F}</style>`;
+  // timeline
+  const t = (d) => Date.parse(d + 'T00:00:00Z') / 864e5; const lo = t('2026-11-25'), hi = t('2027-01-02'); const P = (d) => (t(d) - lo) / (hi - lo) * 100;
+  const PH = [['1 · Account and Seller Central', '2026-11-25', '2026-11-26', 1], ['2 · Customers and returns', '2026-11-27', '2026-12-01', 1], ['3 · Inventory and FBA shipments', '2026-12-02', '2026-12-08', 1], ['4 · Listings and Brand Registry', '2026-12-09', '2026-12-10', 0], ['5 · Advertising and prices', '2026-12-11', '2026-12-15', 0], ['6 · JEER, marketplaces and wrap-up', '2026-12-16', '2026-12-22', 0], ['Buffer: you run operations', '2026-12-23', '2026-12-31', 2]];
+  const sd = (d) => { const x = new Date(d + 'T12:00:00Z'); return x.getUTCDate() + ' ' + MON3[x.getUTCMonth()]; };
+  const tl = `<div class="gan">${PH.map(([n, a, b, k]) => { const l = P(a), w = P(b) + 100 / (hi - lo) - l; const st = k === 1 ? 'background:color-mix(in srgb,#5B8DEF 22%,transparent);border:2px solid #5B8DEF' : k === 2 ? 'border:1.5px dashed var(--muted)' : 'background:color-mix(in srgb,var(--line) 60%,transparent);border:1.5px solid var(--muted)'; return `<div style="font-weight:${k === 1 ? 800 : 500}">${n}</div><div class="bar"><span style="left:${l}%;width:${w}%;${st}" title="${sd(a)} – ${sd(b)}">${w > 12 ? sd(a) + ' – ' + sd(b) : ''}</span>${w > 12 ? '' : `<span style="left:calc(${l + w}% + 6px);color:var(--muted)">${sd(a)} – ${sd(b)}</span>`}</div>`; }).join('')}<div style="font-weight:800">Yohai leaves</div><div class="bar"><span style="left:calc(${P('2027-01-01')}% - 40px);width:40px;color:var(--bad);font-weight:800">1 Jan ◆</span></div></div>
+    <p class="hint" style="margin-top:6px">Blue = top priority (account, customers, stock). The first two weeks cover what matters most; week 3 adds listings and advertising, week 4 the other accounts and marketplaces.</p>`;
+  let h = css + `<div class="trn">
+  <section class="card"><h3>Amazon operations · training plan</h3><p class="hint" style="margin:2px 0 10px">Everything ready by 22 December, with 9 days of buffer before Yohai leaves on 1 January. 20 working days, 3–4 hours a day: 30 minutes of routine plus 2.5–3 hours of hands-on practice, one topic per day. US first (HUNTER from day 1, JEER from day 16).</p>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="pg"><div style="width:${nDone / days.length * 100}%"></div></div></div><b>${n0(nDone)} of ${n0(days.length)} days done</b>${curr ? `<span class="mut">Next: <b>${fd(curr[0])} · ${esc(curr[1])}</b></span>` : ''}</div>
+    <h4>Timeline</h4>${tl}</section>
+  <section class="card"><h3>Day by day</h3><p class="hint" style="margin:2px 0 10px">Tick each day when you meet its "Done when…". Your ticks are kept on this device. Today's row is highlighted.</p><div class="rtbl-wrap"><table class="tt" style="min-width:860px"><thead><tr><th></th><th>Day</th><th>Topic</th><th>Hands-on practice</th><th>Done when…</th></tr></thead><tbody>${(() => { let i = 0; return TRN_DAYS.map((r) => { if (r[0] === 'w') return `<tr class="wk"><td></td><td colspan="2">${esc(r[1])}</td><td colspan="2">${esc(r[2])}</td></tr>`; i++; const ok = !!done[r[0]]; const now = curr && curr[0] === r[0]; return `<tr class="${ok ? 'ok' : ''}${now ? ' now' : ''}"><td><input type="checkbox" class="chk" data-trn="${r[0]}"${ok ? ' checked' : ''} aria-label="Day ${i} done"></td><td style="white-space:nowrap"><b>${r[0] === '2026-12-23' ? '23–31 Dec' : i + ' · ' + fd(r[0])}</b></td><td><b>${esc(r[1])}</b></td><td>${esc(r[2])}</td><td class="mut">${esc(r[3])}</td></tr>`; }).join(''); })()}</tbody></table></div></section>
+  <section class="card"><h3>Daily routine · 30 minutes</h3><p class="hint" style="margin:2px 0 6px">Every morning in HUNTER, and in JEER too from day 16. The first days you only look and take notes. If something looks wrong, take a screenshot and ask before touching anything.</p><ol>
+    <li><b>Account health</b> (Performance › Account Health): still green? Any new policy or intellectual-property warning?</li>
+    <li><b>Notifications</b> (Performance › Performance Notifications): read the new ones; note any deadline.</li>
+    <li><b>Customer messages</b> (Buyer Messages): none left unanswered. Amazon measures replies within 24 hours, weekends included.</li>
+    <li><b>Listings with issues</b> (Catalog › Fix Your Products / Inventory › Manage All Inventory): no inactive or suppressed listing.</li>
+    <li><b>Stock</b> (Inventory › FBA Inventory, and the Inventory tab of this app): no model under 30 days of cover without a shipment on its way.</li>
+    <li><b>Advertising</b> (Campaign Manager): yesterday's spend within budget. Look only until day 14.</li></ol></section>
+  <section class="card"><h3>Starting point</h3><p class="hint" style="margin:2px 0 10px">Questionnaire of 24 Nov 2026: starting from zero in every area, with full access to Seller Central and Campaign Manager in HUNTER and JEER. Yohai left no written procedures, so everything you learn goes into your own operations guide.</p><div class="rtbl-wrap"><table class="tt" style="min-width:560px"><thead><tr><th>Area</th><th>Level today</th><th>Priority</th></tr></thead><tbody>${[['Account health and Seller Central', 'High'], ['FBA inventory and shipments to Amazon', 'High'], ['Customer service, returns and claims', 'High'], ['Product listings and Brand Registry', 'Medium'], ['Advertising (Campaign Manager)', 'Medium'], ['Prices, promotions and reports', 'Medium'], ['Amazon reimbursements for lost units', 'Low'], ['Other marketplaces and MCF (Shopify orders)', 'Week 4']].map(([a, p]) => `<tr><td>${a}</td><td class="mut">Never done</td><td><b style="color:${p === 'High' ? 'var(--bad)' : 'inherit'}">${p}</b></td></tr>`).join('')}</tbody></table></div></section>
+  <section class="card"><h3>Glossary</h3><div class="rtbl-wrap"><table class="tt" style="min-width:560px"><thead><tr><th>Term</th><th>What it is</th></tr></thead><tbody>${[['ASIN', 'Amazon\'s code for a product in its catalogue. The same for every seller of that product.'], ['SKU', 'Our own internal code for the product. We set it.'], ['FNSKU', 'Code on the label of every unit that enters an Amazon warehouse. It says the unit is ours.'], ['FBA', 'Fulfillment by Amazon: Amazon stores the stock, ships the orders and handles returns.'], ['MCF', 'Multi-Channel Fulfillment: Amazon ships orders from other channels, such as Shopify, from our FBA stock.'], ['Send to Amazon', 'The Seller Central flow to create a restock shipment to Amazon warehouses.'], ['Stranded inventory', 'Stock in an Amazon warehouse with no active offer, so it cannot sell.'], ['Removal order', 'An order for Amazon to return or dispose of units from its warehouse.'], ['Buy Box', 'The "Add to Cart" button on a listing. Lose it and most customers will not buy from you.'], ['Account Health Rating', 'Score of the account\'s policy compliance. If it drops too far the account can be at risk of deactivation.'], ['A-to-z Guarantee', 'A customer\'s claim to Amazon when an order does not arrive or is not as described.'], ['Brand Registry', 'Our brand registered with Amazon. Gives control of listings, A+ content and Brand Analytics.'], ['ACoS', 'Advertising spend ÷ sales that came from advertising.'], ['TACoS', 'Advertising spend ÷ total sales. How much advertising weighs on the whole business.']].map(([a, b]) => `<tr><td><b>${a}</b></td><td>${esc(b)}</td></tr>`).join('')}</tbody></table></div></section>
+  </div>`;
   return h;
 }
 function tstInnovad() { return '<section class="card"><h3>Testing</h3><p class="hint">Nothing under test right now. Tell me which report you want to try new formats for.</p></section>'; }
@@ -1257,6 +1316,7 @@ function a3Init() { if (A3.init) return; A3.init = true; a3Sel();
   } catch (e) {} })(); }
 const VIEWS = {
   testing() { return tstInnovad(); },
+  training() { return trainingView(); },
   questions() {
     yqInit(); const T = yqData().topics; if (!T.find((t) => t.id === state.yqTopic)) state.yqTopic = T[0].id;
     const cur = T.find((t) => t.id === state.yqTopic); const open = cur.items.filter((x) => !x.done), done = cur.items.filter((x) => x.done);
@@ -3869,6 +3929,7 @@ function drawMoves() {
   $('#mvlist').innerHTML = `<div class="count">${rows.length} movimientos · neto ${money(sum, 'USD', 0)}</div>` + (html || `<div class="card mut">${emptyIPAI}</div>`);
 }
 const AFTER = {
+  training() { document.querySelectorAll('[data-trn]').forEach((b) => b.addEventListener('change', () => { let d = {}; try { d = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { d = {}; } if (b.checked) d[b.dataset.trn] = 1; else delete d[b.dataset.trn]; try { localStorage.setItem('en-training', JSON.stringify(d)); } catch (e) {} const y = scrollY; render(); scrollTo({ top: y }); })); },
   testing() { const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); }; document.querySelectorAll('[data-plqent]').forEach((b) => b.addEventListener('click', kp(() => { state.plqEnt = b.dataset.plqent; }))); document.querySelectorAll('[data-cy]').forEach((b) => b.addEventListener('click', kp(() => { state.cY = b.dataset.cy; }))); document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', kp(() => { state.cMet = b.dataset.cm; }))); document.querySelectorAll('[data-mapm]').forEach((b) => b.addEventListener('click', kp(() => { state.mapMet = b.dataset.mapm; }))); document.querySelectorAll('[data-mapy]').forEach((b) => b.addEventListener('click', kp(() => { state.mapY = b.dataset.mapy; }))); },
   questions() {
     const T = () => yqData().topics, cur = () => T().find((t) => t.id === state.yqTopic);
