@@ -564,6 +564,13 @@ async function downloadTodos() { const msg = $('#todoXlsMsg'); if (msg) msg.text
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); if (msg) msg.textContent = 'Downloaded: ' + name;
   } catch (e) { if (msg) msg.textContent = 'Could not create the Excel file: ' + (e && e.message ? e.message : e); } }
 /* ---------- Testing: 5 design options for the "Margins by client and model · average" report (Innovad data) ---------- */
+function amzTilesViz() { const T = D.amazon_tiles; if (!T || !T.rows) return ''; const K = [['today', 'Today'], ['yesterday', 'Yesterday'], ['mtd', 'Month to date'], ['l30', 'Last 30 days']];
+  const n0 = (v) => nf(0).format(Math.round(v)); const tot = (k, f) => T.rows.reduce((s, r) => s + (f ? (r.company === f ? r[k][2] : 0) : r[k][2]), 0); const tu = (k) => T.rows.reduce((s, r) => s + r[k][0], 0);
+  const cards = K.map(([k, l]) => `<div class="kpi"><span class="l">${l} · ${esc(T.periods[k])}</span><span class="v">$${n0(tot(k))}</span><span class="l">${n0(tu(k))} units · HUNTER $${n0(tot(k, 'HUNTER'))} · JEER $${n0(tot(k, 'JEER'))}</span></div>`).join('');
+  const rows = T.rows.filter((r) => K.some(([k]) => r[k][0] > 0)).sort((a, b) => b.l30[2] - a.l30[2]);
+  const cell = (r, k) => r[k][0] ? `${r[k][0]} · $${n0(r[k][2])}` : '<span style="opacity:.4">—</span>';
+  const tb = rows.map((r) => `<tr><td style="text-align:left">${esc(r.company)}</td><td style="text-align:left">${esc(r.country)}</td>${K.map(([k]) => `<td style="text-align:right;white-space:nowrap">${cell(r, k)}</td>`).join('')}</tr>`).join('');
+  return `<section class="card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">Amazon sales · HUNTER + JEER · all marketplaces</h3><section class="kpis" style="margin:4px 0 8px">${cards}</section><details style="display:block;width:100%"><summary style="cursor:pointer;font-size:13px">By company and country (units · US$)</summary><div style="overflow-x:auto"><table class="ot" style="font-size:12.5px;margin-top:6px;width:100%"><thead><tr><th style="text-align:left">Company</th><th style="text-align:left">Country</th>${K.map(([, l]) => `<th style="text-align:right">${l}</th>`).join('')}</tr></thead><tbody>${tb}</tbody></table></div></details><p class="hint" style="margin:6px 0 0">As of ${esc(T.asOf)} (Madrid). ${esc(T.note)}</p></section>`; }
 function amzTopViz() { const I = D.informes || {}; if (I.pagos_amazon_us && !I.unidades_modelo) I.unidades_modelo = umBuild(I.pagos_amazon_us); const A = amzA('BOTH'); if (!A) return '';
   const fx = A.fx || { USD: 1 }; const C = {}; const add = (y, p, m, u, v) => { const k = y + '|' + p + '|' + m; const o = C[k] = C[k] || [y, m, 'ALL', '', p, 0, 0]; o[5] += u; o[6] += v; };
   let last = ''; amzDays(A).forEach((r) => { if (r.f.slice(0, 4) !== '2026') return; add('2026', r.pais, +r.f.slice(5, 7) - 1, r.u, r.usd); if (r.f > last) last = r.f; });
@@ -1670,7 +1677,7 @@ amazon() {
 _amazonInner() {
   const amzNav = `<div class="seg cseg" role="group" aria-label="Amazon" style="margin-bottom:-10px"><button aria-pressed="${state.amzSub !== 'informes'}" data-asub="resumen">Summary</button><button aria-pressed="${state.amzSub === 'informes'}" data-asub="informes">Reports</button></div>`;
   if (state.amzSub === 'informes') return amzNav + amzInformesView();
-  return amzNav + '<div style="height:14px"></div>' + amzTopViz() + VIEWS._amazonMain();
+  return amzNav + '<div style="height:14px"></div>' + amzTilesViz() + amzTopViz() + VIEWS._amazonMain();
 },
 _amazonMain() {
   const AM = D.amazon || {};
