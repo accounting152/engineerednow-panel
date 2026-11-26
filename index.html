@@ -783,7 +783,17 @@ const TRN_STEPS = {
       ['Look at reimbursements', 'Go to Reports › Fulfillment › Reimbursements (last 90 days). Amazon pays us when it refunds a customer and the unit never comes back, or when it loses or damages stock in its warehouse. Note the total and the main reasons. A return that never arrived and was not reimbursed after about 45 days can be claimed.'],
       ['Understand A-to-z claims', 'Go to ☰ › Orders › Manage claims (A-to-z Guarantee). An A-to-z claim is a customer complaint to Amazon about an order (not received, not as described, return refused). With FBA, Amazon resolves claims about delivery itself. Note any claims of the last 90 days and how they ended. Our Order Defect Rate is 0%, so we expect none.'],
     ],
-    notes: [] },
+    notes: [
+      'Done 26 Nov (steps 1–4). Step 5 Reimbursements and step 6 A-to-z claims still to do.',
+      'Manage returns: nothing to do on our side, everything goes through FBA. The 90-day screen (Manage FBA returns) showed 77 units, only 32 sellable (42%).',
+      'Full 2026 analysis now in Sales › Returns: 438 returns, 13% return rate. Classic H3/H4 11%, H3 Remastered 15%, H4 Remastered 18%, HW 22%. 54% of returns come back unfulfillable.',
+      'Customer comments: 35% bought for the wrong chair or size (not an Aeron, wrong Aeron version), 12% colour mismatch (mostly Remastered), 6% headrest will not hold its position (mostly H3 Classic). Action for later: make the listing clearer on which Aeron each model fits and on colours.',
+      'Amazon owes us for Switcheroo (customer returned a different item) and Carrier damaged returns: check in Reimbursements.',
+      'Unfulfillable now: 13 units, no removal open. Automated unfulfillable settings = Enabled, Return, on the 5th and 20th; Value recovery = None. Units go to Hipshipper, Folcroft PA ("HS EN returns").',
+      'Removal Order Detail 2026: 295 units shipped, $1,456 in fees (about $5/unit). 292 from the automated unfulfillable removal. Use shipped-quantity, not requested-quantity (requested counts cancelled units again).',
+      'Also seen: Amazon-initiated aged-inventory removal (51 requested, 1 shipped) and a manual removal of 206 H3RE-GRAPHITE (2 shipped). Later: who asked for it and why.',
+      'Pending for later: what Hipshipper does with returned units (inspect and resell, or stored), and compare cost of returning vs disposal vs Amazon Grade and Resell. Do not change settings yet. Repackaging service: evaluate together.',
+    ] },
 };
 function trnDayCard(d) {
   const S = TRN_STEPS[d]; if (!S) return '';
