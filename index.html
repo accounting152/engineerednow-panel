@@ -714,6 +714,16 @@ const TRN_STEPS = {
       '<b>Messages in the new Seller Central:</b> envelope icon ✉ in the top bar, or sellercentral.amazon.com/messaging/inbox. Templates are in Messaging Settings ▾ › Templates.',
       '<b>Decision:</b> no saved templates for now. With about 2 cases a month Francisco will answer each one by hand, which is more personal. Keep the 24-hour rule and Amazon\'s messaging rules (no external links, no review requests, no marketing).',
     ] },
+  '2026-11-30': { n: 4, title: 'Returns and claims', goal: 'Understand how returns work with FBA, which products come back and why, and what Amazon pays us for when it loses a return. Look and take notes only: change nothing.',
+    steps: [
+      ['Open Manage returns', 'In the new menu go to ☰ › Orders › Manage returns. With FBA, Amazon handles the return itself (label, refund and receiving the unit), so this page mostly shows orders we ship ourselves. Look at what appears and note it, but do not authorise or close anything.'],
+      ['Open the FBA Customer Returns report', 'Go to ☰ › Inventory › Inventory reports (or Reports › Fulfillment) and find "Customer Returns" under FBA. Choose the last 90 days and look at it on screen. Each row shows the date, the SKU and ASIN, the reason the customer gave and the "disposition": the state Amazon found the unit in (Sellable, Customer Damaged, Defective, Carrier Damaged).'],
+      ['Group the returns by reason and model', 'Count how many returns there are per model (H3, H4, H6…) and per reason. Look for patterns: wrong size or colour ordered, does not fit the chair, defective, no longer needed. A reason that repeats on one model points to a listing or product problem.'],
+      ['Check what happens to the returned unit', 'Sellable returns go back into our stock automatically. Units marked damaged or defective become "unfulfillable" and stay in Amazon\'s warehouse charging fees until we ask for a removal or disposal. In ☰ › Inventory › FBA Inventory, filter by "Unfulfillable" and note how many units we have there.'],
+      ['Look at reimbursements', 'Go to Reports › Fulfillment › Reimbursements (last 90 days). Amazon pays us when it refunds a customer and the unit never comes back, or when it loses or damages stock in its warehouse. Note the total and the main reasons. A return that never arrived and was not reimbursed after about 45 days can be claimed.'],
+      ['Understand A-to-z claims', 'Go to ☰ › Orders › Manage claims (A-to-z Guarantee). An A-to-z claim is a customer complaint to Amazon about an order (not received, not as described, return refused). With FBA, Amazon resolves claims about delivery itself. Note any claims of the last 90 days and how they ended. Our Order Defect Rate is 0%, so we expect none.'],
+    ],
+    notes: [] },
 };
 function trnDayCard(d) {
   const S = TRN_STEPS[d]; if (!S) return '';
