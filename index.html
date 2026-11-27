@@ -800,9 +800,216 @@ const TRN_STEPS = {
       'Also seen: Amazon-initiated aged-inventory removal (51 requested, 1 shipped) and a manual removal of 206 H3RE-GRAPHITE (2 shipped). Later: who asked for it and why.',
       'Pending for later: what Hipshipper does with returned units (inspect and resell, or stored), and compare cost of returning vs disposal vs Amazon Grade and Resell. Do not change settings yet. Repackaging service: evaluate together.',
     ] },
+  '2026-12-01': { n: 0, title: "Reviews and recap", goal: "Learn where customers leave public feedback, spot repeated problems, and run the whole daily routine alone for the first time.",
+    steps: [
+      ["Read product reviews", "Open each main ASIN on amazon.com (H3 and H4 Classic Carbon, H3 Remastered Graphite, H6) and sort reviews by \"Most recent\". Read the 1–3 star reviews of the last 6 months and note the problem each one mentions."],
+      ["Check Voice of the Customer", "In Seller Central go to ☰ › Performance › Voice of the Customer. Look at the Customer Experience Health of each ASIN and the main return or complaint reasons Amazon shows. Compare with Sales › Returns in this app."],
+      ["Look at seller feedback", "Go to ☰ › Performance › Feedback. Note any negative feedback of the last 90 days. With FBA, feedback about delivery is struck through by Amazon automatically."],
+      ["Do the daily routine alone", "Without the plan: Account Health, messages, FBA inventory alerts, shipments in progress, payments and the Amazon Ops tab of this app. Time yourself."],
+      ["Start your operations guide", "Open a document and write the daily routine in your own words: what you check, where, and what you do when something is wrong. You will add to it every day."],
+    ],
+    notes: [] },
+  '2026-12-02': { n: 0, title: "FBA inventory", goal: "Know how many days of stock we have per model and marketplace, and when each one needs restocking.",
+    steps: [
+      ["Read FBA Inventory", "Go to ☰ › Inventory › FBA Inventory. For each SKU note available, inbound, reserved and unfulfillable units, days of supply and the \"Send inventory\" or \"Low stock\" warnings."],
+      ["Open Restock Inventory", "Go to ☰ › Inventory › Restock Inventory. Read Amazon's recommended quantity and date for each SKU. Remember it is a suggestion based on its own forecast, not an order."],
+      ["Compare with this app", "Open the Inventory tab and Amazon Ops of this app. Check that the units match Seller Central and note any difference."],
+      ["Check capacity limits", "In FBA Inventory open \"Capacity monitor\". Note this month's storage limit and how much we use. If a shipment would go over the limit, Amazon will not accept it."],
+      ["Write the restock rule", "In your guide write when to restock each model (e.g. under 45 days of supply, counting the time from China) and from where (China, Taiwan, TVL)."],
+    ],
+    notes: [] },
+  '2026-12-03': { n: 0, title: "Send to Amazon, inside", goal: "Understand every step of a shipment to Amazon by following real ones, without creating anything.",
+    steps: [
+      ["Open the shipments list", "Go to ☰ › Inventory › Manage FBA shipments (Shipments). Pick 2 or 3 recent shipments, including the one still receiving (FBA19XQ74V0G)."],
+      ["Follow one end to end", "In each shipment look at: SKUs and quantities, box contents, labels (FNSKU and box labels), carrier and tracking, delivery date and receiving progress."],
+      ["Understand the statuses", "Working, Ready to ship, Shipped, In transit, Delivered, Checked in, Receiving, Closed. Note how long each step took in the real shipments."],
+      ["Check discrepancies", "In a closed shipment compare units sent vs received. If units are missing, see the \"Reconcile\" option and how long Amazon gives to open a case."],
+      ["Add it to your guide", "Write the flow in 6–8 lines with the times of each step."],
+    ],
+    notes: [] },
+  '2026-12-04': { n: 0, title: "Our warehouse", goal: "Know who prepares and ships our stock to Amazon and what they need from us.",
+    steps: [
+      ["List the warehouses", "Note who stores our stock outside Amazon: China and Taiwan factories, TVL (USA), Hipshipper (returns, USA), Nesslog (Europe). What each one does for us."],
+      ["Ask what they need", "With Yohai, write down what each warehouse needs to prepare a shipment: SKU list, quantities, FNSKU labels, box labels, carrier booking and who pays."],
+      ["Find the documents", "Find in email the last instructions sent to a warehouse and the invoices for their service. Save one as an example."],
+      ["Who books the pickup", "Note for each route who books the transport (Amazon partnered carrier, our forwarder or the warehouse) and how long it takes."],
+      ["Write it in the guide", "Add a section \"Sending stock\" with the contacts, what to send them and when."],
+    ],
+    notes: [] },
+  '2026-12-07': { n: 0, title: "Create a real shipment", goal: "Create a restock shipment yourself so January stock arrives before you are on your own.",
+    steps: [
+      ["Choose what to send", "Use FBA Inventory, Restock Inventory and the Amazon Ops alerts to decide SKUs and quantities. Agree them with Yohai."],
+      ["Start Send to Amazon", "Go to ☰ › Inventory › Send to Amazon. Choose the ship-from address and add the SKUs and quantities. Check the prep and labelling requirements."],
+      ["Pack and place", "Enter box contents (units per box, box size and weight). Review the placement Amazon proposes (one or several warehouses) and its cost. Do not confirm without me."],
+      ["Shipping and labels", "Choose the carrier, print or download the box labels and the FNSKU labels if the warehouse needs them."],
+      ["Send instructions", "Send the warehouse the labels and a clear list: SKUs, units per box, number of boxes, pickup date. Note the shipment ID in your guide."],
+    ],
+    notes: [] },
+  '2026-12-08': { n: 0, title: "Stock problems", goal: "Spot stock that cannot sell and know how to claim what Amazon loses or damages.",
+    steps: [
+      ["Stranded inventory", "Go to ☰ › Inventory › Fix stranded inventory. Stock with no active offer cannot sell. Note the reason for each SKU (inactive listing, price, missing information)."],
+      ["Unfulfillable and removals", "Check Manage unfulfillable inventory and the automatic removals to Hipshipper (5th and 20th of each month). Note the units and fees."],
+      ["Lost and damaged units", "Open Reports › Fulfillment › Inventory Ledger and look for \"Lost\" or \"Damaged\" adjustments. Check that each one has a reimbursement (Reimbursements report)."],
+      ["How to open a case", "See where a lost-inventory case is opened (Help › Get support › FBA inventory). Note the deadlines Amazon gives."],
+      ["Add to the guide", "Write what to review each month and when to claim."],
+    ],
+    notes: [] },
+  '2026-12-09': { n: 0, title: "Product listings", goal: "Know why a listing goes inactive or suppressed and how to fix it.",
+    steps: [
+      ["Open Manage All Inventory", "Go to ☰ › Inventory › Manage All Inventory. Filter by status: Active, Inactive, Suppressed. Note the listings that are not active and why."],
+      ["Review one listing", "Open \"Edit listing\" of H3 Classic Carbon. Read the title, bullets, description, images and variations (colours and sizes). Change nothing."],
+      ["Check listing issues", "Look at \"Fix listing issues\" or the warnings on each listing. Note what Amazon asks (missing attributes, images, compliance)."],
+      ["Compare with competitors", "Look at ERGOKING and the other sellers in the Competitors tab. What do their listings explain better (compatibility, colours, sizes)?"],
+      ["Ideas for returns", "Note what could be clearer in our listings to avoid wrong-chair and colour returns. It feeds the 7 January session."],
+    ],
+    notes: [] },
+  '2026-12-10': { n: 0, title: "Brand Registry and Brand Analytics", goal: "Know our brand tools and where the competitor data in this app comes from.",
+    steps: [
+      ["A+ content", "Go to ☰ › Advertising › A+ Content Manager. See which ASINs have A+ content and what it shows."],
+      ["Brand store", "Go to ☰ › Stores › Manage Stores. Open our store and look at its pages."],
+      ["Brand Analytics", "Go to ☰ › Brands › Brand Analytics › Search Query Performance and Top Search Terms. Search \"aeron headrest\" and see our share of clicks and purchases."],
+      ["Compare with this app", "Open the Competitors tab: the monthly snapshot uses these Brand Analytics figures. Check that you can find the same numbers."],
+      ["Brand protection", "Look at Brand Registry › Report a violation. Note when to use it (copies of our design or brand)."],
+    ],
+    notes: [] },
+  '2026-12-11': { n: 0, title: "Advertising, inside", goal: "Explain which campaigns run, what they cost and what they sell.",
+    steps: [
+      ["Open Campaign Manager", "Go to advertising.amazon.com › Campaigns. List the active campaigns in HUNTER USA, with budget, type (Sponsored Products manual/auto) and country."],
+      ["Read the numbers", "Set the date range to last month. For each campaign note spend, sales, ACoS (spend ÷ ad sales) and orders."],
+      ["Work out TACoS", "TACoS = total ad spend ÷ total sales (with and without ads). Use the Sales tab for total sales."],
+      ["Look inside one campaign", "Open the main campaign: ad groups, keywords, bids and match types. Note which keywords bring sales."],
+      ["Write it down", "In your guide: what each campaign is for and what you would check every week."],
+    ],
+    notes: [] },
+  '2026-12-14': { n: 0, title: "Optimising advertising", goal: "Do the weekly advertising review alone and approve the first clean-up.",
+    steps: [
+      ["Open the search term report", "Use Amazon_Ads_search_terms_2026.xlsx (Competitors › Reports or your folder). Sheet \"Gasto sin ventas\": search terms that cost money and never sold."],
+      ["Review the proposal", "Sheet \"Propuesta negativas\": 39 search terms (about $1,750) to add as negatives and 17 keywords to pause or bid down. Mark Yes or No on each."],
+      ["Make the first changes", "Together, add a few approved negatives in one campaign. See where negative keywords go (Campaign › Negative targeting)."],
+      ["Set the weekly routine", "Every Monday: last 7 days, ACoS per campaign, new search terms with spend and no sales, budget used."],
+      ["Plan the January clean-up", "The rest of the approved changes are applied on 5 January."],
+    ],
+    notes: [] },
+  '2026-12-15': { n: 0, title: "Prices, promotions and payments", goal: "Change a price and create a coupon safely, and prepare the January price test.",
+    steps: [
+      ["Active prices", "In Manage All Inventory look at the price of each SKU in HUNTER and JEER. See where the minimum and maximum price limits are set."],
+      ["Coupons and promotions", "Go to ☰ › Advertising › Coupons and Promotions. Note active ones and their cost. Read how a coupon is created (do not create one)."],
+      ["Payments", "Go to ☰ › Payments › Statement View and download the last settlement. Check it against the Finances tab of this app."],
+      ["Prepare the price test", "Open Pricing_Ads_proposal_2027_Amazon_US.xlsx. List every ASIN and SKU whose price changes on 4 January (H3 to $115, H4 to $120 in the colours with no competitor), in HUNTER and JEER."],
+      ["Before figures", "Write down the units per week of each model for the last 4 weeks. They are the comparison for the test."],
+    ],
+    notes: [] },
+  '2026-12-16': { n: 0, title: "JEER account", goal: "Run both accounts at once.",
+    steps: [
+      ["Switch to JEER", "Log in to JEER TRADING LLC (same sellercentral.amazon.com). Note it closes the HUNTER USA session."],
+      ["Daily routine in JEER", "Account Health, messages, FBA inventory, shipments (FBA19XTQ72CJ), payments."],
+      ["Stock and listings", "Compare JEER SKUs (JEER H3_G, H3_O NEW…) with HUNTER. Note the out-of-stock ones and the send warnings."],
+      ["Advertising in JEER", "Check if JEER has campaigns and what they spend."],
+      ["Customs rule", "Follow up TVL's answer about the new importer-of-record rule (5 January 2027) for JEER and HUNTER."],
+    ],
+    notes: [] },
+  '2026-12-17': { n: 0, title: "Canada and Mexico", goal: "Check Canada and Mexico in the daily routine.",
+    steps: [
+      ["Switch marketplace", "Use the account switcher (top bar) to choose Canada, then Mexico, in HUNTER and in JEER."],
+      ["Stock", "Look at FBA Inventory in each one. See whether stock is local or shared from the USA (North America Remote Fulfillment)."],
+      ["Prices and sales", "Note prices in CAD and MXN and the sales of the last 30 days."],
+      ["Messages and health", "Check messages and Account Health in each marketplace."],
+      ["Add to the routine", "Write in your guide what you check in Canada and Mexico and how often."],
+    ],
+    notes: [] },
+  '2026-12-18': { n: 0, title: "UK and Europe", goal: "Check the UK and the European marketplaces in the daily routine.",
+    steps: [
+      ["Log in to Europe", "Open sellercentral.amazon.de (HUNTER Europe). The UK may ask for its own verification."],
+      ["Active marketplaces", "In the account switcher see Germany, UK, France, Italy, Spain and the rest. Note where we sell."],
+      ["Stock in Europe", "FBA Inventory in Germany and the UK: send warnings (the Germany ones are urgent), Pan-European FBA and the H4RE-Onyx_Fresh SKU."],
+      ["Messages in other languages", "Check messages and how to answer in German or French (translation in Seller Central)."],
+      ["Payments in Europe", "EUR and GBP balances and dates. Note VAT: EU and UK prices include it."],
+    ],
+    notes: [] },
+  '2026-12-21': { n: 0, title: "Japan and Shopify MCF", goal: "Check Japan and follow a Shopify order shipped by Amazon end to end.",
+    steps: [
+      ["Japan", "Log in to sellercentral-japan.amazon.com. Check stock (send warning for H3 Classic Carbon), messages and payments in JPY."],
+      ["What MCF is", "Multi-Channel Fulfillment: Amazon ships orders from other channels (Shopify) from our FBA stock."],
+      ["Follow one order", "Take a recent Shopify order. Find it in Seller Central ☰ › Orders › Manage Orders (Multi-Channel Fulfillment) and follow its status and tracking."],
+      ["If an order gets stuck", "See what happens when there is no stock or the address fails: where it shows and how to cancel or resend."],
+      ["Samples via MCF", "Remember: samples to customers in Europe go via MCF Germany; outside the EU (India, Albania, Kazakhstan) they go from China or Taiwan."],
+    ],
+    notes: [] },
+  '2026-12-22': { n: 0, title: "Dry run and wrap-up", goal: "Run a full day alone and finish your operations guide.",
+    steps: [
+      ["Full routine, every account", "HUNTER USA, Canada, Mexico, Europe, UK, Japan and JEER: health, messages, stock, shipments, payments."],
+      ["Advertising and prices", "Weekly advertising review and check that prices are right."],
+      ["Pending issues", "List what is still open (claims, stuck shipments, unanswered customers) and who handles it."],
+      ["Finish the guide", "Complete your operations guide: daily, weekly and monthly tasks, contacts and where everything is."],
+      ["Questions for Yohai", "Write down anything you still need Yohai to explain before he leaves (Questions Yohai tab)."],
+    ],
+    notes: [] },
+  '2026-12-23': { n: 0, title: "You run operations (23–31 Dec)", goal: "You run everything every day while Yohai is still here.",
+    steps: [
+      ["Every day", "Do the full routine alone, every account, using your guide."],
+      ["Repeat the hardest", "Repeat the topic that was hardest (shipments, advertising, Europe)."],
+      ["Catch up", "Do any training day that slipped."],
+      ["Handover", "Check that every contact (Notification Preferences, support cases) can be changed to you on 1 January."],
+      ["Ready for January", "Price test list, advertising changes and January shipments prepared."],
+    ],
+    notes: [] },
+  '2027-01-04': { n: 0, title: "Start the price test", goal: "New prices live in HUNTER and JEER, with the \"before\" figures saved.",
+    steps: [
+      ["Check the list", "Use the list prepared on 15 December: every ASIN and SKU that changes, in both accounts."],
+      ["Raise the prices", "H3 to $115 and H4 to $120 in Remastered Graphite, Onyx, Mineral and Carbon, and Classic Zinc and Lead. Change the price and, if needed, the minimum/maximum limits."],
+      ["Keep the others", "H3 and H4 Classic Carbon stay at $99.99 / $109.99 and H6 at $149.99."],
+      ["Check the Buy Box", "A few hours later, check that the new prices show on amazon.com and we keep the Buy Box."],
+      ["Save the figures", "Note the date and time of the change and the units per week of the 4 weeks before."],
+    ],
+    notes: [] },
+  '2027-01-05': { n: 0, title: "Clean up advertising", goal: "Advertising spend without sales is gone; the rest keeps running.",
+    steps: [
+      ["Apply the negatives", "Add the search terms approved on 14 December as negatives in their campaigns."],
+      ["Pause or bid down", "Pause or lower the bids of the approved keywords."],
+      ["Keep the rest", "Do not switch off campaigns that sell: ads bring about $11 of sales for every $1 spent."],
+      ["Note the change", "Write the date and what changed, to compare ACoS before and after."],
+      ["Weekly check", "From next Monday the advertising review is part of the weekly check."],
+    ],
+    notes: [] },
+  '2027-01-07': { n: 0, title: "Ideas to reduce returns", goal: "A short list of actions to cut returns, with an owner and a date for each.",
+    steps: [
+      ["Read the data", "Open Sales › Returns: 438 returns in 2026 (13%), 54% unfulfillable. Wrong chair or size 35%, colour 12%, will not hold position 6%."],
+      ["Listing ideas", "Clearer images and bullets on which Aeron each model fits (Classic vs Remastered, sizes A/B/C), a \"which model do I need?\" guide and colour photos next to the chair."],
+      ["Product ideas", "Check the H3 Classic tension (headrest that drops) with the factory."],
+      ["Returned units", "Decide what to do with unfulfillable returns: Hipshipper, disposal, Amazon Grade and Resell or Repackaging service."],
+      ["Action list", "Write 4–6 actions with owner and date."],
+    ],
+    notes: [] },
+  '2027-01-08': { n: 0, title: "Check reimbursements", goal: "You know what Amazon still owes us and how to claim it.",
+    steps: [
+      ["Download the reports", "Reports › Fulfillment › Reimbursements and FBA customer returns for the last months."],
+      ["Cross-check", "Check that every Switcheroo and Carrier damaged return, and every refund where the unit never came back, was reimbursed."],
+      ["Claim what is missing", "Anything missing after about 45 days: open a case in Help › Get support."],
+      ["Manufacturing cost", "Check the cost Amazon has for each SKU: lost units are paid at cost (about $29–38 in 2026), not at the sale price."],
+      ["Monthly habit", "Add this check to your monthly tasks."],
+    ],
+    notes: [] },
+  '2027-01-11': { n: 0, title: "Weekly price test check", goal: "You know each week if the test is working. Repeat every Monday until 15 February.",
+    steps: [
+      ["Units per week", "Compare units of the raised colours against the 4 weeks before the change."],
+      ["Buy Box and competitors", "Check we keep the Buy Box and look at ERGOKING's price on Classic Carbon."],
+      ["Advertising", "Check ACoS after the clean-up."],
+      ["If sales drop", "If H3 Classic Carbon sales clearly drop, use a short coupon instead of matching ERGOKING (never below $95)."],
+      ["Write it down", "One line per week with the figures, to decide on 15 February."],
+    ],
+    notes: [] },
+  '2027-02-15': { n: 0, title: "Decide", goal: "The 2027 prices and advertising budget are decided with real data.",
+    steps: [
+      ["Add up the test", "Units and margin of the raised colours during the test vs the 4 weeks before."],
+      ["Keep or go back", "If units dropped less than 15–20%, keep the new prices (expected +$11K–19K margin a year). If they dropped more, go back to $99.99 / $109.99."],
+      ["Advertising test", "Optional: switch advertising off for 2 weeks in a controlled way to measure how many sales it really brings."],
+      ["Budget 2027", "Set the monthly advertising budget for 2027."],
+      ["Close the plan", "Write the decision and the reasons in your guide."],
+    ],
+    notes: [] }
 };
 function trnDayCard(d) {
-  const S = TRN_STEPS[d]; if (!S) return '';
+  const S = TRN_STEPS[d]; if (!S) return ''; S.n = TRN_DAYS.filter((r) => r[0] !== 'w').findIndex((r) => r[0] === d) + 1;
   const R = TRN_DAYS.find((r) => r[0] === d) || []; const x = new Date(d + 'T12:00:00Z'); const fd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MON3[x.getUTCMonth()];
   return `<section class="card"><h3>Day ${S.n} · ${fd} · ${esc(S.title)}</h3><p class="hint" style="margin:2px 0 12px">${esc(S.goal)}</p>
     <ol class="tsteps">${S.steps.map(([t, b], i) => `<li><span class="tn">${i + 1}</span><div><b>${esc(t)}</b><p>${esc(b)}</p></div></li>`).join('')}</ol>
@@ -823,9 +1030,14 @@ function trainingView() {
   const tl = `<div class="gan">${PH.map(([n, a, b, k]) => { const l = P(a), w = P(b) + 100 / (hi - lo) - l; const st = k === 1 ? 'background:color-mix(in srgb,#5B8DEF 22%,transparent);border:2px solid #5B8DEF' : k === 2 ? 'border:1.5px dashed var(--muted)' : 'background:color-mix(in srgb,var(--line) 60%,transparent);border:1.5px solid var(--muted)'; return `<div style="font-weight:${k === 1 ? 800 : 500}">${n}</div><div class="bar"><span style="left:${l}%;width:${w}%;${st}" title="${sd(a)} – ${sd(b)}">${w > 12 ? sd(a) + ' – ' + sd(b) : ''}</span>${w > 12 ? '' : `<span style="left:calc(${l + w}% + 6px);color:var(--muted)">${sd(a)} – ${sd(b)}</span>`}</div>`; }).join('')}<div style="font-weight:800">Yohai leaves</div><div class="bar"><span style="left:calc(${P('2027-01-01')}% - 40px);width:40px;color:var(--bad);font-weight:800">1 Jan ◆</span></div></div>
     <p class="hint" style="margin-top:6px">Blue = top priority (account, customers, stock). The first two weeks cover what matters most; week 3 adds listings and advertising, week 4 the other accounts and marketplaces.</p>`;
   const css2 = `<style>.trn .tsteps{list-style:none;margin:0;padding:0;display:grid;gap:10px}.trn .tsteps li{display:grid;grid-template-columns:34px 1fr;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}.trn .tsteps .tn{width:30px;height:30px;border-radius:50%;background:#5B8DEF;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}.trn .tsteps p{margin:4px 0 0;font-size:14px;line-height:1.5}.trn .tnotes{margin:0;padding-left:18px;line-height:1.6;font-size:14px}.trn .tnotes li{margin-bottom:6px}.trn code{font-family:var(--mono,ui-monospace);background:color-mix(in srgb,var(--line) 50%,transparent);padding:1px 5px;border-radius:4px}</style>`;
-  const subs = [['plan', 'Plan']].concat(Object.keys(TRN_STEPS).map((k) => [k, 'Day ' + TRN_STEPS[k].n])); const sub = subs.some(([v]) => v === state.trnSub) ? state.trnSub : 'plan';
+  const sub = state.trnSub === 'days' || (state.trnSub && TRN_STEPS[state.trnSub]) ? 'days' : 'plan'; const subs = [['plan', 'Plan'], ['days', 'Days']];
   const nav = `<div class="seg" role="group" aria-label="Training" style="flex-wrap:wrap;max-width:100%;margin:0 0 12px">${subs.map(([v, l]) => `<button aria-pressed="${v === sub}" data-trnsub="${v}">${l}</button>`).join('')}</div>`;
-  if (sub !== 'plan') return css + css2 + `<div class="trn">${nav}${trnDayCard(sub)}</div>`;
+  if (sub === 'days') {
+    const all = TRN_DAYS.filter((r) => r[0] !== 'w'); const sel = TRN_STEPS[state.trnDay] ? state.trnDay : (TRN_STEPS[state.trnSub] ? state.trnSub : (curr ? curr[0] : all[0][0]));
+    let wk = ''; const list = TRN_DAYS.map((r) => { if (r[0] === 'w') return `<div class="tdw">${esc(r[1])}</div>`; const i = all.findIndex((x) => x[0] === r[0]) + 1; const ok = !!done[r[0]]; return `<button class="tdl${r[0] === sel ? ' on' : ''}${ok ? ' ok' : ''}" data-trnday="${r[0]}"><span class="tdn">${ok ? '✓' : i}</span><span><b>Day ${i}</b> · ${r[0] === '2026-12-23' ? '23–31 Dec' : fd(r[0])}<br><span class="tdt">${esc(r[1])}</span></span></button>`; }).join('');
+    const css3 = `<style>.trn .tdgrid{display:grid;grid-template-columns:270px 1fr;gap:14px;align-items:start}.trn .tdlist{display:flex;flex-direction:column;gap:4px;position:sticky;top:8px;max-height:calc(100vh - 40px);overflow-y:auto;padding:8px}.trn .tdw{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:10px 4px 2px}.trn .tdl{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid transparent;border-radius:10px;padding:7px 8px;background:none;cursor:pointer;font:inherit;font-size:13px;color:inherit}.trn .tdl:hover{background:var(--surface2)}.trn .tdl.on{border-color:#5B8DEF;background:color-mix(in srgb,#5B8DEF 12%,transparent)}.trn .tdn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}.trn .tdl.on .tdn{background:#5B8DEF;color:#fff}.trn .tdl.ok .tdn{background:var(--ok);color:#fff}.trn .tdt{color:var(--muted);font-size:12px}@media(max-width:760px){.trn .tdgrid{grid-template-columns:1fr}.trn .tdlist{position:static;max-height:260px}}</style>`;
+    return css + css2 + css3 + `<div class="trn">${nav}<div class="tdgrid"><div class="card tdlist">${list}</div><div>${trnDayCard(sel)}</div></div></div>`;
+  }
   let h = css + css2 + `<div class="trn">${nav}
   <section class="card"><h3>Amazon operations · training plan</h3><p class="hint" style="margin:2px 0 10px">Everything ready by 22 December, with 9 days of buffer before Yohai leaves on 1 January. 20 working days, 3–4 hours a day: 30 minutes of routine plus 2.5–3 hours of hands-on practice, one topic per day. US first (HUNTER from day 1, JEER from day 16).</p>
     <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="pg"><div style="width:${nDone / days.length * 100}%"></div></div></div><b>${n0(nDone)} of ${n0(days.length)} days done</b>${curr ? `<span class="mut">Next: <b>${fd(curr[0])} · ${esc(curr[1])}</b></span>` : ''}</div>
@@ -4251,7 +4463,7 @@ function drawMoves() {
 }
 const AFTER = {
   amzops() { document.querySelectorAll('[data-opsst]').forEach((b) => b.addEventListener('click', () => { state.opsStore = b.dataset.opsst; render(); })); },
-  training() { document.querySelectorAll('[data-trnsub]').forEach((b) => b.addEventListener('click', () => { state.trnSub = b.dataset.trnsub; render(); scrollTo({ top: 0 }); })); document.querySelectorAll('[data-trn]').forEach((b) => b.addEventListener('change', () => { let d = {}; try { d = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { d = {}; } if (b.checked) d[b.dataset.trn] = 1; else delete d[b.dataset.trn]; try { localStorage.setItem('en-training', JSON.stringify(d)); } catch (e) {} const y = scrollY; render(); scrollTo({ top: y }); })); },
+  training() { document.querySelectorAll('[data-trnsub]').forEach((b) => b.addEventListener('click', () => { state.trnSub = b.dataset.trnsub; render(); scrollTo({ top: 0 }); })); document.querySelectorAll('[data-trnday]').forEach((b) => b.addEventListener('click', () => { state.trnDay = b.dataset.trnday; state.trnSub = 'days'; render(); scrollTo({ top: 0 }); })); document.querySelectorAll('[data-trn]').forEach((b) => b.addEventListener('change', () => { let d = {}; try { d = JSON.parse(localStorage.getItem('en-training') || '{}') || {}; } catch (e) { d = {}; } if (b.checked) d[b.dataset.trn] = 1; else delete d[b.dataset.trn]; try { localStorage.setItem('en-training', JSON.stringify(d)); } catch (e) {} const y = scrollY; render(); scrollTo({ top: y }); })); },
   testing() { const kp = (fn) => () => { const y = scrollY; fn(); render(); scrollTo({ top: y }); }; document.querySelectorAll('[data-cxopt]').forEach((x) => x.addEventListener('click', kp(() => { state.cxOpt = x.dataset.cxopt; }))); document.querySelectorAll('[data-cxline]').forEach((x) => x.addEventListener('click', kp(() => { state.cxLine = x.dataset.cxline; }))); document.querySelectorAll('[data-plqent]').forEach((b) => b.addEventListener('click', kp(() => { state.plqEnt = b.dataset.plqent; }))); document.querySelectorAll('[data-cy]').forEach((b) => b.addEventListener('click', kp(() => { state.cY = b.dataset.cy; }))); document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', kp(() => { state.cMet = b.dataset.cm; }))); document.querySelectorAll('[data-mapm]').forEach((b) => b.addEventListener('click', kp(() => { state.mapMet = b.dataset.mapm; }))); document.querySelectorAll('[data-mapy]').forEach((b) => b.addEventListener('click', kp(() => { state.mapY = b.dataset.mapy; }))); },
   questions() {
     const T = () => yqData().topics, cur = () => T().find((t) => t.id === state.yqTopic);
